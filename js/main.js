@@ -178,6 +178,22 @@ class Game {
         this.audio.init();
         this.audio.playBackgroundMusic();
 
+        // Clean up any active power-ups from previous game
+        // This removes their visual meshes and effects
+        for (const [type] of this.activePowerUps) {
+            this.deactivatePowerUp(type);
+        }
+
+        // Clean up any lingering speed trail particles
+        if (this.speedTrailParticles) {
+            this.speedTrailParticles.forEach(p => {
+                if (p.parent) p.parent.remove(p);
+                if (p.geometry) p.geometry.dispose();
+                if (p.material) p.material.dispose();
+            });
+            this.speedTrailParticles = [];
+        }
+
         // Reset game state
         this.score = 0;
         this.coins = 0;
@@ -185,6 +201,7 @@ class Game {
         this.activePowerUps.clear();
         this.coinMultiplier = 1;
         this.hasShield = false;
+        this.invincibilityTimer = 0;
         this.updateHUD();
 
         this.isRunning = true;

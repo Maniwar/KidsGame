@@ -113,8 +113,8 @@ export class GameScene {
             // Use setting from user preference or auto-detect
             antialias: useAntialias,
             alpha: false,
-            // PERFORMANCE: Use low power preference on mobile
-            powerPreference: isMobile ? 'default' : 'high-performance'
+            // Always use high-performance to avoid slow fallback paths on some GPUs (Adreno, etc.)
+            powerPreference: 'high-performance'
         });
 
         this.renderer.setSize(window.innerWidth, window.innerHeight);

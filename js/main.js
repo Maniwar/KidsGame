@@ -32,6 +32,24 @@ class Game {
         this.highScores = this.loadHighScores();
         this.isNewHighScore = false;
 
+        // PERFORMANCE: Cached frame time (updated once per frame, passed to all systems)
+        this.frameTime = 0;
+
+        // PERFORMANCE: Pre-allocated vectors to avoid GC pressure
+        this._tempVec3 = new THREE.Vector3();
+
+        // PERFORMANCE: Particle pool for explosions and effects
+        this.particlePool = [];
+        this.activeParticles = [];
+        this.maxPoolSize = 100;
+
+        // PERFORMANCE: Shared geometries and materials for particles
+        this.sharedParticleGeo = null;
+        this.sharedSpeedTrailGeo = null;
+
+        // PERFORMANCE: Animation queue (replaces separate RAF callbacks)
+        this.animations = [];
+
         // Initialize game systems
         this.init();
     }
@@ -64,6 +82,19 @@ class Game {
         this.frameCount = 0;
         this.fpsUpdateTime = 0;
         this.currentFPS = 60;
+
+        // PERFORMANCE: Initialize shared geometries and particle pool
+        this.initSharedResources();
+
+        // PERFORMANCE: Cache DOM elements
+        this.domElements = {
+            score: document.getElementById('score'),
+            coins: document.getElementById('coins'),
+            distance: document.getElementById('distance'),
+            fps: document.getElementById('fps'),
+            powerUpDisplay: null,
+            powerUpStylesInjected: false
+        };
 
         // Setup UI
         this.setupUI();
@@ -184,7 +215,15 @@ class Game {
             this.deactivatePowerUp(type);
         }
 
-        // Clean up any lingering speed trail particles
+        // PERFORMANCE: Reset particle pool (return all active particles)
+        for (let i = this.activeParticles.length - 1; i >= 0; i--) {
+            this.returnParticleToPool(this.activeParticles[i]);
+        }
+
+        // Clear animation queue
+        this.animations = [];
+
+        // Clean up any lingering speed trail particles (legacy cleanup)
         if (this.speedTrailParticles) {
             this.speedTrailParticles.forEach(p => {
                 if (p.parent) p.parent.remove(p);
@@ -332,20 +371,31 @@ class Game {
         if (this.activePowerUps.has('magnet')) {
             const playerPos = this.player.getPosition();
             const magnetRadius = 5; // Attraction radius
+            const magnetRadiusSq = magnetRadius * magnetRadius; // PERFORMANCE: Squared for comparison
             const attractSpeed = 15; // How fast coins move toward player
 
             const collectibles = this.world.getCollectibles();
-            for (const collectible of collectibles) {
+            for (let i = 0, len = collectibles.length; i < len; i++) {
+                const collectible = collectibles[i];
                 if (collectible.isCollected) continue;
 
-                const dx = playerPos.x - collectible.position.x;
+                // PERFORMANCE: Early z-check (cheap culling)
                 const dz = playerPos.z - collectible.position.z;
-                const distance = Math.sqrt(dx * dx + dz * dz);
+                if (dz > magnetRadius || dz < -magnetRadius) continue;
 
-                if (distance < magnetRadius) {
-                    // Move coin toward player
-                    collectible.position.x += (dx / distance) * attractSpeed * deltaTime;
-                    collectible.position.z += (dz / distance) * attractSpeed * deltaTime;
+                const dx = playerPos.x - collectible.position.x;
+
+                // PERFORMANCE: Early x-check
+                if (dx > magnetRadius || dx < -magnetRadius) continue;
+
+                // PERFORMANCE: Use squared distance
+                const distanceSq = dx * dx + dz * dz;
+                if (distanceSq < magnetRadiusSq && distanceSq > 0.01) {
+                    // Only compute sqrt when actually needed
+                    const distance = Math.sqrt(distanceSq);
+                    const invDist = 1 / distance;
+                    collectible.position.x += dx * invDist * attractSpeed * deltaTime;
+                    collectible.position.z += dz * invDist * attractSpeed * deltaTime;
                     collectible.group.position.x = collectible.position.x;
                     collectible.group.position.z = collectible.position.z;
                 }
@@ -565,18 +615,14 @@ class Game {
     }
 
     createObstacleExplosion(position) {
-        const particles = [];
+        // PERFORMANCE: Use particle pool instead of creating new objects
         const particleCount = 12;
 
         for (let i = 0; i < particleCount; i++) {
-            const particleGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
-            const particleMat = new THREE.MeshBasicMaterial({
-                color: Math.random() > 0.5 ? 0xFFAA00 : 0xFF6600,
-                transparent: true,
-                opacity: 1
-            });
+            const color = Math.random() > 0.5 ? 0xFFAA00 : 0xFF6600;
+            const particle = this.getParticleFromPool(color);
+            if (!particle) continue; // Pool exhausted
 
-            const particle = new THREE.Mesh(particleGeo, particleMat);
             particle.position.copy(position);
 
             const angle = (i / particleCount) * Math.PI * 2;
@@ -591,72 +637,40 @@ class Game {
                 y: (Math.random() - 0.5) * 10,
                 z: (Math.random() - 0.5) * 10
             };
-
-            this.gameScene.getScene().add(particle);
-            particles.push(particle);
+            particle.userData.life = 0.6;
+            particle.userData.maxLife = 0.6;
+            particle.userData.gravity = true;
+            particle.userData.shrink = false;
+            particle.rotation.set(0, 0, 0);
         }
-
-        // Animate explosion
-        const duration = 600;
-        const startTime = Date.now();
-
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = elapsed / duration;
-
-            if (progress >= 1) {
-                particles.forEach(p => {
-                    this.gameScene.getScene().remove(p);
-                    p.geometry.dispose();
-                    p.material.dispose();
-                });
-                return;
-            }
-
-            particles.forEach((particle) => {
-                particle.position.x += particle.userData.velocity.x * 0.016;
-                particle.position.y += particle.userData.velocity.y * 0.016;
-                particle.position.z += particle.userData.velocity.z * 0.016;
-                particle.userData.velocity.y -= 15 * 0.016; // Gravity
-
-                particle.rotation.x += particle.userData.rotationSpeed.x * 0.016;
-                particle.rotation.y += particle.userData.rotationSpeed.y * 0.016;
-                particle.rotation.z += particle.userData.rotationSpeed.z * 0.016;
-
-                particle.material.opacity = 1 - progress;
-            });
-
-            requestAnimationFrame(animate);
-        };
-
-        animate();
     }
 
     screenShake(intensity = 0.3, duration = 200) {
+        // PERFORMANCE: Use animation queue instead of separate RAF callback
         const camera = this.camera.getCamera();
-        const originalPosition = camera.position.clone();
-        const startTime = Date.now();
+        const originalX = camera.position.x;
+        const originalY = camera.position.y;
 
-        const shake = () => {
-            const elapsed = Date.now() - startTime;
-            if (elapsed > duration) {
-                camera.position.copy(originalPosition);
-                return;
+        this.animations.push({
+            elapsed: 0,
+            duration: duration,
+            update: (progress) => {
+                if (progress >= 1) {
+                    camera.position.x = originalX;
+                    camera.position.y = originalY;
+                    return true; // Animation complete
+                }
+
+                const currentIntensity = intensity * (1 - progress);
+                camera.position.x = originalX + (Math.random() - 0.5) * currentIntensity;
+                camera.position.y = originalY + (Math.random() - 0.5) * currentIntensity;
+                return false;
             }
-
-            const progress = elapsed / duration;
-            const currentIntensity = intensity * (1 - progress);
-
-            camera.position.x = originalPosition.x + (Math.random() - 0.5) * currentIntensity;
-            camera.position.y = originalPosition.y + (Math.random() - 0.5) * currentIntensity;
-
-            requestAnimationFrame(shake);
-        };
-
-        shake();
+        });
     }
 
     createFloatingText(text, position, color = 0xFFFFFF) {
+        // PERFORMANCE: Create canvas texture (unavoidable for text, but use animation queue)
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.width = 256;
@@ -669,7 +683,7 @@ class Game {
         context.fillText(text, 128, 64);
 
         const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
         const sprite = new THREE.Sprite(spriteMaterial);
 
         sprite.position.copy(position);
@@ -678,98 +692,84 @@ class Game {
 
         this.gameScene.getScene().add(sprite);
 
-        // Animate floating up and fading
-        const duration = 1000;
-        const startTime = Date.now();
         const startY = sprite.position.y;
+        const scene = this.gameScene.getScene();
 
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = elapsed / duration;
+        // PERFORMANCE: Use animation queue instead of separate RAF callback
+        this.animations.push({
+            elapsed: 0,
+            duration: 1000,
+            update: (progress) => {
+                if (progress >= 1) {
+                    scene.remove(sprite);
+                    texture.dispose();
+                    spriteMaterial.dispose();
+                    return true; // Animation complete
+                }
 
-            if (progress >= 1) {
-                this.gameScene.getScene().remove(sprite);
-                texture.dispose();
-                spriteMaterial.dispose();
-                return;
+                sprite.position.y = startY + progress * 3;
+                sprite.material.opacity = 1 - progress;
+                return false;
             }
-
-            sprite.position.y = startY + progress * 3;
-            sprite.material.opacity = 1 - progress;
-
-            requestAnimationFrame(animate);
-        };
-
-        animate();
+        });
     }
 
     updatePowerUpVisuals(deltaTime) {
+        // PERFORMANCE: Use cached frame time instead of Date.now()
+        const time = this.frameTime;
+
         // Animate shield bubble
         if (this.shieldMesh) {
             this.shieldMesh.rotation.y += deltaTime * 2;
-            const pulse = Math.sin(Date.now() * 0.003) * 0.1 + 0.3;
+            const pulse = Math.sin(time * 0.003) * 0.1 + 0.3;
             this.shieldMesh.material.opacity = pulse;
         }
 
         // Animate multiplier ring
         if (this.multiplierRing) {
             this.multiplierRing.rotation.z += deltaTime * 3;
-            const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 0.6;
+            const pulse = Math.sin(time * 0.005) * 0.2 + 0.6;
             this.multiplierRing.material.opacity = pulse;
         }
 
         // Animate magnet ring
         if (this.magnetRing) {
             this.magnetRing.rotation.z += deltaTime * 4;
-            const pulse = Math.sin(Date.now() * 0.004) * 0.2 + 0.5;
+            const pulse = Math.sin(time * 0.004) * 0.2 + 0.5;
             this.magnetRing.material.opacity = pulse;
         }
 
-        // Create speed trail particles
+        // PERFORMANCE: Use particle pool for speed trail
         if (this.activePowerUps.has('speed') && this.speedTrailParticles) {
-            // Spawn trail particle every few frames
+            // Spawn trail particle every few frames using particle pool
             if (Math.random() < 0.3) {
                 const playerPos = this.player.getPosition();
-                const trailGeo = new THREE.SphereGeometry(0.15, 6, 6);
-                const hue = (Date.now() % 1000) / 1000;
+                const hue = (time % 1000) / 1000;
                 const color = new THREE.Color().setHSL(hue, 1, 0.5);
-                const trailMat = new THREE.MeshBasicMaterial({
-                    color: color,
-                    transparent: true,
-                    opacity: 0.8
-                });
+                const particle = this.getParticleFromPool(color.getHex());
 
-                const trail = new THREE.Mesh(trailGeo, trailMat);
-                trail.position.copy(playerPos);
-                trail.position.y += 0.5;
-                trail.userData.life = 0.5;
-                trail.userData.maxLife = 0.5;
-
-                this.gameScene.getScene().add(trail);
-                this.speedTrailParticles.push(trail);
-            }
-
-            // Update and fade existing trail particles
-            this.speedTrailParticles = this.speedTrailParticles.filter(particle => {
-                particle.userData.life -= deltaTime;
-                const lifeRatio = particle.userData.life / particle.userData.maxLife;
-                particle.material.opacity = lifeRatio;
-                particle.scale.multiplyScalar(0.95);
-
-                if (particle.userData.life <= 0) {
-                    this.gameScene.getScene().remove(particle);
-                    particle.geometry.dispose();
-                    particle.material.dispose();
-                    return false;
+                if (particle) {
+                    particle.position.copy(playerPos);
+                    particle.position.y += 0.5;
+                    particle.userData.life = 0.5;
+                    particle.userData.maxLife = 0.5;
+                    particle.userData.gravity = false;
+                    particle.userData.shrink = true;
+                    particle.userData.velocity = { x: 0, y: 0, z: 0 };
+                    particle.userData.rotationSpeed = null;
+                    particle.scale.set(1, 1, 1);
+                    // Use shared speed trail geometry (sphere vs box)
+                    if (this.sharedSpeedTrailGeo && particle.geometry !== this.sharedSpeedTrailGeo) {
+                        particle.geometry = this.sharedSpeedTrailGeo;
+                    }
                 }
-                return true;
-            });
+            }
         }
 
         // Animate cloud
         if (this.cloudMesh) {
             this.cloudMesh.rotation.y += deltaTime;
-            const bob = Math.sin(Date.now() * 0.002) * 0.1;
+            const bob = Math.sin(time * 0.002) * 0.1;
             this.cloudMesh.position.y = -0.5 + bob;
         }
     }
@@ -897,17 +897,17 @@ class Game {
     }
 
     checkCollision(playerPos, objectBox) {
-        // Simple distance-based collision
-        const distance = Math.sqrt(
-            Math.pow(playerPos.x - objectBox.center.x, 2) +
-            Math.pow(playerPos.z - objectBox.center.z, 2)
-        );
+        // PERFORMANCE: Use squared distance (no sqrt needed)
+        const dx = playerPos.x - objectBox.center.x;
+        const dz = playerPos.z - objectBox.center.z;
+        const distanceSquared = dx * dx + dz * dz;
 
-        // Player radius + object radius
+        // Player radius + object radius (squared for comparison)
         const collisionDistance = 0.4 + objectBox.radius;
+        const collisionDistanceSquared = collisionDistance * collisionDistance;
 
         // Not close enough to collide
-        if (distance > collisionDistance) {
+        if (distanceSquared > collisionDistanceSquared) {
             return false;
         }
 
@@ -938,50 +938,18 @@ class Game {
     }
 
     updateHUD() {
-        document.getElementById('score').textContent = Math.floor(this.score);
-        document.getElementById('coins').textContent = this.coins;
-        document.getElementById('distance').textContent = Math.floor(this.distance) + 'm';
+        // PERFORMANCE: Use cached DOM elements
+        this.domElements.score.textContent = Math.floor(this.score);
+        this.domElements.coins.textContent = this.coins;
+        this.domElements.distance.textContent = Math.floor(this.distance) + 'm';
 
         // Update power-up indicators
         this.updatePowerUpHUD();
     }
 
     updatePowerUpHUD() {
-        let powerUpHTML = '';
-        const icons = {
-            'magnet': '🧲',
-            'shield': '🛡️',
-            'speed': '⚡',
-            'multiplier': '✨',
-            'flight': '🎈',
-            'giant': '🍄'
-        };
-
-        for (const [type, data] of this.activePowerUps) {
-            const timeLeft = Math.ceil(data.duration);
-            powerUpHTML += `<div class="power-up-indicator">${icons[type]} ${timeLeft}s</div>`;
-        }
-
-        // Create or update power-up display
-        let powerUpDisplay = document.getElementById('power-up-display');
-        if (!powerUpDisplay) {
-            powerUpDisplay = document.createElement('div');
-            powerUpDisplay.id = 'power-up-display';
-            powerUpDisplay.style.cssText = `
-                position: fixed;
-                top: 80px;
-                right: 20px;
-                display: flex;
-                flex-direction: column;
-                gap: 5px;
-                z-index: 100;
-            `;
-            document.body.appendChild(powerUpDisplay);
-        }
-        powerUpDisplay.innerHTML = powerUpHTML;
-
-        // Add styles for power-up indicators
-        if (!document.getElementById('power-up-styles')) {
+        // PERFORMANCE: Inject styles only once
+        if (!this.domElements.powerUpStylesInjected) {
             const style = document.createElement('style');
             style.id = 'power-up-styles';
             style.textContent = `
@@ -1041,6 +1009,66 @@ class Game {
                 }
             `;
             document.head.appendChild(style);
+            this.domElements.powerUpStylesInjected = true;
+        }
+
+        // PERFORMANCE: Create power-up display only once
+        if (!this.domElements.powerUpDisplay) {
+            let powerUpDisplay = document.getElementById('power-up-display');
+            if (!powerUpDisplay) {
+                powerUpDisplay = document.createElement('div');
+                powerUpDisplay.id = 'power-up-display';
+                powerUpDisplay.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 5px;
+                    z-index: 100;
+                `;
+                document.body.appendChild(powerUpDisplay);
+            }
+            this.domElements.powerUpDisplay = powerUpDisplay;
+            this.domElements.powerUpElements = new Map(); // Cache individual elements
+        }
+
+        const icons = {
+            'magnet': '🧲',
+            'shield': '🛡️',
+            'speed': '⚡',
+            'multiplier': '✨',
+            'flight': '🎈',
+            'giant': '🍄'
+        };
+
+        // PERFORMANCE: Update existing elements instead of rebuilding innerHTML
+        const currentTypes = new Set(this.activePowerUps.keys());
+        const cachedElements = this.domElements.powerUpElements;
+
+        // Remove elements for inactive power-ups
+        for (const [type, elem] of cachedElements) {
+            if (!currentTypes.has(type)) {
+                elem.remove();
+                cachedElements.delete(type);
+            }
+        }
+
+        // Update or create elements for active power-ups
+        for (const [type, data] of this.activePowerUps) {
+            const timeLeft = Math.ceil(data.duration);
+            let elem = cachedElements.get(type);
+
+            if (!elem) {
+                // Create new element
+                elem = document.createElement('div');
+                elem.className = 'power-up-indicator';
+                this.domElements.powerUpDisplay.appendChild(elem);
+                cachedElements.set(type, elem);
+            }
+
+            // PERFORMANCE: Only update textContent (no innerHTML parsing)
+            elem.textContent = `${icons[type]} ${timeLeft}s`;
         }
     }
 
@@ -1091,15 +1119,21 @@ class Game {
         const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1); // Cap at 100ms
         this.lastTime = currentTime;
 
+        // PERFORMANCE: Cache frame time for all systems (avoids Date.now() calls)
+        this.frameTime = currentTime;
+
         // Update FPS counter
         this.frameCount++;
         this.fpsUpdateTime += deltaTime;
         if (this.fpsUpdateTime >= 0.5) { // Update FPS display every 0.5 seconds
             this.currentFPS = Math.round(this.frameCount / this.fpsUpdateTime);
-            document.getElementById('fps').textContent = this.currentFPS;
+            this.domElements.fps.textContent = this.currentFPS;
             this.frameCount = 0;
             this.fpsUpdateTime = 0;
         }
+
+        // PERFORMANCE: Update all animations in one pass (no separate RAF callbacks)
+        this.updateAnimations(deltaTime);
 
         // Update game
         this.update(deltaTime);
@@ -1111,6 +1145,106 @@ class Game {
     handleResize() {
         this.camera.handleResize();
         this.gameScene.handleResize();
+    }
+
+    // PERFORMANCE: Initialize shared geometries and materials (reuse instead of recreate)
+    initSharedResources() {
+        // Shared particle geometry for explosions
+        this.sharedParticleGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+        this.sharedSpeedTrailGeo = new THREE.SphereGeometry(0.15, 6, 6);
+
+        // Pre-create particle pool
+        for (let i = 0; i < this.maxPoolSize; i++) {
+            const particle = new THREE.Mesh(
+                this.sharedParticleGeo,
+                new THREE.MeshBasicMaterial({ transparent: true, opacity: 1 })
+            );
+            particle.visible = false;
+            particle.userData = { active: false, velocity: { x: 0, y: 0, z: 0 }, life: 0, maxLife: 0 };
+            this.particlePool.push(particle);
+            this.gameScene.getScene().add(particle);
+        }
+    }
+
+    // PERFORMANCE: Get particle from pool instead of creating new one
+    getParticleFromPool(color) {
+        for (let i = 0; i < this.particlePool.length; i++) {
+            const p = this.particlePool[i];
+            if (!p.userData.active) {
+                p.userData.active = true;
+                p.visible = true;
+                p.material.color.setHex(color);
+                p.material.opacity = 1;
+                p.scale.set(1, 1, 1);
+                this.activeParticles.push(p);
+                return p;
+            }
+        }
+        return null; // Pool exhausted
+    }
+
+    // PERFORMANCE: Return particle to pool
+    returnParticleToPool(particle) {
+        particle.userData.active = false;
+        particle.visible = false;
+        const idx = this.activeParticles.indexOf(particle);
+        if (idx !== -1) {
+            this.activeParticles.splice(idx, 1);
+        }
+    }
+
+    // PERFORMANCE: Update all animations in one place (no separate RAF callbacks)
+    updateAnimations(deltaTime) {
+        // Update active particles
+        for (let i = this.activeParticles.length - 1; i >= 0; i--) {
+            const p = this.activeParticles[i];
+            p.userData.life -= deltaTime;
+
+            if (p.userData.life <= 0) {
+                this.returnParticleToPool(p);
+                continue;
+            }
+
+            // Update position
+            p.position.x += p.userData.velocity.x * deltaTime;
+            p.position.y += p.userData.velocity.y * deltaTime;
+            p.position.z += p.userData.velocity.z * deltaTime;
+
+            // Apply gravity if flagged
+            if (p.userData.gravity) {
+                p.userData.velocity.y -= 15 * deltaTime;
+            }
+
+            // Update rotation if flagged
+            if (p.userData.rotationSpeed) {
+                p.rotation.x += p.userData.rotationSpeed.x * deltaTime;
+                p.rotation.y += p.userData.rotationSpeed.y * deltaTime;
+                p.rotation.z += p.userData.rotationSpeed.z * deltaTime;
+            }
+
+            // Fade out
+            const lifeRatio = p.userData.life / p.userData.maxLife;
+            p.material.opacity = lifeRatio;
+
+            // Shrink if flagged
+            if (p.userData.shrink) {
+                const scale = lifeRatio;
+                p.scale.set(scale, scale, scale);
+            }
+        }
+
+        // Update queued animations (screen shake, floating text, etc.)
+        for (let i = this.animations.length - 1; i >= 0; i--) {
+            const anim = this.animations[i];
+            anim.elapsed += deltaTime * 1000; // Convert to ms for compatibility
+            const progress = Math.min(anim.elapsed / anim.duration, 1);
+
+            if (anim.update(progress, deltaTime)) {
+                // Animation complete
+                if (anim.onComplete) anim.onComplete();
+                this.animations.splice(i, 1);
+            }
+        }
     }
 
     // Leaderboard methods

@@ -235,11 +235,30 @@ class Game {
             this.deactivatePowerUp(type);
         }
 
+        // MEMORY FIX: Clear power-up HUD elements from previous game
+        if (this.domElements.powerUpElements) {
+            for (const [, elem] of this.domElements.powerUpElements) {
+                elem.remove();
+            }
+            this.domElements.powerUpElements.clear();
+        }
+
+        // MEMORY FIX: Remove any lingering power-up notifications
+        document.querySelectorAll('.power-up-notification').forEach(el => el.remove());
+
         // PERFORMANCE: Reset particle pool (return all active particles)
         for (let i = this.activeParticles.length - 1; i >= 0; i--) {
             this.returnParticleToPool(this.activeParticles[i]);
         }
 
+        // MEMORY FIX: Force-complete any pending animations to dispose their resources
+        if (this.animations && this.animations.length > 0) {
+            this.animations.forEach(anim => {
+                if (anim.update) {
+                    anim.update(1); // Force completion (triggers cleanup)
+                }
+            });
+        }
         // Clear animation queue
         this.animations = [];
 
@@ -261,6 +280,7 @@ class Game {
         this.coinMultiplier = 1;
         this.hasShield = false;
         this.invincibilityTimer = 0;
+        this.lastHUDUpdate = 0; // MEMORY FIX: Reset HUD throttle timer
         this.updateHUD();
 
         this.isRunning = true;

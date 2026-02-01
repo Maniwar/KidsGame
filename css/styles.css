@@ -71,6 +71,7 @@ body {
     justify-content: center;
     z-index: 100;
     padding: 20px;
+    overflow: hidden;
 }
 
 .screen.active {

@@ -83,6 +83,12 @@ body {
     overflow: hidden;
 }
 
+/* Game over screen - more transparent to see character */
+#game-over-screen {
+    background: rgba(255, 183, 197, 0.4);
+    backdrop-filter: blur(3px);
+}
+
 .screen.active {
     display: flex;
 }

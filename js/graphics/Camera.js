@@ -49,7 +49,7 @@ export class GameCamera {
         this.camera.lookAt(lookAtPosition);
     }
 
-    // Dramatic spin to face close-up after death
+    // Orbit camera around character after death with gentle sway
     startDeathCamera(playerPosition, callback) {
         this.isDeathCamera = true;
         this.deathCameraTarget = playerPosition.clone();
@@ -59,19 +59,19 @@ export class GameCamera {
         // Store original position for smooth transition
         this.deathCameraStartPos = this.camera.position.clone();
         this.deathCameraStartTime = performance.now();
-        this.deathCameraDuration = 1200; // 1.2 seconds to spin around
+        this.deathCameraDuration = 1200; // 1.2 seconds for initial spin
 
-        // Target: front-facing close-up of character face
-        // Character faces -Z, so camera needs to be at +Z relative to character
+        // Close-up position with room for stars
         this.deathCameraEndPos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.5, // Face height
-            playerPosition.z + 2.5  // In front of character
+            playerPosition.y + 1.8, // Slightly above face
+            playerPosition.z + 3.5  // Close but not too close
         );
 
+        // Look at character face
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.3, // Look at face
+            playerPosition.y + 1.3,
             playerPosition.z
         );
     }
@@ -84,35 +84,32 @@ export class GameCamera {
         const easeOutCubic = 1 - Math.pow(1 - progress, 3);
 
         if (progress < 1) {
-            // Spin around the character while moving to front
-            // Start from behind (+Z offset), spin 180 degrees to front
-            const spinProgress = easeOutCubic;
-            const angle = Math.PI * spinProgress; // 0 to PI (180 degrees)
+            // Initial spin around to front
+            const angle = Math.PI * easeOutCubic; // 0 to 180 degrees
+            const radius = 5 - easeOutCubic * 1.5; // Start far, end closer
+            const height = 4 - easeOutCubic * 2.2; // Start high, end at face level
 
-            const radius = 4 - spinProgress * 1.5; // Start far, end closer
-            const height = 5 - spinProgress * 3.5; // Start high, end at face level
-
-            // Calculate orbital position
             const camX = this.deathCameraTarget.x + Math.sin(angle) * radius;
             const camY = this.deathCameraTarget.y + height;
             const camZ = this.deathCameraTarget.z + Math.cos(angle) * radius;
 
             this.camera.position.set(camX, camY, camZ);
-
-            // Always look at the character's face
             this.camera.lookAt(this.deathCameraFacePos);
 
         } else {
-            // Animation complete - hold at final position
-            this.camera.position.copy(this.deathCameraEndPos);
-            this.camera.lookAt(this.deathCameraFacePos);
-
-            // Gentle idle sway
+            // Continuous gentle sway around character
             const idleTime = (elapsed - this.deathCameraDuration) * 0.001;
-            const swayX = Math.sin(idleTime * 0.8) * 0.1;
-            const swayY = Math.sin(idleTime * 0.5) * 0.05;
-            this.camera.position.x = this.deathCameraEndPos.x + swayX;
-            this.camera.position.y = this.deathCameraEndPos.y + swayY;
+
+            // Sway side to side and up/down
+            const swayX = Math.sin(idleTime * 0.6) * 0.8; // Side to side
+            const swayY = Math.sin(idleTime * 0.4) * 0.3; // Up and down
+            const swayZ = Math.cos(idleTime * 0.5) * 0.5; // Forward/back
+
+            this.camera.position.set(
+                this.deathCameraEndPos.x + swayX,
+                this.deathCameraEndPos.y + swayY,
+                this.deathCameraEndPos.z + swayZ
+            );
             this.camera.lookAt(this.deathCameraFacePos);
 
             // Call callback once when spin completes

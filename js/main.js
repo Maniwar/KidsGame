@@ -50,6 +50,9 @@ class Game {
         // PERFORMANCE: Animation queue (replaces separate RAF callbacks)
         this.animations = [];
 
+        // Persistent dizzy stars for death animation (orbit until restart)
+        this.dizzyStars = [];
+
         // Load settings first (before creating renderer)
         this.loadSettings();
 
@@ -355,6 +358,9 @@ class Game {
 
         // Reset death camera back to normal gameplay camera
         this.camera.resetDeathCamera();
+
+        // Clean up dizzy stars
+        this.cleanupDizzyStars();
 
         // Reset player
         this.player.reset();
@@ -1322,6 +1328,8 @@ class Game {
         // This ensures the dramatic camera spin animation plays after death
         if (this.camera.isDeathCamera) {
             this.camera.update(this.player.getPosition());
+            // Keep dizzy stars swirling during death screen
+            this.updateDizzyStars();
         }
 
         // Render scene
@@ -1463,6 +1471,70 @@ class Game {
 
         // Comic impact text
         this.showImpactText();
+
+        // Create persistent dizzy stars that orbit until restart
+        this.createDizzyStars(playerPos);
+    }
+
+    createDizzyStars(playerPos) {
+        // Clean up any existing stars
+        this.cleanupDizzyStars();
+
+        const starCount = 5;
+        const starGeometry = new THREE.OctahedronGeometry(0.12, 0);
+        const starColors = [0xFFD700, 0xFFFFFF, 0xFF69B4, 0x87CEEB, 0xFFB6C1];
+
+        for (let i = 0; i < starCount; i++) {
+            const starMaterial = new THREE.MeshStandardMaterial({
+                color: starColors[i % starColors.length],
+                emissive: starColors[i % starColors.length],
+                emissiveIntensity: 0.8,
+                flatShading: true,
+            });
+            const star = new THREE.Mesh(starGeometry, starMaterial);
+            star.userData.index = i;
+            star.userData.orbitOffset = (i * Math.PI * 2) / starCount;
+            this.gameScene.getScene().add(star);
+            this.dizzyStars.push(star);
+        }
+
+        // Store player position for orbit center
+        this.dizzyStarsCenter = playerPos.clone();
+        this.dizzyStarsStartTime = performance.now();
+    }
+
+    updateDizzyStars() {
+        if (this.dizzyStars.length === 0) return;
+
+        const elapsed = (performance.now() - this.dizzyStarsStartTime) * 0.003;
+        const playerPos = this.player.getPosition();
+
+        // Update orbit center to follow player (in case of death animation movement)
+        const centerY = playerPos.y + 1.8; // Above head
+
+        this.dizzyStars.forEach((star, i) => {
+            const angle = elapsed + star.userData.orbitOffset;
+            const orbitRadius = 0.6;
+
+            star.position.set(
+                playerPos.x + Math.cos(angle) * orbitRadius,
+                centerY + Math.sin(elapsed * 2 + i) * 0.15, // Bobbing
+                playerPos.z + Math.sin(angle) * orbitRadius
+            );
+
+            // Spin the stars
+            star.rotation.y = elapsed * 3;
+            star.rotation.z = elapsed * 2;
+        });
+    }
+
+    cleanupDizzyStars() {
+        this.dizzyStars.forEach(star => {
+            this.gameScene.getScene().remove(star);
+            star.geometry.dispose();
+            star.material.dispose();
+        });
+        this.dizzyStars = [];
     }
 
     screenFlash() {

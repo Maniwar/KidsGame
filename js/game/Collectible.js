@@ -8,8 +8,9 @@ let sharedGemGeometry = null;
 
 function getSharedCoinGeometry() {
     if (!sharedCoinGeometry) {
+        // VISIBILITY: Larger coins (0.35 radius vs 0.25) for better visibility
         // PERFORMANCE: Reduced segments from 32 to 16 - barely noticeable difference
-        sharedCoinGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.08, 16);
+        sharedCoinGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16);
     }
     return sharedCoinGeometry;
 }
@@ -21,7 +22,7 @@ function getSharedCoinMaterial() {
             metalness: 0.95,
             roughness: 0.05,
             emissive: 0xFFD700,
-            emissiveIntensity: 0.2,
+            emissiveIntensity: 0.5, // VISIBILITY: Increased glow from 0.2 to 0.5
         });
     }
     return sharedCoinMaterial;
@@ -29,7 +30,8 @@ function getSharedCoinMaterial() {
 
 function getSharedGemGeometry() {
     if (!sharedGemGeometry) {
-        sharedGemGeometry = new THREE.OctahedronGeometry(0.25, 0);
+        // VISIBILITY: Larger gems (0.35 vs 0.25) for better visibility
+        sharedGemGeometry = new THREE.OctahedronGeometry(0.35, 0);
     }
     return sharedGemGeometry;
 }
@@ -44,17 +46,17 @@ export class Collectible {
 
         this.position = new THREE.Vector3(
             GAME_CONFIG.LANE_POSITIONS[lane],
-            0.8, // Floating height
+            1.0, // VISIBILITY: Higher floating height (1.0 vs 0.8) for better visibility
             zPosition
         );
 
         // Value based on type
         this.value = this.getValueForType(type);
 
-        // Animation
-        this.rotationSpeed = 2;
-        this.bobSpeed = 3;
-        this.bobAmount = 0.2;
+        // Animation - VISIBILITY: Enhanced bobbing for more noticeable movement
+        this.rotationSpeed = 2.5; // Faster spin
+        this.bobSpeed = 4; // Faster bob (4 vs 3)
+        this.bobAmount = 0.3; // Larger bob (0.3 vs 0.2)
         this.bobOffset = Math.random() * Math.PI * 2;
 
         this.createMesh();
@@ -111,12 +113,27 @@ export class Collectible {
         this.mesh.castShadow = true;
         this.group.add(this.mesh);
 
-        // PERFORMANCE: Removed star emblem - too many vertices for minor visual detail
-        // The gold coin is already clearly recognizable without it
+        // VISIBILITY: Add ground glow indicator under coin
+        this.addGroundGlow(0xFFD700);
 
-        this.collisionRadius = 0.3;
+        this.collisionRadius = 0.4; // VISIBILITY: Larger collision radius for bigger coins
         // Mark that we're using shared resources (don't dispose in cleanup)
         this.usesSharedGeometry = true;
+    }
+
+    // VISIBILITY: Add a glowing circle on the ground beneath collectibles
+    addGroundGlow(color) {
+        const glowGeometry = new THREE.CircleGeometry(0.5, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.4,
+            side: THREE.DoubleSide,
+        });
+        this.groundGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+        this.groundGlow.rotation.x = -Math.PI / 2; // Lay flat on ground
+        this.groundGlow.position.y = -0.95; // Just above ground level (relative to collectible)
+        this.group.add(this.groundGlow);
     }
 
     createGem(color) {
@@ -127,16 +144,16 @@ export class Collectible {
             roughness: 0.1,
             flatShading: true,
             emissive: color,
-            emissiveIntensity: 0.2,
+            emissiveIntensity: 0.5, // VISIBILITY: Increased glow from 0.2 to 0.5
         });
 
         this.mesh = new THREE.Mesh(getSharedGemGeometry(), gemMaterial);
         this.group.add(this.mesh);
 
-        // PERFORMANCE: Removed sparkle glow sphere - reduces draw calls
-        // The emissive material already provides visual pop
+        // VISIBILITY: Add ground glow indicator
+        this.addGroundGlow(color);
 
-        this.collisionRadius = 0.35;
+        this.collisionRadius = 0.45; // VISIBILITY: Larger collision radius for bigger gems
     }
 
     createRainbowGem() {
@@ -147,17 +164,18 @@ export class Collectible {
             roughness: 0.1,
             flatShading: true,
             emissive: 0xFF00FF,
-            emissiveIntensity: 0.4,
+            emissiveIntensity: 0.6, // VISIBILITY: Increased glow from 0.4 to 0.6
         });
 
         // PERFORMANCE: Use shared geometry scaled up slightly
         this.mesh = new THREE.Mesh(getSharedGemGeometry(), gemMaterial);
-        this.mesh.scale.set(1.2, 1.2, 1.2); // Slightly larger than regular gems
+        this.mesh.scale.set(1.3, 1.3, 1.3); // VISIBILITY: Larger scale (1.3 vs 1.2)
         this.group.add(this.mesh);
 
-        // PERFORMANCE: Removed glow sphere - emissive is enough
+        // VISIBILITY: Add ground glow indicator (rainbow colored)
+        this.addGroundGlow(0xFF00FF);
 
-        this.collisionRadius = 0.4;
+        this.collisionRadius = 0.5; // VISIBILITY: Larger collision radius
         this.isRainbow = true;
     }
 
@@ -175,11 +193,21 @@ export class Collectible {
         const bobY = Math.sin(bobTime) * this.bobAmount;
         this.group.position.y = this.position.y + bobY;
 
+        // VISIBILITY: Pulse the ground glow opacity
+        if (this.groundGlow) {
+            const glowPulse = 0.3 + Math.sin(this.animTime * 3) * 0.15;
+            this.groundGlow.material.opacity = glowPulse;
+        }
+
         // Rainbow color cycling - reduced frequency
         if (this.isRainbow) {
             const hue = (this.animTime * 0.5) % 1;
             this.mesh.material.color.setHSL(hue, 1, 0.5);
             this.mesh.material.emissive.setHSL(hue, 1, 0.5);
+            // VISIBILITY: Also cycle ground glow color for rainbow gems
+            if (this.groundGlow) {
+                this.groundGlow.material.color.setHSL(hue, 1, 0.5);
+            }
         }
 
         // Check if far behind player (cleanup)

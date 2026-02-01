@@ -1296,7 +1296,7 @@ class Game {
 
         // Calculate delta time
         const currentTime = performance.now();
-        const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1); // Cap at 100ms
+        const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.033); // Cap at 33ms (~30 FPS min) to prevent skipping
         this.lastTime = currentTime;
 
         // PERFORMANCE: Cache frame time for all systems (avoids Date.now() calls)

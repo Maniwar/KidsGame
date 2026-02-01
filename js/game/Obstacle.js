@@ -41,7 +41,9 @@ export class Obstacle {
             // Wooden crate - LARGER for visibility
             const crateGeometry = new THREE.BoxGeometry(1.5, 1.2, 1.5);
             const crateMaterial = new THREE.MeshStandardMaterial({
-                color: 0x8B4513,
+                color: 0xCD853F, // VISIBILITY: Brighter peru color for contrast
+                emissive: 0x8B4513,
+                emissiveIntensity: 0.15, // VISIBILITY: Subtle glow
                 flatShading: true,
             });
 
@@ -52,6 +54,9 @@ export class Obstacle {
 
             this.height = 1.2;
             this.collisionRadius = 0.85;
+
+            // VISIBILITY: Add ground warning stripe
+            this.addWarningStripe('jump');
         } else if (chosen === 'flowerpot') {
             // Flower pot - LARGER for visibility
             const potGeometry = new THREE.CylinderGeometry(0.5, 0.4, 0.8, 8);
@@ -85,11 +90,16 @@ export class Obstacle {
 
             this.height = 1.15;
             this.collisionRadius = 0.6;
+
+            // VISIBILITY: Add ground warning stripe
+            this.addWarningStripe('jump');
         } else {
             // Traffic cone - LARGER for visibility
             const coneGeometry = new THREE.ConeGeometry(0.6, 1.3, 8);
             const coneMaterial = new THREE.MeshStandardMaterial({
                 color: 0xFF6347,
+                emissive: 0xFF4500, // VISIBILITY: Orange-red glow
+                emissiveIntensity: 0.3,
                 flatShading: true,
             });
 
@@ -111,10 +121,10 @@ export class Obstacle {
 
             this.height = 1.3;
             this.collisionRadius = 0.75;
-        }
 
-        // Jump indicator removed - too prominent
-        // this.addJumpIndicator();
+            // VISIBILITY: Add ground warning stripe
+            this.addWarningStripe('jump');
+        }
     }
 
     createTallObstacle() {
@@ -147,7 +157,7 @@ export class Obstacle {
             const barMaterial = new THREE.MeshStandardMaterial({
                 color: 0xFF0000,
                 emissive: 0xFF0000,
-                emissiveIntensity: 0.3,
+                emissiveIntensity: 0.5, // VISIBILITY: Increased glow from 0.3 to 0.5
                 flatShading: true,
             });
 
@@ -171,6 +181,9 @@ export class Obstacle {
 
             this.height = 2.3;
             this.collisionRadius = 1.0;
+
+            // VISIBILITY: Add ground warning stripe (slide indicator)
+            this.addWarningStripe('slide');
         } else if (chosen === 'banner') {
             // Hanging banner - LARGER for visibility
             // Poles
@@ -204,6 +217,9 @@ export class Obstacle {
 
             this.height = 3.0;
             this.collisionRadius = 1.0;
+
+            // VISIBILITY: Add ground warning stripe (slide indicator)
+            this.addWarningStripe('slide');
         } else {
             // Arch - LARGER for visibility
             const archGroup = new THREE.Group();
@@ -236,10 +252,10 @@ export class Obstacle {
 
             this.height = 3.2;
             this.collisionRadius = 1.0;
-        }
 
-        // Slide indicator removed - too prominent
-        // this.addSlideIndicator();
+            // VISIBILITY: Add ground warning stripe (slide indicator)
+            this.addWarningStripe('slide');
+        }
     }
 
     addJumpIndicator() {
@@ -280,11 +296,34 @@ export class Obstacle {
         arrow.userData.pulseTime = 0;
     }
 
+    // VISIBILITY: Add a colored warning stripe on the ground in front of obstacles
+    addWarningStripe(type) {
+        // Green for jump obstacles, yellow/orange for slide obstacles
+        const color = type === 'jump' ? 0x00FF00 : 0xFFA500;
+
+        const stripeGeometry = new THREE.PlaneGeometry(1.8, 0.4);
+        const stripeMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.5,
+            side: THREE.DoubleSide,
+        });
+
+        this.warningStripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
+        this.warningStripe.rotation.x = -Math.PI / 2; // Lay flat on ground
+        this.warningStripe.position.set(0, 0.02, -2.0); // In front of obstacle
+        this.warningStripe.userData.isWarningStripe = true;
+        this.group.add(this.warningStripe);
+    }
+
     update(deltaTime, playerZ) {
-        // OPTIMIZED: Only pulse arrows when close to player (within 30 units)
+        // OPTIMIZED: Only pulse effects when close to player (within 30 units)
         const distanceToPlayer = Math.abs(this.position.z - playerZ);
 
         if (distanceToPlayer < 30) {
+            // Update pulse time
+            this.pulseTime = (this.pulseTime || 0) + deltaTime * 4;
+
             this.group.children.forEach(child => {
                 if (child.userData.pulseTime !== undefined) {
                     child.userData.pulseTime += deltaTime * 5;
@@ -293,6 +332,12 @@ export class Obstacle {
                     child.scale.y = 1 + pulse * 0.2;
                 }
             });
+
+            // VISIBILITY: Pulse the warning stripe opacity
+            if (this.warningStripe) {
+                const stripePulse = 0.35 + Math.sin(this.pulseTime) * 0.2;
+                this.warningStripe.material.opacity = stripePulse;
+            }
         }
 
         // Check if obstacle is far behind player (cleanup)

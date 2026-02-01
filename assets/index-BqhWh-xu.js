@@ -4038,6 +4038,17 @@ void main() {
                     from { transform: scale(1); }
                     to { transform: scale(1.05); }
                 }
+                @media (max-width: 600px) {
+                    .power-up-indicator {
+                        padding: 4px 8px;
+                        font-size: 12px;
+                        border-radius: 12px;
+                    }
+                    #power-up-display {
+                        top: 60px !important;
+                        right: 5px !important;
+                    }
+                }
                 .power-up-notification {
                     position: fixed;
                     top: 120px;
@@ -4076,6 +4087,44 @@ void main() {
                     to {
                         transform: translateX(-50%) scale(1);
                         opacity: 1;
+                    }
+                }
+                /* Mobile: compact notification at bottom corner */
+                @media (max-width: 600px) {
+                    .power-up-notification {
+                        top: auto;
+                        bottom: 20px;
+                        left: auto;
+                        right: 10px;
+                        transform: none;
+                        padding: 10px 15px;
+                        border-radius: 10px;
+                        font-size: 14px;
+                        animation: mobileSlideIn 0.3s ease-out;
+                    }
+                    .power-up-notification .icon {
+                        font-size: 24px;
+                        display: inline;
+                        margin-bottom: 0;
+                        margin-right: 8px;
+                    }
+                    .power-up-notification .title {
+                        font-size: 16px;
+                        display: inline;
+                        margin-bottom: 0;
+                    }
+                    .power-up-notification .description {
+                        display: none;
+                    }
+                    @keyframes mobileSlideIn {
+                        from {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
                     }
                 }
             `,document.head.appendChild(i),this.domElements.powerUpStylesInjected=!0}if(!this.domElements.powerUpDisplay){let i=document.getElementById("power-up-display");i||(i=document.createElement("div"),i.id="power-up-display",i.style.cssText=`

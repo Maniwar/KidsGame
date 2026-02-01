@@ -51,10 +51,10 @@ export class World {
             this.obstacles.push(obstacle);
         }
 
-        // Generate collectibles (coins and gems)
+        // Generate collectibles (coins and gems) - spaced further apart
         let lastCoinZ = chunkStartZ;
         while (lastCoinZ > chunkEndZ) {
-            const spacing = 2 + Math.random() * 3;
+            const spacing = 4 + Math.random() * 4; // More space between coin positions
             lastCoinZ -= spacing;
 
             if (lastCoinZ < chunkEndZ) break;

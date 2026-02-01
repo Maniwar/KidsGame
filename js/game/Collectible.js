@@ -8,9 +8,9 @@ let sharedGemGeometry = null;
 
 function getSharedCoinGeometry() {
     if (!sharedCoinGeometry) {
-        // VISIBILITY: Larger coins (0.35 radius vs 0.25) for better visibility
+        // VISIBILITY: Big chunky coins (0.5 radius) - easy to see for kids
         // PERFORMANCE: Reduced segments from 32 to 16 - barely noticeable difference
-        sharedCoinGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16);
+        sharedCoinGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.15, 16);
     }
     return sharedCoinGeometry;
 }
@@ -113,7 +113,7 @@ export class Collectible {
         this.mesh.castShadow = true;
         this.group.add(this.mesh);
 
-        this.collisionRadius = 0.4; // VISIBILITY: Larger collision radius for bigger coins
+        this.collisionRadius = 0.55; // Match bigger coin size
         // Mark that we're using shared resources (don't dispose in cleanup)
         this.usesSharedGeometry = true;
     }

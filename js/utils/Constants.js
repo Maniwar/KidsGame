@@ -27,7 +27,7 @@ export const GAME_CONFIG = {
     MIN_OBSTACLE_DISTANCE: 12,
 
     // Collectibles
-    COIN_SPAWN_CHANCE: 0.7,
+    COIN_SPAWN_CHANCE: 0.4, // Fewer but bigger coins
     GEM_SPAWN_CHANCE: 0.1,
 
     // Scoring

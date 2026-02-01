@@ -61,19 +61,19 @@ export class GameCamera {
         this.deathCameraStartTime = performance.now();
         this.deathCameraDuration = 1200; // 1.2 seconds for initial spin
 
-        // Camera position: At face level, looking DOWN at ground
-        // This makes Kitty appear in the TOP of the screen (above the HUD)
+        // Camera position: IN FRONT of character to see face
+        // Character faces -Z, so camera needs to be at NEGATIVE Z to see face
         this.deathCameraEndPos = new THREE.Vector3(
             playerPosition.x,
             playerPosition.y + 1.5, // At face level
-            playerPosition.z + 3.5  // In front
+            playerPosition.z - 3.5  // IN FRONT of character (negative Z)
         );
 
         // Look at a point BELOW the character - this shifts Kitty UP in the frame
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y - 3.0, // Look at ground below character
-            playerPosition.z - 2.0  // And slightly behind
+            playerPosition.y - 2.0, // Look below character to push her up in frame
+            playerPosition.z        // At character's Z position
         );
     }
 

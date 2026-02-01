@@ -149,12 +149,12 @@ export class Player {
         // POSITIVE Z - with 180° rotation, local +Z faces world -Z (forward/away from camera)
         const eyeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
         const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        leftEye.position.set(-0.28, 1.28, 0.56); // Positive Z - face forward
+        leftEye.position.set(-0.28, 1.22, 0.56); // Positive Z - face forward, slightly lower
         leftEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
         this.character.add(leftEye);
 
         const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        rightEye.position.set(0.28, 1.28, 0.56); // Positive Z - face forward
+        rightEye.position.set(0.28, 1.22, 0.56); // Positive Z - face forward, slightly lower
         rightEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
         this.character.add(rightEye);
 

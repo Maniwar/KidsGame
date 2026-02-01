@@ -13,6 +13,7 @@ export class GameScene {
         this.sidewalkCharacters = [];
         this.groundSegments = [];
         this.movingObjects = []; // Objects that move toward player
+        this.movingObstaclesCache = []; // PERFORMANCE: Cached list of obstacle-type moving objects
         this.streetLamps = []; // Track street lamps for cleanup/respawn
         this.trees = []; // Track trees for cleanup/respawn
         this.nextBuildingZ = -50;
@@ -53,9 +54,46 @@ export class GameScene {
         this.sharedGeometries.foliageSphere = new THREE.SphereGeometry(1.2, 6, 6);
         this.sharedGeometries.foliageCone = new THREE.ConeGeometry(1, 1.2, 6);
 
+        // PERFORMANCE: Ground segment shared geometries
+        this.sharedGeometries.laneMarker = new THREE.BoxGeometry(0.15, 0.03, 2);
+        this.sharedGeometries.slab = new THREE.BoxGeometry(1.8, 0.06, 2.5);
+        this.sharedGeometries.slabGap = new THREE.BoxGeometry(1.8, 0.03, 0.1);
+        this.sharedGeometries.cobble = new THREE.CylinderGeometry(0.1, 0.1, 0.04, 6);
+        this.sharedGeometries.grass = new THREE.ConeGeometry(0.15, 0.35, 4);
+        this.sharedGeometries.flower = new THREE.SphereGeometry(0.08, 6, 6);
+        this.sharedGeometries.cloudSphere = new THREE.SphereGeometry(1, 6, 6);
+
         // Shared materials (will clone and modify color as needed)
         this.sharedMaterials.lampPost = new THREE.MeshStandardMaterial({ color: 0x696969, flatShading: true });
         this.sharedMaterials.trunk = new THREE.MeshStandardMaterial({ color: 0x8B4513, flatShading: true });
+        this.sharedMaterials.laneMarker = new THREE.MeshStandardMaterial({
+            color: COLORS.SOFT_WHITE,
+            flatShading: true,
+            emissive: COLORS.SOFT_WHITE,
+            emissiveIntensity: 0.2
+        });
+        this.sharedMaterials.slab = new THREE.MeshStandardMaterial({
+            color: 0xC8C8C8,
+            roughness: 0.85,
+            flatShading: true
+        });
+        this.sharedMaterials.slabGap = new THREE.MeshStandardMaterial({
+            color: 0x808080,
+            roughness: 0.95
+        });
+        this.sharedMaterials.cobble = new THREE.MeshStandardMaterial({
+            color: 0xC0C0C0,
+            flatShading: true,
+            roughness: 0.9
+        });
+        this.sharedMaterials.grass = new THREE.MeshStandardMaterial({
+            color: COLORS.GRASS_GREEN,
+            flatShading: true,
+        });
+        // Pre-create flower materials for each color
+        this.sharedMaterials.flowerPink = new THREE.MeshStandardMaterial({ color: 0xFF69B4, flatShading: true });
+        this.sharedMaterials.flowerGold = new THREE.MeshStandardMaterial({ color: 0xFFD700, flatShading: true });
+        this.sharedMaterials.flowerLightPink = new THREE.MeshStandardMaterial({ color: 0xFFB6C1, flatShading: true });
     }
 
     setupRenderer() {
@@ -164,7 +202,7 @@ export class GameScene {
         const segmentGroup = new THREE.Group();
         const endZ = startZ - this.groundSegmentLength;
 
-        // Main ground - clean pink road surface
+        // Main ground - clean pink road surface (unique per segment due to size)
         const segmentPlaneGeometry = new THREE.PlaneGeometry(8, this.groundSegmentLength);
         const segmentPlaneMaterial = new THREE.MeshStandardMaterial({
             color: COLORS.PRIMARY_PINK,
@@ -179,86 +217,53 @@ export class GameScene {
         segmentPlane.receiveShadow = true;
         segmentGroup.add(segmentPlane);
 
-        // Lane markers - white dashed lines
-        const markerGeometry = new THREE.BoxGeometry(0.15, 0.03, 2);
-        const markerMaterial = new THREE.MeshStandardMaterial({
-            color: COLORS.SOFT_WHITE,
-            flatShading: true,
-            emissive: COLORS.SOFT_WHITE,
-            emissiveIntensity: 0.2
-        });
-
+        // PERFORMANCE: Use shared geometries and materials for lane markers
         const dividerPositions = [-1, 1];
         dividerPositions.forEach(x => {
             for (let z = startZ; z > endZ; z -= 5) {
-                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                const marker = new THREE.Mesh(this.sharedGeometries.laneMarker, this.sharedMaterials.laneMarker);
                 marker.position.set(x, 0.05, z);
                 segmentGroup.add(marker);
             }
         });
 
-        // Concrete slabs on sidewalks (individual rectangles)
-        const slabWidth = 1.8; // Slab width (leaves gaps on sides)
-        const slabDepth = 2.5; // Slab length
-        const slabHeight = 0.06;
-        const gapSize = 0.1; // Gap between slabs
+        // PERFORMANCE: Use shared geometries for slabs
+        const slabDepth = 2.5;
+        const gapSize = 0.1;
 
-        const slabGeometry = new THREE.BoxGeometry(slabWidth, slabHeight, slabDepth);
-        const slabMaterial = new THREE.MeshStandardMaterial({
-            color: 0xC8C8C8, // Light concrete gray
-            roughness: 0.85,
-            flatShading: true
-        });
-
-        const gapGeometry = new THREE.BoxGeometry(slabWidth, 0.03, gapSize);
-        const gapMaterial = new THREE.MeshStandardMaterial({
-            color: 0x808080, // Dark gap
-            roughness: 0.95
-        });
-
-        // Create slabs along the segment
         for (let z = startZ; z > endZ; z -= (slabDepth + gapSize)) {
             // Left sidewalk slabs
-            const leftSlab = new THREE.Mesh(slabGeometry, slabMaterial);
+            const leftSlab = new THREE.Mesh(this.sharedGeometries.slab, this.sharedMaterials.slab);
             leftSlab.position.set(-6, 0.08, z - slabDepth/2);
             leftSlab.receiveShadow = true;
             segmentGroup.add(leftSlab);
 
             // Gap after slab
             if (z - slabDepth - gapSize > endZ) {
-                const leftGap = new THREE.Mesh(gapGeometry, gapMaterial);
+                const leftGap = new THREE.Mesh(this.sharedGeometries.slabGap, this.sharedMaterials.slabGap);
                 leftGap.position.set(-6, 0.065, z - slabDepth - gapSize/2);
                 segmentGroup.add(leftGap);
             }
 
             // Right sidewalk slabs
-            const rightSlab = new THREE.Mesh(slabGeometry, slabMaterial);
+            const rightSlab = new THREE.Mesh(this.sharedGeometries.slab, this.sharedMaterials.slab);
             rightSlab.position.set(6, 0.08, z - slabDepth/2);
             rightSlab.receiveShadow = true;
             segmentGroup.add(rightSlab);
 
             // Gap after slab
             if (z - slabDepth - gapSize > endZ) {
-                const rightGap = new THREE.Mesh(gapGeometry, gapMaterial);
+                const rightGap = new THREE.Mesh(this.sharedGeometries.slabGap, this.sharedMaterials.slabGap);
                 rightGap.position.set(6, 0.065, z - slabDepth - gapSize/2);
                 segmentGroup.add(rightGap);
             }
         }
 
-        // OPTIMIZED: Sparse decorations for good looks + performance
-        // Shared materials to reduce draw calls
-        const cobbleMaterial = new THREE.MeshStandardMaterial({
-            color: 0xC0C0C0,
-            flatShading: true,
-            roughness: 0.9
-        });
-        const cobbleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.04, 6);
-
-        // Just a few cobblestones per segment (not hundreds!)
+        // PERFORMANCE: Use shared cobble geometry and material
         for (let z = startZ; z > endZ; z -= 8) {
             // Left sidewalk - 3 cobbles
             for (let i = 0; i < 3; i++) {
-                const cobble = new THREE.Mesh(cobbleGeometry, cobbleMaterial);
+                const cobble = new THREE.Mesh(this.sharedGeometries.cobble, this.sharedMaterials.cobble);
                 cobble.position.set(
                     -6 + (Math.random() - 0.5) * 1.5,
                     0.06,
@@ -270,7 +275,7 @@ export class GameScene {
 
             // Right sidewalk - 3 cobbles
             for (let i = 0; i < 3; i++) {
-                const cobble = new THREE.Mesh(cobbleGeometry, cobbleMaterial);
+                const cobble = new THREE.Mesh(this.sharedGeometries.cobble, this.sharedMaterials.cobble);
                 cobble.position.set(
                     6 + (Math.random() - 0.5) * 1.5,
                     0.06,
@@ -281,17 +286,13 @@ export class GameScene {
             }
         }
 
-        // Sparse grass and flowers in yards (very minimal)
-        const grassMaterial = new THREE.MeshStandardMaterial({
-            color: COLORS.GRASS_GREEN,
-            flatShading: true,
-        });
-        const grassGeometry = new THREE.ConeGeometry(0.15, 0.35, 4);
+        // PERFORMANCE: Use shared grass and flower geometries/materials
+        const flowerMaterials = [this.sharedMaterials.flowerPink, this.sharedMaterials.flowerGold, this.sharedMaterials.flowerLightPink];
 
         for (let z = startZ; z > endZ; z -= 12) {
             // Left yard - just 2 grass spots
             for (let i = 0; i < 2; i++) {
-                const grass = new THREE.Mesh(grassGeometry, grassMaterial);
+                const grass = new THREE.Mesh(this.sharedGeometries.grass, this.sharedMaterials.grass);
                 grass.position.set(
                     -9 - Math.random() * 2,
                     0.18,
@@ -301,13 +302,10 @@ export class GameScene {
 
                 // Maybe add a single flower
                 if (Math.random() < 0.5) {
-                    const flowerGeometry = new THREE.SphereGeometry(0.08, 6, 6);
-                    const flowerColors = [0xFF69B4, 0xFFD700, 0xFFB6C1];
-                    const flowerMaterial = new THREE.MeshStandardMaterial({
-                        color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
-                        flatShading: true,
-                    });
-                    const flower = new THREE.Mesh(flowerGeometry, flowerMaterial);
+                    const flower = new THREE.Mesh(
+                        this.sharedGeometries.flower,
+                        flowerMaterials[Math.floor(Math.random() * flowerMaterials.length)]
+                    );
                     flower.position.set(grass.position.x + 0.1, 0.35, grass.position.z);
                     segmentGroup.add(flower);
                 }
@@ -315,7 +313,7 @@ export class GameScene {
 
             // Right yard - just 2 grass spots
             for (let i = 0; i < 2; i++) {
-                const grass = new THREE.Mesh(grassGeometry, grassMaterial);
+                const grass = new THREE.Mesh(this.sharedGeometries.grass, this.sharedMaterials.grass);
                 grass.position.set(
                     9 + Math.random() * 2,
                     0.18,
@@ -325,13 +323,10 @@ export class GameScene {
 
                 // Maybe add a single flower
                 if (Math.random() < 0.5) {
-                    const flowerGeometry = new THREE.SphereGeometry(0.08, 6, 6);
-                    const flowerColors = [0xFF69B4, 0xFFD700, 0xFFB6C1];
-                    const flowerMaterial = new THREE.MeshStandardMaterial({
-                        color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
-                        flatShading: true,
-                    });
-                    const flower = new THREE.Mesh(flowerGeometry, flowerMaterial);
+                    const flower = new THREE.Mesh(
+                        this.sharedGeometries.flower,
+                        flowerMaterials[Math.floor(Math.random() * flowerMaterials.length)]
+                    );
                     flower.position.set(grass.position.x - 0.1, 0.35, grass.position.z);
                     segmentGroup.add(flower);
                 }
@@ -658,17 +653,20 @@ export class GameScene {
 
     createCloud() {
         const group = new THREE.Group();
-        const cloudMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFFFFF,
-            flatShading: true,
-            roughness: 1
-        });
+        // PERFORMANCE: Share cloud material across all clouds
+        if (!this.sharedMaterials.cloud) {
+            this.sharedMaterials.cloud = new THREE.MeshStandardMaterial({
+                color: 0xFFFFFF,
+                flatShading: true,
+                roughness: 1
+            });
+        }
 
-        // Make fluffy clouds from spheres
+        // PERFORMANCE: Use shared sphere geometry with scale for size variation
         for (let i = 0; i < 5; i++) {
             const size = 1 + Math.random() * 0.5;
-            const geometry = new THREE.SphereGeometry(size, 8, 8);
-            const sphere = new THREE.Mesh(geometry, cloudMaterial);
+            const sphere = new THREE.Mesh(this.sharedGeometries.cloudSphere, this.sharedMaterials.cloud);
+            sphere.scale.setScalar(size);
             sphere.position.set(
                 (Math.random() - 0.5) * 3,
                 (Math.random() - 0.5) * 0.5,
@@ -941,24 +939,27 @@ export class GameScene {
     createFloatingLanterns(z) {
         const lanternCount = 5 + Math.floor(Math.random() * 5);
 
+        // PERFORMANCE: Share lantern geometry
+        if (!this.sharedGeometries.lantern) {
+            this.sharedGeometries.lantern = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 6);
+        }
+
         for (let i = 0; i < lanternCount; i++) {
             const group = new THREE.Group();
 
             // Lantern body
-            const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 6);
             const lanternColor = [0xFF69B4, 0xFFD700, 0xFF6B9D, 0xFFB6C1][Math.floor(Math.random() * 4)];
             const bodyMaterial = new THREE.MeshStandardMaterial({
                 color: lanternColor,
                 flatShading: true,
                 emissive: lanternColor,
-                emissiveIntensity: 0.3
+                emissiveIntensity: 0.8 // PERFORMANCE: Higher emissive replaces PointLight
             });
-            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            const body = new THREE.Mesh(this.sharedGeometries.lantern, bodyMaterial);
             group.add(body);
 
-            // Point light
-            const light = new THREE.PointLight(lanternColor, 0.5, 8);
-            group.add(light);
+            // PERFORMANCE: Removed PointLight - emissive material provides glow effect
+            // PointLights are very expensive on mobile GPUs
 
             group.position.set(
                 (Math.random() - 0.5) * 30,
@@ -1472,6 +1473,10 @@ export class GameScene {
 
         this.scene.add(group);
         this.movingObjects.push(group);
+        // PERFORMANCE: Add to obstacle cache if it's an obstacle
+        if (group.userData.isObstacle) {
+            this.movingObstaclesCache.push(group);
+        }
     }
 
     updateStreetLamps(playerZ) {
@@ -1576,6 +1581,14 @@ export class GameScene {
             const obj = this.movingObjects[i];
             if (obj.position.z > playerZ + 20) {
                 this.scene.remove(obj);
+                // PERFORMANCE: Also remove from obstacle cache if present
+                if (obj.userData.isObstacle) {
+                    const cacheIdx = this.movingObstaclesCache.indexOf(obj);
+                    if (cacheIdx !== -1) {
+                        this.movingObstaclesCache[cacheIdx] = this.movingObstaclesCache[this.movingObstaclesCache.length - 1];
+                        this.movingObstaclesCache.pop();
+                    }
+                }
                 this.movingObjects[i] = this.movingObjects[this.movingObjects.length - 1];
                 this.movingObjects.pop();
             }
@@ -1633,8 +1646,8 @@ export class GameScene {
     }
 
     getMovingObstacles() {
-        // Return moving objects that act as obstacles
-        return this.movingObjects.filter(obj => obj.userData.isObstacle);
+        // PERFORMANCE: Return cached obstacle list instead of filtering every frame
+        return this.movingObstaclesCache;
     }
 
     reset() {
@@ -1678,6 +1691,7 @@ export class GameScene {
         // MEMORY FIX: Moving objects (cars/buses) were not disposing geometry/materials
         this.movingObjects.forEach(disposeObject);
         this.movingObjects = [];
+        this.movingObstaclesCache = []; // PERFORMANCE: Clear obstacle cache on reset
 
         // Clean up street lamps
         this.streetLamps.forEach(disposeObject);

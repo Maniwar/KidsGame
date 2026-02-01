@@ -1,6 +1,39 @@
 import * as THREE from 'three';
 import { COLORS, GAME_CONFIG } from '../utils/Constants.js';
 
+// PERFORMANCE: Static shared geometries and materials (created once, reused by all coins)
+let sharedCoinGeometry = null;
+let sharedCoinMaterial = null;
+let sharedGemGeometry = null;
+
+function getSharedCoinGeometry() {
+    if (!sharedCoinGeometry) {
+        // PERFORMANCE: Reduced segments from 32 to 16 - barely noticeable difference
+        sharedCoinGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.08, 16);
+    }
+    return sharedCoinGeometry;
+}
+
+function getSharedCoinMaterial() {
+    if (!sharedCoinMaterial) {
+        sharedCoinMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFD700,
+            metalness: 0.95,
+            roughness: 0.05,
+            emissive: 0xFFD700,
+            emissiveIntensity: 0.2,
+        });
+    }
+    return sharedCoinMaterial;
+}
+
+function getSharedGemGeometry() {
+    if (!sharedGemGeometry) {
+        sharedGemGeometry = new THREE.OctahedronGeometry(0.25, 0);
+    }
+    return sharedGemGeometry;
+}
+
 export class Collectible {
     constructor(scene, lane, zPosition, type = 'coin') {
         this.scene = scene;
@@ -72,68 +105,22 @@ export class Collectible {
     }
 
     createCoin() {
-        // MARIO-STYLE SPINNING GOLD COIN - Flat, shiny, unmistakably a coin!
-
-        // Main coin disc - smaller and thinner
-        const coinGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.08, 32);
-        const coinMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFD700, // Classic gold
-            metalness: 0.95,
-            roughness: 0.05,
-            emissive: 0xFFD700, // Match the gold color
-            emissiveIntensity: 0.2,
-        });
-
-        this.mesh = new THREE.Mesh(coinGeometry, coinMaterial);
+        // PERFORMANCE: Use shared geometry and material for coins
+        this.mesh = new THREE.Mesh(getSharedCoinGeometry(), getSharedCoinMaterial());
         this.mesh.rotation.x = Math.PI / 2; // Lay flat so it spins vertically
         this.mesh.castShadow = true;
         this.group.add(this.mesh);
 
-        // Star emblem in center - simple 4-pointed star shape (scaled down)
-        const starGroup = new THREE.Group();
-        starGroup.rotation.x = Math.PI / 2;
+        // PERFORMANCE: Removed star emblem - too many vertices for minor visual detail
+        // The gold coin is already clearly recognizable without it
 
-        // Create 4-pointed star using 4 diamond shapes
-        const diamondShape = new THREE.Shape();
-        diamondShape.moveTo(0, 0.1);
-        diamondShape.lineTo(0.03, 0.03);
-        diamondShape.lineTo(0.1, 0);
-        diamondShape.lineTo(0.03, -0.03);
-        diamondShape.lineTo(0, -0.1);
-        diamondShape.lineTo(-0.03, -0.03);
-        diamondShape.lineTo(-0.1, 0);
-        diamondShape.lineTo(-0.03, 0.03);
-        diamondShape.lineTo(0, 0.1);
-
-        const starGeometry = new THREE.ShapeGeometry(diamondShape);
-        const starMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFFFAA,
-            metalness: 1.0,
-            roughness: 0.0,
-            emissive: 0xFFFF00,
-            emissiveIntensity: 0.6,
-        });
-
-        // Front star
-        const frontStar = new THREE.Mesh(starGeometry, starMaterial);
-        frontStar.position.z = 0.045;
-        starGroup.add(frontStar);
-
-        // Back star
-        const backStar = new THREE.Mesh(starGeometry, starMaterial);
-        backStar.position.z = -0.045;
-        backStar.rotation.z = Math.PI; // Rotate for variety
-        starGroup.add(backStar);
-
-        this.mesh.add(starGroup);
-
-        // No glow - clean coin look!
         this.collisionRadius = 0.3;
+        // Mark that we're using shared resources (don't dispose in cleanup)
+        this.usesSharedGeometry = true;
     }
 
     createGem(color) {
-        // Diamond shape using octahedron
-        const gemGeometry = new THREE.OctahedronGeometry(0.25, 0);
+        // PERFORMANCE: Use shared geometry, only material is unique per gem color
         const gemMaterial = new THREE.MeshStandardMaterial({
             color: color,
             metalness: 0.9,
@@ -143,26 +130,17 @@ export class Collectible {
             emissiveIntensity: 0.2,
         });
 
-        this.mesh = new THREE.Mesh(gemGeometry, gemMaterial);
+        this.mesh = new THREE.Mesh(getSharedGemGeometry(), gemMaterial);
         this.group.add(this.mesh);
 
-        // Sparkle effect
-        const sparkleGeometry = new THREE.SphereGeometry(0.35, 8, 8);
-        const sparkleMaterial = new THREE.MeshBasicMaterial({
-            color: color,
-            transparent: true,
-            opacity: 0.2,
-        });
-
-        this.glow = new THREE.Mesh(sparkleGeometry, sparkleMaterial);
-        this.group.add(this.glow);
+        // PERFORMANCE: Removed sparkle glow sphere - reduces draw calls
+        // The emissive material already provides visual pop
 
         this.collisionRadius = 0.35;
     }
 
     createRainbowGem() {
-        // Special rainbow gem (cycles through colors)
-        const gemGeometry = new THREE.OctahedronGeometry(0.3, 0);
+        // Special rainbow gem (cycles through colors) - slightly larger
         const gemMaterial = new THREE.MeshStandardMaterial({
             color: 0xFF00FF,
             metalness: 0.9,
@@ -172,19 +150,12 @@ export class Collectible {
             emissiveIntensity: 0.4,
         });
 
-        this.mesh = new THREE.Mesh(gemGeometry, gemMaterial);
+        // PERFORMANCE: Use shared geometry scaled up slightly
+        this.mesh = new THREE.Mesh(getSharedGemGeometry(), gemMaterial);
+        this.mesh.scale.set(1.2, 1.2, 1.2); // Slightly larger than regular gems
         this.group.add(this.mesh);
 
-        // Larger glow
-        const sparkleGeometry = new THREE.SphereGeometry(0.45, 8, 8);
-        const sparkleMaterial = new THREE.MeshBasicMaterial({
-            color: 0xFFFFFF,
-            transparent: true,
-            opacity: 0.3,
-        });
-
-        this.glow = new THREE.Mesh(sparkleGeometry, sparkleMaterial);
-        this.group.add(this.glow);
+        // PERFORMANCE: Removed glow sphere - emissive is enough
 
         this.collisionRadius = 0.4;
         this.isRainbow = true;
@@ -301,9 +272,12 @@ export class Collectible {
     dispose() {
         this.isActive = false;
         this.scene.remove(this.group);
-        this.group.traverse((child) => {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) child.material.dispose();
-        });
+        // PERFORMANCE: Don't dispose shared geometries/materials
+        if (!this.usesSharedGeometry) {
+            this.group.traverse((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
+        }
     }
 }

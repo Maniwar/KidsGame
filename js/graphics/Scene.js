@@ -59,17 +59,26 @@ export class GameScene {
 
     setupRenderer() {
         const canvas = document.getElementById('game-canvas');
+
+        // PERFORMANCE: Detect mobile for optimized settings
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                      || window.innerWidth < 768;
+
         this.renderer = new THREE.WebGLRenderer({
             canvas,
-            antialias: true,
-            alpha: false
+            // PERFORMANCE: Disable antialias on mobile - major FPS boost
+            antialias: !isMobile,
+            alpha: false,
+            // PERFORMANCE: Use low power preference on mobile
+            powerPreference: isMobile ? 'default' : 'high-performance'
         });
 
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        // OPTIMIZED: Limit pixel ratio to 1.5 for better performance on high-DPI displays
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        // PERFORMANCE: Limit pixel ratio - 1.5 on desktop, 1.0 on mobile for big FPS gain
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.0 : 1.5));
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        // PERFORMANCE: PCFShadowMap is faster than PCFSoftShadowMap with minimal quality loss
+        this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
         // Sky gradient background
         this.renderer.setClearColor(new THREE.Color(0x87CEEB));

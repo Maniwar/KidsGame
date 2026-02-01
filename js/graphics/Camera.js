@@ -61,18 +61,18 @@ export class GameCamera {
         this.deathCameraStartTime = performance.now();
         this.deathCameraDuration = 1200; // 1.2 seconds for initial spin
 
-        // Camera position: VERY LOW and looking UP steeply at face
-        // This puts Kitty's face in the TOP blue sky area (above the game over UI)
+        // Camera position: EXTREMELY LOW and looking UP steeply at face
+        // This puts Kitty's face in the TOP blue sky area (top 25% of screen)
         this.deathCameraEndPos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y - 1.5, // Well below character - looking up steeply
-            playerPosition.z + 4.0  // Further back
+            playerPosition.y - 4.0, // Way below character - very steep upward angle
+            playerPosition.z + 5.0  // Further back for full view
         );
 
-        // Look at character face (high above camera = face at very top of screen)
+        // Look at character face (way above camera = face at very top of screen)
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.8, // Face/head height
+            playerPosition.y + 2.0, // Head height
             playerPosition.z
         );
     }
@@ -85,10 +85,10 @@ export class GameCamera {
         const easeOutCubic = 1 - Math.pow(1 - progress, 3);
 
         if (progress < 1) {
-            // Initial spin around to front, ending very low to look up at face
+            // Initial spin around to front, ending extremely low to look up at face
             const angle = Math.PI * easeOutCubic; // 0 to 180 degrees
-            const radius = 5 - easeOutCubic * 1; // Start far, end at 4
-            const height = 4 - easeOutCubic * 5.5; // Start high (4), end very low (-1.5)
+            const radius = 6 - easeOutCubic * 1; // Start far, end at 5
+            const height = 4 - easeOutCubic * 8; // Start high (4), end very low (-4)
 
             const camX = this.deathCameraTarget.x + Math.sin(angle) * radius;
             const camY = this.deathCameraTarget.y + height;

@@ -61,17 +61,17 @@ export class GameCamera {
         this.deathCameraStartTime = performance.now();
         this.deathCameraDuration = 1200; // 1.2 seconds for initial spin
 
-        // Camera position: IN FRONT of character, higher and further back for full view
+        // Camera position: IN FRONT of character, positioned to show face above UI
         this.deathCameraEndPos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 2.5, // Higher to see full head with bow and stars
-            playerPosition.z - 5.0  // Further back for wider view
+            playerPosition.y + 1.8, // Lower camera to keep face in upper portion of screen
+            playerPosition.z - 4.0  // Closer for better face visibility
         );
 
         // Look directly at face level to center the face in frame
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.8, // Face level (head is around Y+1.5 to Y+2)
+            playerPosition.y + 1.3, // Face level (head center is around Y+1.2)
             playerPosition.z
         );
     }
@@ -86,8 +86,8 @@ export class GameCamera {
         if (progress < 1) {
             // Initial spin around to front
             const angle = Math.PI * easeOutCubic; // 0 to 180 degrees
-            const radius = 5 - easeOutCubic * 1.5; // Start far, end closer
-            const height = 4 - easeOutCubic * 2.5; // Start high, end at face level
+            const radius = 4.5 - easeOutCubic * 0.5; // Start far, end closer
+            const height = 3 - easeOutCubic * 1.2; // Start high, end at face level
 
             const camX = this.deathCameraTarget.x + Math.sin(angle) * radius;
             const camY = this.deathCameraTarget.y + height;

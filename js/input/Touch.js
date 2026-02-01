@@ -8,11 +8,24 @@ export class TouchController {
         this.swipeThreshold = 50; // Minimum distance for a swipe
         this.tapThreshold = 10; // Maximum movement for a tap
 
+        // Hold-to-move support
+        this.isHolding = false;
+        this.holdStartX = 0;
+        this.holdStartY = 0;
+        this.currentTouchX = 0;
+        this.currentTouchY = 0;
+        this.lastHoldMoveTime = 0;
+        this.holdMoveInterval = 200; // Trigger move every 200ms while holding
+        this.holdMoveThreshold = 30; // Minimum horizontal distance from start to trigger hold-move
+        this.holdUpdateId = null;
+
         this.onSwipeLeft = null;
         this.onSwipeRight = null;
         this.onSwipeUp = null;
         this.onSwipeDown = null;
         this.onTap = null;
+        this.onHoldLeft = null;
+        this.onHoldRight = null;
 
         this.setupEventListeners();
     }
@@ -26,6 +39,17 @@ export class TouchController {
             const touch = e.touches[0];
             this.touchStartX = touch.clientX;
             this.touchStartY = touch.clientY;
+
+            // Initialize hold tracking
+            this.isHolding = true;
+            this.holdStartX = touch.clientX;
+            this.holdStartY = touch.clientY;
+            this.currentTouchX = touch.clientX;
+            this.currentTouchY = touch.clientY;
+            this.lastHoldMoveTime = performance.now();
+
+            // Start hold update loop
+            this.startHoldUpdate();
         }, { passive: false });
 
         // Touch end - detect swipe direction
@@ -35,13 +59,60 @@ export class TouchController {
             this.touchEndX = touch.clientX;
             this.touchEndY = touch.clientY;
 
+            // Stop hold tracking
+            this.isHolding = false;
+            this.stopHoldUpdate();
+
             this.handleSwipe();
         }, { passive: false });
 
-        // Prevent touch move from scrolling
+        // Touch move - track current position for hold-to-move
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                this.currentTouchX = touch.clientX;
+                this.currentTouchY = touch.clientY;
+            }
         }, { passive: false });
+    }
+
+    startHoldUpdate() {
+        // Clear any existing update loop
+        this.stopHoldUpdate();
+
+        const update = () => {
+            if (!this.isHolding) return;
+
+            const now = performance.now();
+            const deltaX = this.currentTouchX - this.holdStartX;
+            const deltaY = this.currentTouchY - this.holdStartY;
+            const absDeltaX = Math.abs(deltaX);
+            const absDeltaY = Math.abs(deltaY);
+
+            // Only trigger if mostly horizontal movement and past threshold
+            if (absDeltaX > this.holdMoveThreshold && absDeltaX > absDeltaY) {
+                if (now - this.lastHoldMoveTime >= this.holdMoveInterval) {
+                    if (deltaX < 0 && this.onHoldLeft) {
+                        this.onHoldLeft();
+                    } else if (deltaX > 0 && this.onHoldRight) {
+                        this.onHoldRight();
+                    }
+                    this.lastHoldMoveTime = now;
+                }
+            }
+
+            this.holdUpdateId = requestAnimationFrame(update);
+        };
+
+        this.holdUpdateId = requestAnimationFrame(update);
+    }
+
+    stopHoldUpdate() {
+        if (this.holdUpdateId) {
+            cancelAnimationFrame(this.holdUpdateId);
+            this.holdUpdateId = null;
+        }
     }
 
     handleSwipe() {
@@ -100,5 +171,13 @@ export class TouchController {
 
     setTapCallback(callback) {
         this.onTap = callback;
+    }
+
+    setHoldLeftCallback(callback) {
+        this.onHoldLeft = callback;
+    }
+
+    setHoldRightCallback(callback) {
+        this.onHoldRight = callback;
     }
 }

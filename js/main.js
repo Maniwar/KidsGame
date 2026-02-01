@@ -179,6 +179,22 @@ class Game {
             }
         });
 
+        // Hold left - continuous left movement (for players who hold finger)
+        this.touch.setHoldLeftCallback(() => {
+            if (this.isRunning && !this.isPaused) {
+                this.player.moveLeft();
+                this.audio.playLaneChangeSound();
+            }
+        });
+
+        // Hold right - continuous right movement (for players who hold finger)
+        this.touch.setHoldRightCallback(() => {
+            if (this.isRunning && !this.isPaused) {
+                this.player.moveRight();
+                this.audio.playLaneChangeSound();
+            }
+        });
+
         // Swipe up - jump
         this.touch.setSwipeUpCallback(() => {
             if (this.isRunning && !this.isPaused) {

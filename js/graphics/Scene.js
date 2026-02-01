@@ -1120,8 +1120,12 @@ export class GameScene {
             { type: 'butterfly', size: 0.6, speed: 5, height: 1.5 + Math.random() * 2 }, // BIGGER - was 0.3
             { type: 'balloon', size: 1.2, speed: 3, height: 4 + Math.random() * 3 }, // BIGGER - was 0.6
             { type: 'leaf', size: 0.4, speed: 6, height: 2 + Math.random() * 3 }, // BIGGER - was 0.2
-            { type: 'car', size: 1.2, speed: 20, height: 0.6 }, // NEW - ground level car
-            { type: 'bus', size: 1.8, speed: 15, height: 1.2 }, // NEW - larger bus
+            // Car: size 1.0, wheel radius = 0.35, wheel Y = 0.15
+            // For wheels to touch ground: height = wheel_radius - wheel_y = 0.35 - 0.15 = 0.20
+            { type: 'car', size: 1.0, speed: 20, height: 0.20 },
+            // Bus: size 1.2 (reduced to fit lanes), wheel radius = 0.48, wheel Y = 0.24
+            // For wheels to touch ground: height = 0.48 - 0.24 = 0.24
+            { type: 'bus', size: 1.2, speed: 15, height: 0.24 },
         ];
 
         const type = objectTypes[Math.floor(Math.random() * objectTypes.length)];
@@ -1424,18 +1428,29 @@ export class GameScene {
 
         // Add collision properties to make them act as obstacles
         group.userData.isObstacle = true;
-        group.userData.collisionRadius = type.size * 1.5;
+        // Collision radius should be half the body width to fit in lanes
+        // Car body width = size * 1.5, so radius = size * 0.75
+        // Bus body width = size * 1.8, so radius = size * 0.9
+        group.userData.collisionRadius = (type.type === 'bus') ? type.size * 0.9 : type.size * 0.75;
 
-        // Set collision height based on object position
-        // Objects at low heights can be jumped over, high objects need sliding under
-        if (type.height < 2.0) {
+        // Set collision height based on object type
+        // Cars and buses are ground obstacles - too tall to jump, must dodge by changing lanes
+        if (type.type === 'car') {
+            // Car total height: body (0.8*size) + roof (0.5*size) ≈ 1.3*size = 1.3
+            // Make it a low obstacle but require a good jump
+            group.userData.obstacleHeight = 1.3;
+            group.userData.obstacleType = 'low';
+        } else if (type.type === 'bus') {
+            // Bus is tall - need to dodge, can't jump over
+            // Bus body height = 1.6*size ≈ 1.92, treat as tall obstacle
+            group.userData.obstacleHeight = 2.0;
+            group.userData.obstacleType = 'tall';
+        } else if (type.height < 2.0) {
             // Low flying object - player can jump over it
-            // Height represents how high the player needs to jump
-            group.userData.obstacleHeight = type.height - 0.3; // Slightly lower to make jumpable
+            group.userData.obstacleHeight = type.height - 0.3;
             group.userData.obstacleType = 'low';
         } else {
             // High flying object - player needs to slide under it
-            // Use tall obstacle height threshold
             group.userData.obstacleHeight = 2.0;
             group.userData.obstacleType = 'tall';
         }

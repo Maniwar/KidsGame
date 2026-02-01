@@ -61,19 +61,18 @@ export class GameCamera {
         this.deathCameraStartTime = performance.now();
         this.deathCameraDuration = 1200; // 1.2 seconds for initial spin
 
-        // Camera position: IN FRONT of character to see face
-        // Character faces -Z, so camera needs to be at NEGATIVE Z to see face
+        // Camera position: IN FRONT of character, higher and further back for full view
         this.deathCameraEndPos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.5, // At face level
-            playerPosition.z - 3.5  // IN FRONT of character (negative Z)
+            playerPosition.y + 2.5, // Higher to see full head with bow and stars
+            playerPosition.z - 5.0  // Further back for wider view
         );
 
-        // Look at a point BELOW the character - this shifts Kitty UP in the frame
+        // Look directly at face level to center the face in frame
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y - 2.0, // Look below character to push her up in frame
-            playerPosition.z        // At character's Z position
+            playerPosition.y + 1.8, // Face level (head is around Y+1.5 to Y+2)
+            playerPosition.z
         );
     }
 

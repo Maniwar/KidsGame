@@ -417,32 +417,35 @@ export class Player {
 
     playDeathAnimation(callback) {
         // Funny death animation - character spins and flies up
-        const startTime = Date.now();
+        // PERFORMANCE: Use performance.now() instead of Date.now()
+        const startTime = performance.now();
         const duration = 1000; // 1 second
+        const character = this.character;
+        const position = this.position;
 
         const animate = () => {
-            const elapsed = Date.now() - startTime;
+            const elapsed = performance.now() - startTime;
             const progress = Math.min(elapsed / duration, 1);
 
             // Spin around (starting from current rotation of PI)
-            this.character.rotation.y = Math.PI + progress * Math.PI * 4; // Spin 4 times
-            this.character.rotation.x = progress * Math.PI * 2; // Flip twice
+            character.rotation.y = Math.PI + progress * Math.PI * 4; // Spin 4 times
+            character.rotation.x = progress * Math.PI * 2; // Flip twice
 
             // Fly up and fall
             const height = Math.sin(progress * Math.PI) * 3;
-            this.character.position.y = this.position.y + height;
+            character.position.y = position.y + height;
 
             // Squash and stretch
             const squash = 1 + Math.sin(progress * Math.PI * 8) * 0.3;
-            this.character.scale.set(1 / squash, squash, 1 / squash);
+            character.scale.set(1 / squash, squash, 1 / squash);
 
             if (progress < 1) {
                 requestAnimationFrame(animate);
             } else {
                 // IMPORTANT: Always reset to forward-facing rotation (180°)
-                this.character.rotation.set(0, Math.PI, 0);
-                this.character.scale.set(1, 1, 1);
-                this.character.position.y = this.position.y;
+                character.rotation.set(0, Math.PI, 0);
+                character.scale.set(1, 1, 1);
+                character.position.y = position.y;
                 if (callback) callback();
             }
         };

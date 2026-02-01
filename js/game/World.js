@@ -120,35 +120,40 @@ export class World {
             this.generateChunk();
         }
 
+        // PERFORMANCE: In-place removal instead of filter() (avoids new array allocation)
         // Update and cleanup obstacles
-        this.obstacles = this.obstacles.filter(obstacle => {
+        for (let i = this.obstacles.length - 1; i >= 0; i--) {
+            const obstacle = this.obstacles[i];
             obstacle.update(deltaTime, playerZ);
             if (!obstacle.isActive) {
                 obstacle.dispose();
-                return false;
+                // Swap with last element and pop (O(1) removal)
+                this.obstacles[i] = this.obstacles[this.obstacles.length - 1];
+                this.obstacles.pop();
             }
-            return true;
-        });
+        }
 
         // Update and cleanup collectibles
-        this.collectibles = this.collectibles.filter(collectible => {
+        for (let i = this.collectibles.length - 1; i >= 0; i--) {
+            const collectible = this.collectibles[i];
             collectible.update(deltaTime, playerZ);
             if (!collectible.isActive) {
                 collectible.dispose();
-                return false;
+                this.collectibles[i] = this.collectibles[this.collectibles.length - 1];
+                this.collectibles.pop();
             }
-            return true;
-        });
+        }
 
         // Update and cleanup power-ups
-        this.powerUps = this.powerUps.filter(powerUp => {
+        for (let i = this.powerUps.length - 1; i >= 0; i--) {
+            const powerUp = this.powerUps[i];
             powerUp.update(deltaTime, playerZ);
             if (!powerUp.isActive) {
                 powerUp.dispose();
-                return false;
+                this.powerUps[i] = this.powerUps[this.powerUps.length - 1];
+                this.powerUps.pop();
             }
-            return true;
-        });
+        }
     }
 
     getObstacles() {

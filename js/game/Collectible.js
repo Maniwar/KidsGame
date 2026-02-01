@@ -243,64 +243,30 @@ export class Collectible {
             }, 400);
         }
 
-        // Create small sparkle burst at collection point
-        const particles = [];
-        const particleCount = 4;
-
-        for (let i = 0; i < particleCount; i++) {
-            const particleGeo = new THREE.SphereGeometry(0.05, 4, 4);
-            const particleMat = new THREE.MeshBasicMaterial({
-                color: 0xFFD700,
-                transparent: true,
-                opacity: 1,
-            });
-
-            const particle = new THREE.Mesh(particleGeo, particleMat);
-            particle.position.copy(this.position);
-
-            const angle = (i / particleCount) * Math.PI * 2;
-            particle.userData.velocity = {
-                x: Math.cos(angle) * 2,
-                y: 1,
-                z: Math.sin(angle) * 2
-            };
-
-            this.scene.add(particle);
-            particles.push(particle);
-        }
-
-        // Coin flies straight up into the sky
+        // PERFORMANCE: Simplified collection effect - just fly up and fade
+        // Removed particle burst to reduce allocations (the UI feedback is enough)
         const duration = 500;
-        const startTime = Date.now();
+        const startTime = performance.now();
         const startY = this.position.y;
+        const scene = this.scene;
+        const group = this.group;
+        const mesh = this.mesh;
 
+        // PERFORMANCE: Use simpler animation loop with performance.now()
         const animate = () => {
-            const elapsed = Date.now() - startTime;
+            const elapsed = performance.now() - startTime;
             const progress = elapsed / duration;
 
             if (progress >= 1) {
-                particles.forEach(p => {
-                    this.scene.remove(p);
-                    p.geometry.dispose();
-                    p.material.dispose();
-                });
                 return;
             }
 
-            // Sparkle particles burst outward and fade quickly
-            particles.forEach((particle) => {
-                particle.position.x += particle.userData.velocity.x * 0.015;
-                particle.position.y += particle.userData.velocity.y * 0.015;
-                particle.position.z += particle.userData.velocity.z * 0.015;
-                particle.material.opacity = Math.max(0, 1 - progress * 2); // Fade faster
-            });
-
             // Coin shoots straight up with easing
             const easeOut = 1 - Math.pow(1 - progress, 3); // Cubic ease out
-            this.group.position.y = startY + (easeOut * 15); // Fly up 15 units
+            group.position.y = startY + (easeOut * 15); // Fly up 15 units
 
             // Fade out as it goes up
-            this.group.traverse((child) => {
+            group.traverse((child) => {
                 if (child.material) {
                     child.material.opacity = 1 - progress;
                     child.material.transparent = true;
@@ -308,7 +274,7 @@ export class Collectible {
             });
 
             // Slight spin as it flies up
-            this.mesh.rotation.y += 0.2;
+            mesh.rotation.y += 0.2;
 
             requestAnimationFrame(animate);
         };

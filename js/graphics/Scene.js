@@ -19,6 +19,10 @@ export class GameScene {
         this.nextGroundSegmentZ = 200; // FIXED: Start much further ahead
         this.groundSegmentLength = 150; // FIXED: Longer segments to reduce gaps
         this.movingObjectSpawnChance = 0.08; // OPTIMIZED: Reduced spawn rate for better FPS
+
+        // PERFORMANCE: Accumulated animation time (replaces Date.now() calls)
+        this.animTime = 0;
+
         this.setupRenderer();
         this.setupEnvironment();
     }
@@ -595,6 +599,10 @@ export class GameScene {
     }
 
     update(deltaTime, playerZ) {
+        // PERFORMANCE: Accumulate animation time (replaces Date.now() calls)
+        this.animTime += deltaTime;
+        const animTimeMs = this.animTime * 1000; // Convert to milliseconds for compatibility
+
         // FIXED: Move sky sphere to follow player so it's always centered around them
         if (this.sky) {
             this.sky.position.z = playerZ;
@@ -608,19 +616,20 @@ export class GameScene {
             segmentsSpawned++;
         }
 
+        // PERFORMANCE: In-place removal instead of filter()
         // Cleanup old ground segments behind player
-        this.groundSegments = this.groundSegments.filter(segment => {
+        for (let i = this.groundSegments.length - 1; i >= 0; i--) {
+            const segment = this.groundSegments[i];
             if (segment.userData.endZ > playerZ + 100) {
                 this.scene.remove(segment);
-                // Dispose of geometries and materials to free memory
                 segment.traverse((child) => {
                     if (child.geometry) child.geometry.dispose();
                     if (child.material) child.material.dispose();
                 });
-                return false;
+                this.groundSegments[i] = this.groundSegments[this.groundSegments.length - 1];
+                this.groundSegments.pop();
             }
-            return true;
-        });
+        }
 
         // Spawn new buildings ahead of player (spawn when within 1000 units for far camera view)
         while (playerZ - this.nextBuildingZ < 1000) {
@@ -628,38 +637,42 @@ export class GameScene {
             this.nextBuildingZ -= this.buildingSpacing;
         }
 
-        // Cleanup old buildings behind player
-        this.buildings = this.buildings.filter(building => {
+        // PERFORMANCE: In-place removal for buildings
+        for (let i = this.buildings.length - 1; i >= 0; i--) {
+            const building = this.buildings[i];
             if (building.userData.zPos > playerZ + 50) {
                 this.scene.remove(building);
-                return false;
+                this.buildings[i] = this.buildings[this.buildings.length - 1];
+                this.buildings.pop();
             }
-            return true;
-        });
+        }
 
-        // Animate and cleanup decorations
-        this.decorations = this.decorations.filter(decoration => {
-            // Animate floating elements
+        // PERFORMANCE: In-place removal and cached animation time for decorations
+        for (let i = this.decorations.length - 1; i >= 0; i--) {
+            const decoration = this.decorations[i];
+
+            // Animate floating elements using cached time
             if (decoration.type === 'balloon') {
-                decoration.mesh.position.y += Math.sin(Date.now() * 0.001) * deltaTime * 0.5;
+                decoration.mesh.position.y += Math.sin(animTimeMs * 0.001) * deltaTime * 0.5;
                 decoration.mesh.rotation.y += deltaTime * 0.5;
             }
             if (decoration.type === 'lantern') {
                 const floatOffset = decoration.mesh.userData.floatOffset || 0;
                 const floatSpeed = decoration.mesh.userData.floatSpeed || 1;
-                decoration.mesh.position.y += Math.sin(Date.now() * 0.001 * floatSpeed + floatOffset) * deltaTime * 0.3;
+                decoration.mesh.position.y += Math.sin(animTimeMs * 0.001 * floatSpeed + floatOffset) * deltaTime * 0.3;
             }
 
             // Cleanup if too far behind
             if (decoration.zPos > playerZ + 50) {
                 this.scene.remove(decoration.mesh);
-                return false;
+                this.decorations[i] = this.decorations[this.decorations.length - 1];
+                this.decorations.pop();
             }
-            return true;
-        });
+        }
 
         // Animate clouds
-        this.clouds.forEach((cloud, index) => {
+        for (let i = 0, len = this.clouds.length; i < len; i++) {
+            const cloud = this.clouds[i];
             cloud.position.z += deltaTime * 2;
 
             // Reset cloud position when it goes too far
@@ -667,7 +680,7 @@ export class GameScene {
                 cloud.position.z = playerZ - 100;
                 cloud.position.x = (Math.random() - 0.5) * 100;
             }
-        });
+        }
 
         // Update sidewalk characters/critters
         this.updateSidewalkCharacters(deltaTime, playerZ);
@@ -1400,14 +1413,15 @@ export class GameScene {
             obj.position.x += wobble * deltaTime * 0.2;
         });
 
-        // Cleanup objects that passed the player
-        this.movingObjects = this.movingObjects.filter(obj => {
+        // PERFORMANCE: In-place removal instead of filter()
+        for (let i = this.movingObjects.length - 1; i >= 0; i--) {
+            const obj = this.movingObjects[i];
             if (obj.position.z > playerZ + 20) {
                 this.scene.remove(obj);
-                return false;
+                this.movingObjects[i] = this.movingObjects[this.movingObjects.length - 1];
+                this.movingObjects.pop();
             }
-            return true;
-        });
+        }
     }
 
     updateSidewalkCharacters(deltaTime, playerZ) {
@@ -1448,15 +1462,16 @@ export class GameScene {
             }
         });
 
-        // Cleanup old characters
-        this.sidewalkCharacters = this.sidewalkCharacters.filter(character => {
+        // PERFORMANCE: In-place removal instead of filter()
+        for (let i = this.sidewalkCharacters.length - 1; i >= 0; i--) {
+            const character = this.sidewalkCharacters[i];
             const distance = Math.abs(character.position.z - playerZ);
             if (distance > 100) {
                 this.scene.remove(character);
-                return false;
+                this.sidewalkCharacters[i] = this.sidewalkCharacters[this.sidewalkCharacters.length - 1];
+                this.sidewalkCharacters.pop();
             }
-            return true;
-        });
+        }
     }
 
     getMovingObstacles() {
@@ -1465,6 +1480,9 @@ export class GameScene {
     }
 
     reset() {
+        // PERFORMANCE: Reset animation time
+        this.animTime = 0;
+
         // Clean up all spawned elements
         this.groundSegments.forEach(segment => {
             this.scene.remove(segment);

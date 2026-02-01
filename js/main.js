@@ -944,9 +944,14 @@ class Game {
                     break; // Exit loop to prevent multiple hits in same frame
                 }
 
-                // Hit an obstacle - play death animation then game over
+                // Hit an obstacle - trigger death effects and play animation
                 if (this.isRunning) {
                     this.isRunning = false; // Stop game immediately
+
+                    // Trigger all death screen effects
+                    this.triggerDeathEffects();
+
+                    // Play enhanced death animation with callback
                     this.player.playDeathAnimation(() => {
                         this.gameOver();
                     });
@@ -975,9 +980,14 @@ class Game {
                         break; // Exit loop to prevent multiple hits
                     }
 
-                    // Hit a moving obstacle - play death animation then game over
+                    // Hit a moving obstacle - trigger death effects and play animation
                     if (this.isRunning) {
                         this.isRunning = false; // Stop game immediately
+
+                        // Trigger all death screen effects
+                        this.triggerDeathEffects();
+
+                        // Play enhanced death animation with callback
                         this.player.playDeathAnimation(() => {
                             this.gameOver();
                         });
@@ -1393,6 +1403,179 @@ class Game {
                 this.animations.splice(i, 1);
             }
         }
+    }
+
+    // ============================================
+    // DEATH ANIMATION EFFECTS
+    // ============================================
+
+    triggerDeathEffects() {
+        const playerPos = this.player.getPosition();
+
+        // Screen flash
+        this.screenFlash();
+
+        // Screen shake
+        this.screenShake();
+
+        // Particle burst from character
+        this.createDeathParticles(playerPos);
+
+        // Comic impact text
+        this.showImpactText();
+    }
+
+    screenFlash() {
+        // Create white flash overlay
+        const flash = document.createElement('div');
+        flash.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0.8;
+            pointer-events: none;
+            z-index: 9999;
+            transition: opacity 0.3s ease-out;
+        `;
+        document.body.appendChild(flash);
+
+        // Fade out and remove
+        requestAnimationFrame(() => {
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 300);
+        });
+    }
+
+    screenShake() {
+        const camera = this.camera.getCamera();
+        const originalPosition = camera.position.clone();
+        const intensity = 0.3;
+        const duration = 400;
+        const startTime = performance.now();
+
+        const shake = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = elapsed / duration;
+
+            if (progress < 1) {
+                // Decreasing intensity shake
+                const currentIntensity = intensity * (1 - progress);
+                camera.position.x = originalPosition.x + (Math.random() - 0.5) * currentIntensity;
+                camera.position.y = originalPosition.y + (Math.random() - 0.5) * currentIntensity;
+                requestAnimationFrame(shake);
+            } else {
+                // Reset camera position
+                camera.position.copy(originalPosition);
+            }
+        };
+
+        shake();
+    }
+
+    createDeathParticles(position) {
+        // Burst of colorful particles (hearts and stars)
+        const particleCount = 20;
+        const colors = [0xFF69B4, 0xFFD700, 0xFF6B9D, 0xFFB6C1, 0x87CEEB, 0xFFFFFF];
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = this.getParticleFromPool(colors[i % colors.length]);
+            if (!particle) continue;
+
+            // Position at character
+            particle.position.set(
+                position.x + (Math.random() - 0.5) * 0.5,
+                position.y + 1 + Math.random() * 0.5,
+                position.z + (Math.random() - 0.5) * 0.5
+            );
+
+            // Random outward velocity (explosion)
+            const angle = (i / particleCount) * Math.PI * 2;
+            const speed = 3 + Math.random() * 4;
+            const upSpeed = 5 + Math.random() * 5;
+
+            particle.userData.velocity = {
+                x: Math.cos(angle) * speed,
+                y: upSpeed,
+                z: Math.sin(angle) * speed
+            };
+
+            particle.userData.gravity = true;
+            particle.userData.life = 1.0 + Math.random() * 0.5;
+            particle.userData.maxLife = particle.userData.life;
+            particle.userData.shrink = true;
+            particle.userData.rotationSpeed = {
+                x: (Math.random() - 0.5) * 10,
+                y: (Math.random() - 0.5) * 10,
+                z: (Math.random() - 0.5) * 10
+            };
+
+            // Random scale for variety
+            const scale = 0.5 + Math.random() * 1.0;
+            particle.scale.set(scale, scale, scale);
+        }
+    }
+
+    showImpactText() {
+        // Comic-style impact text
+        const texts = ['OOPS!', 'OOF!', 'BONK!', 'OUCH!', 'OH NO!'];
+        const text = texts[Math.floor(Math.random() * texts.length)];
+
+        const impactDiv = document.createElement('div');
+        impactDiv.textContent = text;
+        impactDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0) rotate(-15deg);
+            font-family: 'Comic Sans MS', 'Chalkboard', cursive, sans-serif;
+            font-size: 80px;
+            font-weight: bold;
+            color: #FF69B4;
+            text-shadow:
+                3px 3px 0 #FFD700,
+                -3px -3px 0 #FFD700,
+                3px -3px 0 #FFD700,
+                -3px 3px 0 #FFD700,
+                0 5px 10px rgba(0,0,0,0.3);
+            pointer-events: none;
+            z-index: 10000;
+            animation: impactPop 0.8s ease-out forwards;
+        `;
+
+        // Add keyframe animation if not already present
+        if (!document.getElementById('impact-text-style')) {
+            const style = document.createElement('style');
+            style.id = 'impact-text-style';
+            style.textContent = `
+                @keyframes impactPop {
+                    0% {
+                        transform: translate(-50%, -50%) scale(0) rotate(-15deg);
+                        opacity: 1;
+                    }
+                    30% {
+                        transform: translate(-50%, -50%) scale(1.3) rotate(5deg);
+                        opacity: 1;
+                    }
+                    50% {
+                        transform: translate(-50%, -50%) scale(1) rotate(-3deg);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translate(-50%, -50%) scale(1.5) rotate(0deg);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        document.body.appendChild(impactDiv);
+
+        // Remove after animation
+        setTimeout(() => impactDiv.remove(), 800);
     }
 
     // Leaderboard methods

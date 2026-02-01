@@ -415,42 +415,198 @@ export class Player {
         return this.position;
     }
 
-    playDeathAnimation(callback) {
-        // Funny death animation - character spins and flies up
-        // PERFORMANCE: Use performance.now() instead of Date.now()
+    playDeathAnimation(callback, options = {}) {
+        // Epic kid-friendly death animation with multiple effects
         const startTime = performance.now();
-        const duration = 1000; // 1 second
+        const duration = 1500; // Longer for more drama
         const character = this.character;
         const position = this.position;
+        const scene = this.scene;
+
+        // Create dizzy stars that orbit the head
+        const dizzyStars = this.createDizzyStars();
+
+        // Create ghost trail meshes
+        const ghostTrail = [];
+        const ghostCount = 5;
+
+        // Store original head position for X eyes effect
+        const originalHeadY = this.head ? this.head.position.y : 0;
+
+        // Trigger external effects if provided
+        if (options.onImpact) {
+            options.onImpact();
+        }
 
         const animate = () => {
             const elapsed = performance.now() - startTime;
             const progress = Math.min(elapsed / duration, 1);
 
-            // Spin around (starting from current rotation of PI)
-            character.rotation.y = Math.PI + progress * Math.PI * 4; // Spin 4 times
-            character.rotation.x = progress * Math.PI * 2; // Flip twice
+            // Phase 1: Initial impact freeze (0-10%) - brief pause for impact
+            // Phase 2: Spin up into air (10-60%)
+            // Phase 3: Bouncy fall (60-100%)
 
-            // Fly up and fall
-            const height = Math.sin(progress * Math.PI) * 3;
-            character.position.y = position.y + height;
+            let height = 0;
+            let spinY = Math.PI;
+            let spinX = 0;
+            let scale = 1;
 
-            // Squash and stretch
-            const squash = 1 + Math.sin(progress * Math.PI * 8) * 0.3;
-            character.scale.set(1 / squash, squash, 1 / squash);
+            if (progress < 0.1) {
+                // Phase 1: Impact freeze with squash
+                const impactProgress = progress / 0.1;
+                scale = 1 - impactProgress * 0.3; // Squash down
+                character.scale.set(1.3, scale, 1.3);
+            } else if (progress < 0.6) {
+                // Phase 2: Spin up into air
+                const flyProgress = (progress - 0.1) / 0.5;
+                const easeOut = 1 - Math.pow(1 - flyProgress, 2);
+
+                spinY = Math.PI + easeOut * Math.PI * 6; // Spin 6 times
+                spinX = easeOut * Math.PI * 3; // Flip 3 times
+                height = Math.sin(flyProgress * Math.PI) * 4; // Higher arc
+
+                // Stretch while flying
+                const stretch = 1 + Math.sin(flyProgress * Math.PI * 4) * 0.4;
+                character.scale.set(1 / stretch, stretch, 1 / stretch);
+
+                // Create ghost trail during flight
+                if (elapsed % 80 < 16 && ghostTrail.length < ghostCount) {
+                    const ghost = this.createGhostCopy();
+                    if (ghost) {
+                        ghost.position.copy(character.position);
+                        ghost.rotation.copy(character.rotation);
+                        scene.add(ghost);
+                        ghostTrail.push({ mesh: ghost, opacity: 0.6, createdAt: elapsed });
+                    }
+                }
+            } else {
+                // Phase 3: Bouncy fall with multiple bounces
+                const fallProgress = (progress - 0.6) / 0.4;
+
+                // Multiple bounces with decreasing height
+                const bounceCount = 3;
+                const bounceProgress = fallProgress * bounceCount;
+                const currentBounce = Math.floor(bounceProgress);
+                const bouncePhase = bounceProgress - currentBounce;
+                const bounceHeight = Math.pow(0.4, currentBounce) * 2; // Each bounce is 40% of previous
+
+                height = Math.sin(bouncePhase * Math.PI) * bounceHeight;
+
+                // Wobble spin during bounces
+                spinY = Math.PI + Math.sin(fallProgress * Math.PI * 8) * 0.5;
+                spinX = Math.sin(fallProgress * Math.PI * 6) * 0.3;
+
+                // Squash on each bounce impact
+                if (bouncePhase < 0.2) {
+                    const squashAmount = (1 - bouncePhase / 0.2) * 0.3 * Math.pow(0.5, currentBounce);
+                    character.scale.set(1 + squashAmount, 1 - squashAmount, 1 + squashAmount);
+                } else {
+                    character.scale.set(1, 1, 1);
+                }
+            }
+
+            character.rotation.y = spinY;
+            character.rotation.x = spinX;
+            character.position.y = position.y + height + 0.065;
+
+            // Update dizzy stars orbit
+            if (dizzyStars) {
+                const starTime = elapsed * 0.008;
+                dizzyStars.forEach((star, i) => {
+                    const angle = starTime + (i * Math.PI * 2 / dizzyStars.length);
+                    const orbitRadius = 0.5;
+                    const orbitHeight = 1.8 + height; // Follow character height
+                    star.position.set(
+                        character.position.x + Math.cos(angle) * orbitRadius,
+                        orbitHeight + Math.sin(starTime * 2 + i) * 0.1,
+                        character.position.z + Math.sin(angle) * orbitRadius
+                    );
+                    star.rotation.y = starTime * 3;
+                    star.rotation.z = starTime * 2;
+                });
+            }
+
+            // Fade out ghost trail
+            ghostTrail.forEach((ghost, index) => {
+                const age = elapsed - ghost.createdAt;
+                ghost.opacity = Math.max(0, 0.6 - age / 400);
+                ghost.mesh.traverse(child => {
+                    if (child.material) {
+                        child.material.opacity = ghost.opacity;
+                        child.material.transparent = true;
+                    }
+                });
+            });
 
             if (progress < 1) {
                 requestAnimationFrame(animate);
             } else {
-                // IMPORTANT: Always reset to forward-facing rotation (180°)
+                // Cleanup
                 character.rotation.set(0, Math.PI, 0);
                 character.scale.set(1, 1, 1);
-                character.position.y = position.y;
+                character.position.y = position.y + 0.065;
+
+                // Remove dizzy stars
+                if (dizzyStars) {
+                    dizzyStars.forEach(star => {
+                        scene.remove(star);
+                        star.geometry.dispose();
+                        star.material.dispose();
+                    });
+                }
+
+                // Remove ghost trail
+                ghostTrail.forEach(ghost => {
+                    scene.remove(ghost.mesh);
+                    ghost.mesh.traverse(child => {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) child.material.dispose();
+                    });
+                });
+
                 if (callback) callback();
             }
         };
 
         animate();
+    }
+
+    createDizzyStars() {
+        const stars = [];
+        const starCount = 5;
+        const starGeometry = new THREE.OctahedronGeometry(0.1, 0);
+        const starColors = [0xFFD700, 0xFFFFFF, 0xFF69B4, 0x87CEEB, 0xFFB6C1];
+
+        for (let i = 0; i < starCount; i++) {
+            const starMaterial = new THREE.MeshStandardMaterial({
+                color: starColors[i % starColors.length],
+                emissive: starColors[i % starColors.length],
+                emissiveIntensity: 0.8,
+                flatShading: true,
+            });
+            const star = new THREE.Mesh(starGeometry, starMaterial);
+            this.scene.add(star);
+            stars.push(star);
+        }
+
+        return stars;
+    }
+
+    createGhostCopy() {
+        // Create a semi-transparent copy of the character for trail effect
+        const ghost = new THREE.Group();
+
+        // Simplified ghost - just a translucent sphere
+        const ghostGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+        const ghostMaterial = new THREE.MeshBasicMaterial({
+            color: 0xFFB7C5, // Pink like Hello Kitty
+            transparent: true,
+            opacity: 0.5,
+        });
+        const ghostMesh = new THREE.Mesh(ghostGeometry, ghostMaterial);
+        ghost.add(ghostMesh);
+
+        return ghost;
     }
 
     reset() {

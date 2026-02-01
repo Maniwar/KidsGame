@@ -277,6 +277,15 @@ class Game {
         // Hide start screen
         document.getElementById('start-screen').classList.remove('active');
 
+        // Restore HUD visibility (may have been hidden during death)
+        const hud = document.getElementById('hud');
+        if (hud) {
+            hud.style.opacity = '1';
+        }
+        if (this.domElements.powerUpDisplay) {
+            this.domElements.powerUpDisplay.style.opacity = '1';
+        }
+
         // Initialize and start audio
         this.audio.init();
         this.audio.playBackgroundMusic();
@@ -1309,6 +1318,12 @@ class Game {
         // Update game
         this.update(deltaTime);
 
+        // Update death camera even when game is not running
+        // This ensures the dramatic camera spin animation plays after death
+        if (this.camera.isDeathCamera) {
+            this.camera.update(this.player.getPosition());
+        }
+
         // Render scene
         this.gameScene.render(this.camera.getCamera());
     }
@@ -1424,6 +1439,18 @@ class Game {
 
     triggerDeathEffects() {
         const playerPos = this.player.getPosition();
+
+        // Hide HUD during death camera for unobstructed view
+        const hud = document.getElementById('hud');
+        if (hud) {
+            hud.style.opacity = '0';
+            hud.style.transition = 'opacity 0.3s ease-out';
+        }
+
+        // Hide power-up display during death
+        if (this.domElements.powerUpDisplay) {
+            this.domElements.powerUpDisplay.style.opacity = '0';
+        }
 
         // Screen flash
         this.screenFlash();

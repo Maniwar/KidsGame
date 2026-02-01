@@ -933,9 +933,9 @@ class Game {
                     obstacle.isActive = false; // Destroy obstacle
                     this.score += 50; // Bonus points
 
-                    // Visual feedback - explosion and screen shake!
+                    // Visual feedback - explosion particles and floating text
+                    // (no screen shake to avoid jitter when smashing multiple obstacles)
                     this.createObstacleExplosion(obstacle.getPosition());
-                    this.screenShake(0.4, 150);
                     this.audio.playGemSound(); // Use gem sound for smash effect
                     this.createFloatingText('+50', obstacle.getPosition(), 0xFFAA00);
 

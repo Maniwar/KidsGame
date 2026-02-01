@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="Hello Kitty Sanrio Rush - A fun 3D endless runner game for kids">
+    <title>Hello Kitty Sanrio Rush 🎀</title>
+  <script type="module" crossorigin src="/KidsGame/assets/index-PVFe8Xnk.js"></script>
+  <link rel="stylesheet" crossorigin href="/KidsGame/assets/index-CENTAvZf.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+
+        <!-- HUD Overlay -->
+        <div id="hud">
+            <div id="score-display">
+                <div class="hud-item">
+                    <span class="label">Score:</span>
+                    <span id="score">0</span>
+                </div>
+                <div class="hud-item">
+                    <span class="label">Coins:</span>
+                    <span id="coins">0</span>
+                </div>
+                <div class="hud-item">
+                    <span class="label">Distance:</span>
+                    <span id="distance">0m</span>
+                </div>
+                <div class="hud-item" id="fps-display">
+                    <span class="label">FPS:</span>
+                    <span id="fps">60</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen active">
+            <h1>🎀 Hello Kitty Sanrio Rush 🎀</h1>
+            <p>Use Arrow Keys or WASD to move</p>
+            <p>↑ Jump | ↓ Slide | ← → Switch Lanes</p>
+            <button id="start-button" class="game-button">Start Game</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="screen">
+            <h2>Game Over!</h2>
+            <div class="score-summary">
+                <p>Final Score: <span id="final-score">0</span></p>
+                <p>Coins Collected: <span id="final-coins">0</span></p>
+                <p>Distance: <span id="final-distance">0m</span></p>
+            </div>
+
+            <!-- New High Score Input -->
+            <div id="new-high-score">
+                <h3>🎉 NEW HIGH SCORE! 🎉</h3>
+                <input type="text" id="initials-input" maxlength="3" placeholder="AAA">
+                <button type="button" id="save-score-button" class="game-button">Save Score</button>
+            </div>
+
+            <!-- Leaderboard -->
+            <div class="leaderboard">
+                <h3>🏆 Top Scores 🏆</h3>
+                <div id="leaderboard-list"></div>
+            </div>
+
+            <button id="restart-button" class="game-button">Play Again</button>
+        </div>
+    </div>
+
+</body>
+</html>

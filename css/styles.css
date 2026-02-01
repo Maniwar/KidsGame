@@ -1,0 +1,354 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Comic Sans MS', 'Arial', sans-serif;
+    overflow: hidden;
+    background: linear-gradient(135deg, #FFB7C5 0%, #87CEEB 100%);
+    touch-action: none; /* Prevent default touch behaviors */
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#game-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none; /* Prevent touch scrolling/zooming */
+}
+
+/* HUD Overlay */
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#score-display {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.hud-item {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 20px;
+    border-radius: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-size: 18px;
+    font-weight: bold;
+    color: #FF69B4;
+}
+
+.hud-item .label {
+    color: #FFB7C5;
+    margin-right: 5px;
+}
+
+/* Screen overlays */
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 183, 197, 0.95);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+}
+
+.screen.active {
+    display: flex;
+}
+
+.screen h1 {
+    font-size: 48px;
+    color: #FF69B4;
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.screen h2 {
+    font-size: 36px;
+    color: #FF69B4;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    margin-bottom: 20px;
+}
+
+.screen p {
+    font-size: 20px;
+    color: #FFF5F5;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    margin: 10px 0;
+    text-align: center;
+}
+
+.score-summary {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 30px;
+    border-radius: 20px;
+    margin: 20px 0;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.score-summary p {
+    font-size: 24px;
+    color: #FF69B4;
+    margin: 15px 0;
+    text-shadow: none;
+}
+
+.score-summary span {
+    color: #FFB347;
+    font-weight: bold;
+}
+
+/* New High Score */
+#new-high-score {
+    margin: 20px 0;
+    display: none;
+}
+
+#new-high-score h3 {
+    color: #FFD700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    font-size: 28px;
+    margin: 10px 0;
+}
+
+#initials-input {
+    font-family: 'Comic Sans MS', 'Arial', sans-serif;
+    font-size: 24px;
+    padding: 10px;
+    text-align: center;
+    text-transform: uppercase;
+    width: 100px;
+    margin: 10px;
+    border: 3px solid #FF69B4;
+    border-radius: 10px;
+    background: white;
+    color: #FF69B4;
+    font-weight: bold;
+}
+
+/* Leaderboard */
+.leaderboard {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 20px;
+    margin: 20px auto;
+    max-width: 400px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.leaderboard h3 {
+    color: #FF69B4;
+    font-size: 24px;
+    margin-bottom: 15px;
+}
+
+#leaderboard-list {
+    text-align: left;
+}
+
+.leaderboard-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    margin: 5px 0;
+    background: rgba(255, 183, 197, 0.2);
+    border-radius: 10px;
+    font-size: 18px;
+    color: #FF69B4;
+}
+
+.leaderboard-entry.highlight {
+    background: rgba(255, 215, 0, 0.3);
+    border: 2px solid #FFD700;
+    font-weight: bold;
+}
+
+.leaderboard-rank {
+    font-weight: bold;
+    margin-right: 10px;
+    color: #FFB347;
+}
+
+.leaderboard-initials {
+    flex: 1;
+    font-weight: bold;
+}
+
+.leaderboard-score {
+    color: #FFB347;
+    font-weight: bold;
+}
+
+/* Buttons */
+.game-button {
+    font-family: 'Comic Sans MS', 'Arial', sans-serif;
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    background: linear-gradient(135deg, #FF69B4 0%, #FFB7C5 100%);
+    border: none;
+    padding: 15px 40px;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    margin-top: 20px;
+}
+
+.game-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.game-button:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .screen h1 {
+        font-size: 32px;
+    }
+
+    .screen h2 {
+        font-size: 28px;
+    }
+
+    .screen p {
+        font-size: 16px;
+    }
+
+    .hud-item {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+
+    .game-button {
+        font-size: 20px;
+        padding: 12px 30px;
+    }
+}
+
+@media (max-width: 480px) {
+    .screen h1 {
+        font-size: 24px;
+    }
+
+    #score-display {
+        gap: 10px;
+    }
+
+    .hud-item {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+}
+
+/* Coin collection animation */
+@keyframes coinCollectShake {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+    }
+    10% {
+        transform: scale(1.3) rotate(-5deg);
+    }
+    20% {
+        transform: scale(1.3) rotate(5deg);
+    }
+    30% {
+        transform: scale(1.3) rotate(-5deg);
+    }
+    40% {
+        transform: scale(1.3) rotate(5deg);
+    }
+    50% {
+        transform: scale(1.2) rotate(0deg);
+    }
+    60% {
+        transform: scale(1.1) rotate(0deg);
+    }
+    80% {
+        transform: scale(1.05) rotate(0deg);
+    }
+}
+
+.coin-collect-shake {
+    animation: coinCollectShake 0.5s ease-out;
+}
+
+/* Coin counter glow when receiving coins */
+@keyframes coinGlow {
+    0% {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 0px rgba(255, 215, 0, 0);
+    }
+    50% {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 215, 0, 0.4);
+    }
+    100% {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 0px rgba(255, 215, 0, 0);
+    }
+}
+
+.coin-collect-glow {
+    animation: coinGlow 0.6s ease-out;
+}
+
+/* Sparkle particles around coin counter */
+.coin-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: radial-gradient(circle, #FFD700, #FFA500);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1000;
+    animation: sparkleFloat 0.8s ease-out forwards;
+}
+
+@keyframes sparkleFloat {
+    0% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(var(--tx), var(--ty)) scale(0);
+    }
+}
+
+/* Screen flash effect when particles arrive at coin counter */
+@keyframes flashFade {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}

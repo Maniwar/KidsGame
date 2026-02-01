@@ -1,0 +1,1519 @@
+import * as THREE from 'three';
+import { COLORS } from '../utils/Constants.js';
+
+export class GameScene {
+    constructor() {
+        this.scene = new THREE.Scene();
+        this.renderer = null;
+        this.backgroundObjects = [];
+        this.clouds = [];
+        this.buildings = [];
+        this.decorations = [];
+        this.sidewalkCharacters = [];
+        this.groundSegments = [];
+        this.movingObjects = []; // Objects that move toward player
+        this.nextBuildingZ = -50;
+        this.buildingSpacing = 20; // Space between buildings
+        this.nextCharacterSpawnZ = -30;
+        this.characterSpawnChance = 0.15; // OPTIMIZED: Reduced spawn rate for better FPS
+        this.nextGroundSegmentZ = 200; // FIXED: Start much further ahead
+        this.groundSegmentLength = 150; // FIXED: Longer segments to reduce gaps
+        this.movingObjectSpawnChance = 0.08; // OPTIMIZED: Reduced spawn rate for better FPS
+        this.setupRenderer();
+        this.setupEnvironment();
+    }
+
+    setupRenderer() {
+        const canvas = document.getElementById('game-canvas');
+        this.renderer = new THREE.WebGLRenderer({
+            canvas,
+            antialias: true,
+            alpha: false
+        });
+
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        // OPTIMIZED: Limit pixel ratio to 1.5 for better performance on high-DPI displays
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // Sky gradient background
+        this.renderer.setClearColor(new THREE.Color(0x87CEEB));
+    }
+
+    setupEnvironment() {
+        // Sky gradient
+        this.createSkyGradient();
+
+        // OPTIMIZED: Disabled fog to prevent pink wall gaps between segments
+        // this.scene.fog = new THREE.Fog(0xFFB7C5, 50, 200);
+
+        // Ground
+        this.createGround();
+
+        // Background elements
+        this.createBackgroundBuildings();
+        this.createSideDecorations();
+        this.createClouds();
+    }
+
+    createSkyGradient() {
+        // Create a large sphere for sky gradient
+        const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+        const skyMaterial = new THREE.ShaderMaterial({
+            vertexShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                    vWorldPosition = worldPosition.xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    float h = normalize(vWorldPosition).y;
+                    // FIXED: Gradient from light blue (horizon) to sky blue (top) - no more pink!
+                    vec3 skyColor = mix(vec3(0.75, 0.92, 0.98), vec3(0.53, 0.81, 0.92), max(h, 0.0));
+                    gl_FragColor = vec4(skyColor, 1.0);
+                }
+            `,
+            side: THREE.BackSide
+        });
+
+        this.sky = new THREE.Mesh(skyGeometry, skyMaterial);
+        this.scene.add(this.sky);
+    }
+
+    createGround() {
+        // Main ground plane (extremely long to cover full playable area)
+        const groundGeometry = new THREE.PlaneGeometry(200, 20000); // EXTENDED: Doubled length
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: COLORS.PRIMARY_PINK,
+            roughness: 0.9,
+            metalness: 0.1,
+        });
+
+        this.ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        this.ground.rotation.x = -Math.PI / 2;
+        this.ground.position.y = 0;
+        this.ground.position.z = -10000; // EXTENDED: Center it even further ahead
+        this.ground.receiveShadow = true;
+        this.scene.add(this.ground);
+
+        // Sidewalks (also very long)
+        this.createSidewalks();
+
+        // Create initial ground segments (lane markers) - optimized count for better FPS
+        for (let i = 0; i < 20; i++) { // EXTENDED: More initial segments
+            this.spawnGroundSegment(this.nextGroundSegmentZ);
+            this.nextGroundSegmentZ -= this.groundSegmentLength;
+        }
+    }
+
+    spawnGroundSegment(startZ) {
+        const segmentGroup = new THREE.Group();
+        const endZ = startZ - this.groundSegmentLength;
+
+        // Main ground - clean pink road surface
+        const segmentPlaneGeometry = new THREE.PlaneGeometry(8, this.groundSegmentLength);
+        const segmentPlaneMaterial = new THREE.MeshStandardMaterial({
+            color: COLORS.PRIMARY_PINK,
+            roughness: 0.8,
+            metalness: 0.1,
+        });
+
+        const segmentPlane = new THREE.Mesh(segmentPlaneGeometry, segmentPlaneMaterial);
+        segmentPlane.rotation.x = -Math.PI / 2;
+        segmentPlane.position.y = 0.005;
+        segmentPlane.position.z = startZ - this.groundSegmentLength / 2;
+        segmentPlane.receiveShadow = true;
+        segmentGroup.add(segmentPlane);
+
+        // Lane markers - white dashed lines
+        const markerGeometry = new THREE.BoxGeometry(0.15, 0.03, 2);
+        const markerMaterial = new THREE.MeshStandardMaterial({
+            color: COLORS.SOFT_WHITE,
+            flatShading: true,
+            emissive: COLORS.SOFT_WHITE,
+            emissiveIntensity: 0.2
+        });
+
+        const dividerPositions = [-1, 1];
+        dividerPositions.forEach(x => {
+            for (let z = startZ; z > endZ; z -= 5) {
+                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                marker.position.set(x, 0.05, z);
+                segmentGroup.add(marker);
+            }
+        });
+
+        // Concrete slabs on sidewalks (individual rectangles)
+        const slabWidth = 1.8; // Slab width (leaves gaps on sides)
+        const slabDepth = 2.5; // Slab length
+        const slabHeight = 0.06;
+        const gapSize = 0.1; // Gap between slabs
+
+        const slabGeometry = new THREE.BoxGeometry(slabWidth, slabHeight, slabDepth);
+        const slabMaterial = new THREE.MeshStandardMaterial({
+            color: 0xC8C8C8, // Light concrete gray
+            roughness: 0.85,
+            flatShading: true
+        });
+
+        const gapGeometry = new THREE.BoxGeometry(slabWidth, 0.03, gapSize);
+        const gapMaterial = new THREE.MeshStandardMaterial({
+            color: 0x808080, // Dark gap
+            roughness: 0.95
+        });
+
+        // Create slabs along the segment
+        for (let z = startZ; z > endZ; z -= (slabDepth + gapSize)) {
+            // Left sidewalk slabs
+            const leftSlab = new THREE.Mesh(slabGeometry, slabMaterial);
+            leftSlab.position.set(-6, 0.08, z - slabDepth/2);
+            leftSlab.receiveShadow = true;
+            segmentGroup.add(leftSlab);
+
+            // Gap after slab
+            if (z - slabDepth - gapSize > endZ) {
+                const leftGap = new THREE.Mesh(gapGeometry, gapMaterial);
+                leftGap.position.set(-6, 0.065, z - slabDepth - gapSize/2);
+                segmentGroup.add(leftGap);
+            }
+
+            // Right sidewalk slabs
+            const rightSlab = new THREE.Mesh(slabGeometry, slabMaterial);
+            rightSlab.position.set(6, 0.08, z - slabDepth/2);
+            rightSlab.receiveShadow = true;
+            segmentGroup.add(rightSlab);
+
+            // Gap after slab
+            if (z - slabDepth - gapSize > endZ) {
+                const rightGap = new THREE.Mesh(gapGeometry, gapMaterial);
+                rightGap.position.set(6, 0.065, z - slabDepth - gapSize/2);
+                segmentGroup.add(rightGap);
+            }
+        }
+
+        // OPTIMIZED: Sparse decorations for good looks + performance
+        // Shared materials to reduce draw calls
+        const cobbleMaterial = new THREE.MeshStandardMaterial({
+            color: 0xC0C0C0,
+            flatShading: true,
+            roughness: 0.9
+        });
+        const cobbleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.04, 6);
+
+        // Just a few cobblestones per segment (not hundreds!)
+        for (let z = startZ; z > endZ; z -= 8) {
+            // Left sidewalk - 3 cobbles
+            for (let i = 0; i < 3; i++) {
+                const cobble = new THREE.Mesh(cobbleGeometry, cobbleMaterial);
+                cobble.position.set(
+                    -6 + (Math.random() - 0.5) * 1.5,
+                    0.06,
+                    z + (Math.random() - 0.5) * 2
+                );
+                cobble.rotation.y = Math.random() * Math.PI * 2;
+                segmentGroup.add(cobble);
+            }
+
+            // Right sidewalk - 3 cobbles
+            for (let i = 0; i < 3; i++) {
+                const cobble = new THREE.Mesh(cobbleGeometry, cobbleMaterial);
+                cobble.position.set(
+                    6 + (Math.random() - 0.5) * 1.5,
+                    0.06,
+                    z + (Math.random() - 0.5) * 2
+                );
+                cobble.rotation.y = Math.random() * Math.PI * 2;
+                segmentGroup.add(cobble);
+            }
+        }
+
+        // Sparse grass and flowers in yards (very minimal)
+        const grassMaterial = new THREE.MeshStandardMaterial({
+            color: COLORS.GRASS_GREEN,
+            flatShading: true,
+        });
+        const grassGeometry = new THREE.ConeGeometry(0.15, 0.35, 4);
+
+        for (let z = startZ; z > endZ; z -= 12) {
+            // Left yard - just 2 grass spots
+            for (let i = 0; i < 2; i++) {
+                const grass = new THREE.Mesh(grassGeometry, grassMaterial);
+                grass.position.set(
+                    -9 - Math.random() * 2,
+                    0.18,
+                    z + (Math.random() - 0.5) * 3
+                );
+                segmentGroup.add(grass);
+
+                // Maybe add a single flower
+                if (Math.random() < 0.5) {
+                    const flowerGeometry = new THREE.SphereGeometry(0.08, 6, 6);
+                    const flowerColors = [0xFF69B4, 0xFFD700, 0xFFB6C1];
+                    const flowerMaterial = new THREE.MeshStandardMaterial({
+                        color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+                        flatShading: true,
+                    });
+                    const flower = new THREE.Mesh(flowerGeometry, flowerMaterial);
+                    flower.position.set(grass.position.x + 0.1, 0.35, grass.position.z);
+                    segmentGroup.add(flower);
+                }
+            }
+
+            // Right yard - just 2 grass spots
+            for (let i = 0; i < 2; i++) {
+                const grass = new THREE.Mesh(grassGeometry, grassMaterial);
+                grass.position.set(
+                    9 + Math.random() * 2,
+                    0.18,
+                    z + (Math.random() - 0.5) * 3
+                );
+                segmentGroup.add(grass);
+
+                // Maybe add a single flower
+                if (Math.random() < 0.5) {
+                    const flowerGeometry = new THREE.SphereGeometry(0.08, 6, 6);
+                    const flowerColors = [0xFF69B4, 0xFFD700, 0xFFB6C1];
+                    const flowerMaterial = new THREE.MeshStandardMaterial({
+                        color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+                        flatShading: true,
+                    });
+                    const flower = new THREE.Mesh(flowerGeometry, flowerMaterial);
+                    flower.position.set(grass.position.x - 0.1, 0.35, grass.position.z);
+                    segmentGroup.add(flower);
+                }
+            }
+        }
+
+        segmentGroup.userData.startZ = startZ;
+        segmentGroup.userData.endZ = endZ;
+        this.scene.add(segmentGroup);
+        this.groundSegments.push(segmentGroup);
+    }
+
+    createSidewalks() {
+        // EXTENDED: Sidewalks doubled in length to match ground plane
+        const sidewalkGeometry = new THREE.BoxGeometry(4, 0.1, 20000);
+        const sidewalkMaterial = new THREE.MeshStandardMaterial({
+            color: 0xD3D3D3,
+            roughness: 0.8
+        });
+
+        const leftSidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
+        leftSidewalk.position.set(-6, 0.05, -10000);
+        leftSidewalk.receiveShadow = true;
+        this.scene.add(leftSidewalk);
+
+        const rightSidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
+        rightSidewalk.position.set(6, 0.05, -10000);
+        rightSidewalk.receiveShadow = true;
+        this.scene.add(rightSidewalk);
+
+        // GREEN GRASS STRIPS - where buildings sit (earth/nature strip instead of pink)
+        const grassStripGeometry = new THREE.PlaneGeometry(100, 20000);
+        const grassStripMaterial = new THREE.MeshStandardMaterial({
+            color: COLORS.GRASS_GREEN,
+            roughness: 0.9,
+            metalness: 0.1
+        });
+
+        // Left grass strip (beyond left sidewalk)
+        const leftGrassStrip = new THREE.Mesh(grassStripGeometry, grassStripMaterial);
+        leftGrassStrip.rotation.x = -Math.PI / 2;
+        leftGrassStrip.position.set(-58, 0.02, -10000); // Positioned beyond sidewalk
+        leftGrassStrip.receiveShadow = true;
+        this.scene.add(leftGrassStrip);
+
+        // Right grass strip (beyond right sidewalk)
+        const rightGrassStrip = new THREE.Mesh(grassStripGeometry, grassStripMaterial);
+        rightGrassStrip.rotation.x = -Math.PI / 2;
+        rightGrassStrip.position.set(58, 0.02, -10000); // Positioned beyond sidewalk
+        rightGrassStrip.receiveShadow = true;
+        this.scene.add(rightGrassStrip);
+
+        // Concrete sections are now added per segment in spawnGroundSegment()
+    }
+
+    createBackgroundBuildings() {
+        // Create initial set of buildings - optimized count for better FPS
+        for (let i = 0; i < 18; i++) { // OPTIMIZED: Reduced from 25 to 18 for better performance
+            this.spawnBuilding(this.nextBuildingZ);
+            this.nextBuildingZ -= this.buildingSpacing;
+        }
+    }
+
+    spawnBuilding(z) {
+        // Calculate progression factor based on distance (gets cooler the further you go!)
+        const distance = Math.abs(z);
+        const progression = Math.min(distance / 500, 1.5); // OPTIMIZED: Capped at 1.5x instead of 3x to prevent extremely tall buildings
+
+        // Basic building types
+        const basicTypes = [
+            { width: 4, height: 8, depth: 3, color: 0xFFB7C5, roofType: 'cone' },      // Pink house
+            { width: 3, height: 6, depth: 3, color: 0xFFE4E1, roofType: 'cone' },      // Misty rose
+            { width: 5, height: 10, depth: 3, color: 0xFFC0CB, roofType: 'pyramid' },  // Light pink
+            { width: 3.5, height: 7, depth: 3, color: 0xFFDAB9, roofType: 'cone' },    // Peach
+        ];
+
+        // Advanced building types (unlock as you go further) - OPTIMIZED: Reduced max heights
+        const advancedTypes = [
+            { width: 4.5, height: 12, depth: 3, color: 0xE6E6FA, roofType: 'flat' },   // Lavender tower
+            { width: 6, height: 14, depth: 3.5, color: 0xFFB6C1, roofType: 'cone' },   // Tall pink building (was 15)
+            { width: 5, height: 15, depth: 4, color: 0xDDA0DD, roofType: 'pyramid' },  // Plum skyscraper (was 18)
+            { width: 7, height: 16, depth: 4, color: 0xB0E0E6, roofType: 'flat' },     // Powder blue tower (was 20)
+        ];
+
+        // OPTIMIZED: Removed epicTypes to prevent extremely tall buildings that cause performance issues
+        // Buildings are now capped at reasonable heights for smooth gameplay
+
+        // Select building pool based on progression
+        let buildingPool = [...basicTypes];
+        if (progression > 0.8) {
+            buildingPool = [...buildingPool, ...advancedTypes];
+        }
+
+        const type = buildingPool[Math.floor(Math.random() * buildingPool.length)];
+
+        // Add height variation for more interesting skyline - OPTIMIZED: Reduced variation
+        const heightVariation = 1 + (Math.random() * 0.15 * progression); // Reduced from 0.3 to 0.15
+        const adjustedHeight = Math.min(type.height * heightVariation, 18); // OPTIMIZED: Hard cap at 18 units
+
+        // Create building on left side
+        const leftBuilding = this.createBuilding(-15, adjustedHeight / 2, z, type.width, adjustedHeight, type.depth, type.color, type.roofType);
+        leftBuilding.userData.side = 'left';
+        leftBuilding.userData.zPos = z;
+        this.buildings.push(leftBuilding);
+
+        // Create different building on right side for variety
+        const rightType = buildingPool[Math.floor(Math.random() * buildingPool.length)];
+        const rightHeightVariation = 1 + (Math.random() * 0.3 * progression);
+        const rightAdjustedHeight = rightType.height * rightHeightVariation;
+        const rightBuilding = this.createBuilding(15, rightAdjustedHeight / 2, z, rightType.width, rightAdjustedHeight, rightType.depth, rightType.color, rightType.roofType);
+        rightBuilding.userData.side = 'right';
+        rightBuilding.userData.zPos = z;
+        this.buildings.push(rightBuilding);
+
+        // Add special decorations at higher progression levels - OPTIMIZED: Reduced spawn rate
+        if (progression > 1.0 && Math.random() < 0.15) { // Reduced from 0.3 to 0.15
+            this.addSpecialDecoration(z, progression);
+        }
+    }
+
+    createBuilding(x, y, z, width, height, depth, color, roofType = 'cone') {
+        const group = new THREE.Group();
+
+        // Main building body
+        const bodyGeometry = new THREE.BoxGeometry(width, height, depth);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: color,
+            flatShading: true,
+            roughness: 0.8
+        });
+
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.castShadow = true;
+        body.receiveShadow = true;
+        group.add(body);
+
+        // Varied roof styles
+        const roofColors = [COLORS.RED, 0xFF6B9D, 0xFFB6C1, 0xDDA0DD, 0xB0E0E6];
+        const roofColor = roofColors[Math.floor(Math.random() * roofColors.length)];
+        const roofMaterial = new THREE.MeshStandardMaterial({
+            color: roofColor,
+            flatShading: true
+        });
+
+        let roof;
+        if (roofType === 'cone') {
+            const roofGeometry = new THREE.ConeGeometry(width * 0.7, height * 0.2, 4);
+            roof = new THREE.Mesh(roofGeometry, roofMaterial);
+            roof.rotation.y = Math.PI / 4;
+        } else if (roofType === 'pyramid') {
+            const roofGeometry = new THREE.ConeGeometry(width * 0.8, height * 0.25, 4);
+            roof = new THREE.Mesh(roofGeometry, roofMaterial);
+            roof.rotation.y = 0;
+        } else if (roofType === 'flat') {
+            const roofGeometry = new THREE.BoxGeometry(width * 1.1, height * 0.1, depth * 1.1);
+            roof = new THREE.Mesh(roofGeometry, roofMaterial);
+        }
+
+        roof.position.y = height / 2 + height * 0.1;
+        roof.castShadow = true;
+        group.add(roof);
+
+        // OPTIMIZED: Simplified windows - only 1 row instead of 2 for better FPS
+        const windowGeometry = new THREE.BoxGeometry(width * 0.15, height * 0.12, 0.1);
+        const windowMaterial = new THREE.MeshStandardMaterial({
+            color: 0x87CEEB,
+            emissive: 0x87CEEB,
+            emissiveIntensity: 0.3
+        });
+
+        // OPTIMIZED: Only 1 row of windows to reduce draw calls by 50%
+        for (let col = 0; col < 2; col++) {
+            const window = new THREE.Mesh(windowGeometry, windowMaterial);
+            window.position.set(
+                -width * 0.2 + col * width * 0.4,
+                0, // Center vertically
+                depth / 2 + 0.05
+            );
+            group.add(window);
+        }
+
+        group.position.set(x, y, z);
+        this.scene.add(group);
+        this.backgroundObjects.push(group);
+
+        // OPTIMIZED: Removed building decorations to improve performance
+
+        return group;
+    }
+
+    createSideDecorations() {
+        // Street lamps
+        for (let z = -100; z < 100; z += 15) {
+            this.createStreetLamp(-8, 0, z);
+            this.createStreetLamp(8, 0, z + 7.5);
+        }
+
+        // Trees
+        for (let z = -100; z < 100; z += 20) {
+            if (Math.random() > 0.5) {
+                this.createTree(-10, 0, z + Math.random() * 5);
+                this.createTree(10, 0, z + Math.random() * 5);
+            }
+        }
+    }
+
+    createStreetLamp(x, y, z) {
+        const group = new THREE.Group();
+
+        // Post
+        const postGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+        const postMaterial = new THREE.MeshStandardMaterial({
+            color: 0x696969,
+            flatShading: true
+        });
+
+        const post = new THREE.Mesh(postGeometry, postMaterial);
+        post.position.y = 1.5;
+        post.castShadow = true;
+        group.add(post);
+
+        // Lamp
+        const lampGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+        const lampMaterial = new THREE.MeshStandardMaterial({
+            color: COLORS.GOLD,
+            emissive: COLORS.GOLD,
+            emissiveIntensity: 0.5
+        });
+
+        const lamp = new THREE.Mesh(lampGeometry, lampMaterial);
+        lamp.position.y = 3;
+        group.add(lamp);
+
+        // Point light
+        const light = new THREE.PointLight(COLORS.GOLD, 0.5, 10);
+        light.position.y = 3;
+        group.add(light);
+
+        group.position.set(x, y, z);
+        this.scene.add(group);
+    }
+
+    createTree(x, y, z) {
+        const group = new THREE.Group();
+
+        // Trunk
+        const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2, 8);
+        const trunkMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8B4513,
+            flatShading: true
+        });
+
+        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+        trunk.position.y = 1;
+        trunk.castShadow = true;
+        group.add(trunk);
+
+        // Foliage
+        const foliageGeometry = new THREE.SphereGeometry(1.2, 8, 8);
+        const foliageMaterial = new THREE.MeshStandardMaterial({
+            color: 0x90EE90,
+            flatShading: true
+        });
+
+        const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+        foliage.position.y = 2.5;
+        foliage.castShadow = true;
+        group.add(foliage);
+
+        group.position.set(x, y, z);
+        this.scene.add(group);
+    }
+
+    createClouds() {
+        // Floating clouds in the sky
+        for (let i = 0; i < 15; i++) {
+            const cloud = this.createCloud();
+            cloud.position.set(
+                (Math.random() - 0.5) * 100,
+                15 + Math.random() * 10,
+                (Math.random() - 0.5) * 200
+            );
+            this.scene.add(cloud);
+            this.clouds.push(cloud);
+        }
+    }
+
+    createCloud() {
+        const group = new THREE.Group();
+        const cloudMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFFFFF,
+            flatShading: true,
+            roughness: 1
+        });
+
+        // Make fluffy clouds from spheres
+        for (let i = 0; i < 5; i++) {
+            const size = 1 + Math.random() * 0.5;
+            const geometry = new THREE.SphereGeometry(size, 8, 8);
+            const sphere = new THREE.Mesh(geometry, cloudMaterial);
+            sphere.position.set(
+                (Math.random() - 0.5) * 3,
+                (Math.random() - 0.5) * 0.5,
+                (Math.random() - 0.5) * 2
+            );
+            group.add(sphere);
+        }
+
+        return group;
+    }
+
+    update(deltaTime, playerZ) {
+        // FIXED: Move sky sphere to follow player so it's always centered around them
+        if (this.sky) {
+            this.sky.position.z = playerZ;
+        }
+
+        // FIXED: Spawn segments MUCH further ahead and more aggressively to prevent pink wall gaps
+        let segmentsSpawned = 0;
+        while (playerZ - this.nextGroundSegmentZ < 5000 && segmentsSpawned < 3) {
+            this.spawnGroundSegment(this.nextGroundSegmentZ);
+            this.nextGroundSegmentZ -= this.groundSegmentLength;
+            segmentsSpawned++;
+        }
+
+        // Cleanup old ground segments behind player
+        this.groundSegments = this.groundSegments.filter(segment => {
+            if (segment.userData.endZ > playerZ + 100) {
+                this.scene.remove(segment);
+                // Dispose of geometries and materials to free memory
+                segment.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+                return false;
+            }
+            return true;
+        });
+
+        // Spawn new buildings ahead of player (spawn when within 1000 units for far camera view)
+        while (playerZ - this.nextBuildingZ < 1000) {
+            this.spawnBuilding(this.nextBuildingZ);
+            this.nextBuildingZ -= this.buildingSpacing;
+        }
+
+        // Cleanup old buildings behind player
+        this.buildings = this.buildings.filter(building => {
+            if (building.userData.zPos > playerZ + 50) {
+                this.scene.remove(building);
+                return false;
+            }
+            return true;
+        });
+
+        // Animate and cleanup decorations
+        this.decorations = this.decorations.filter(decoration => {
+            // Animate floating elements
+            if (decoration.type === 'balloon') {
+                decoration.mesh.position.y += Math.sin(Date.now() * 0.001) * deltaTime * 0.5;
+                decoration.mesh.rotation.y += deltaTime * 0.5;
+            }
+            if (decoration.type === 'lantern') {
+                const floatOffset = decoration.mesh.userData.floatOffset || 0;
+                const floatSpeed = decoration.mesh.userData.floatSpeed || 1;
+                decoration.mesh.position.y += Math.sin(Date.now() * 0.001 * floatSpeed + floatOffset) * deltaTime * 0.3;
+            }
+
+            // Cleanup if too far behind
+            if (decoration.zPos > playerZ + 50) {
+                this.scene.remove(decoration.mesh);
+                return false;
+            }
+            return true;
+        });
+
+        // Animate clouds
+        this.clouds.forEach((cloud, index) => {
+            cloud.position.z += deltaTime * 2;
+
+            // Reset cloud position when it goes too far
+            if (cloud.position.z > playerZ + 100) {
+                cloud.position.z = playerZ - 100;
+                cloud.position.x = (Math.random() - 0.5) * 100;
+            }
+        });
+
+        // Update sidewalk characters/critters
+        this.updateSidewalkCharacters(deltaTime, playerZ);
+
+        // Update moving objects coming toward player
+        this.updateMovingObjects(deltaTime, playerZ);
+    }
+
+    handleResize() {
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        // OPTIMIZED: Limit pixel ratio to 1.5 for better performance
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    }
+
+    render(camera) {
+        this.renderer.render(this.scene, camera);
+    }
+
+    add(object) {
+        this.scene.add(object);
+    }
+
+    remove(object) {
+        this.scene.remove(object);
+    }
+
+    addSpecialDecoration(z, progression) {
+        const decorationType = Math.floor(Math.random() * 5);
+
+        switch (decorationType) {
+            case 0: // Floating balloons
+                this.createFloatingBalloons(z);
+                break;
+            case 1: // Banner between buildings
+                this.createBanner(z);
+                break;
+            case 2: // Fountain or statue
+                this.createFountain(z);
+                break;
+            case 3: // Rainbow arch
+                if (progression > 1.5) {
+                    this.createRainbowArch(z);
+                }
+                break;
+            case 4: // Floating lanterns
+                if (progression > 2.0) {
+                    this.createFloatingLanterns(z);
+                }
+                break;
+        }
+    }
+
+    createFloatingBalloons(z) {
+        const balloonCount = 3 + Math.floor(Math.random() * 3);
+        const xPos = Math.random() > 0.5 ? -10 : 10;
+
+        for (let i = 0; i < balloonCount; i++) {
+            const group = new THREE.Group();
+
+            // Balloon
+            const balloonGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+            const balloonColor = [0xFF69B4, 0xFFB6C1, 0xDDA0DD, 0x87CEEB, 0xFFD700][Math.floor(Math.random() * 5)];
+            const balloonMaterial = new THREE.MeshStandardMaterial({
+                color: balloonColor,
+                flatShading: true
+            });
+            const balloon = new THREE.Mesh(balloonGeometry, balloonMaterial);
+            balloon.position.y = 3 + i * 1.5;
+            group.add(balloon);
+
+            // String
+            const stringGeometry = new THREE.CylinderGeometry(0.02, 0.02, 2 + i * 1.5, 4);
+            const stringMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFFFFFF
+            });
+            const string = new THREE.Mesh(stringGeometry, stringMaterial);
+            string.position.y = (2 + i * 1.5) / 2;
+            group.add(string);
+
+            group.position.set(
+                xPos + (Math.random() - 0.5) * 2,
+                0,
+                z + (Math.random() - 0.5) * 5
+            );
+
+            this.scene.add(group);
+            this.decorations.push({ mesh: group, zPos: z, type: 'balloon' });
+        }
+    }
+
+    createBanner(z) {
+        // Vertical hanging banner (like a flag between buildings)
+        const bannerGeometry = new THREE.BoxGeometry(18, 2.5, 0.1); // Wide, tall, thin
+        const bannerMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFF69B4,
+            flatShading: true
+        });
+        const banner = new THREE.Mesh(bannerGeometry, bannerMaterial);
+        banner.position.set(0, 8, z); // High up, hanging down
+        this.scene.add(banner);
+        this.decorations.push({ mesh: banner, zPos: z, type: 'banner' });
+    }
+
+    createFountain(z) {
+        const group = new THREE.Group();
+
+        // Base
+        const baseGeometry = new THREE.CylinderGeometry(2, 2.5, 0.5, 8);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+            color: 0xD3D3D3,
+            flatShading: true
+        });
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
+        base.position.y = 0.25;
+        group.add(base);
+
+        // Water basin
+        const basinGeometry = new THREE.CylinderGeometry(1.5, 1.5, 0.8, 8);
+        const basinMaterial = new THREE.MeshStandardMaterial({
+            color: 0x87CEEB,
+            flatShading: true,
+            transparent: true,
+            opacity: 0.7
+        });
+        const basin = new THREE.Mesh(basinGeometry, basinMaterial);
+        basin.position.y = 0.9;
+        group.add(basin);
+
+        // Central spout
+        const spoutGeometry = new THREE.CylinderGeometry(0.2, 0.3, 1.5, 6);
+        const spout = new THREE.Mesh(spoutGeometry, baseMaterial);
+        spout.position.y = 1.5;
+        group.add(spout);
+
+        group.position.set(0, 0, z);
+        this.scene.add(group);
+        this.decorations.push({ mesh: group, zPos: z, type: 'fountain' });
+    }
+
+    createRainbowArch(z) {
+        const group = new THREE.Group();
+        const colors = [0xFF0000, 0xFF7F00, 0xFFFF00, 0x00FF00, 0x0000FF, 0x4B0082, 0x9400D3];
+
+        colors.forEach((color, index) => {
+            const arcGeometry = new THREE.TorusGeometry(
+                10 - index * 0.3,
+                0.2,
+                8,
+                32,
+                Math.PI
+            );
+            const arcMaterial = new THREE.MeshStandardMaterial({
+                color: color,
+                flatShading: true,
+                emissive: color,
+                emissiveIntensity: 0.2
+            });
+            const arc = new THREE.Mesh(arcGeometry, arcMaterial);
+            arc.rotation.x = Math.PI / 2;
+            arc.position.y = 0;
+            group.add(arc);
+        });
+
+        group.position.set(0, 0, z);
+        group.rotation.y = Math.PI / 2;
+        this.scene.add(group);
+        this.decorations.push({ mesh: group, zPos: z, type: 'rainbow' });
+    }
+
+    createFloatingLanterns(z) {
+        const lanternCount = 5 + Math.floor(Math.random() * 5);
+
+        for (let i = 0; i < lanternCount; i++) {
+            const group = new THREE.Group();
+
+            // Lantern body
+            const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 6);
+            const lanternColor = [0xFF69B4, 0xFFD700, 0xFF6B9D, 0xFFB6C1][Math.floor(Math.random() * 4)];
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: lanternColor,
+                flatShading: true,
+                emissive: lanternColor,
+                emissiveIntensity: 0.3
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            group.add(body);
+
+            // Point light
+            const light = new THREE.PointLight(lanternColor, 0.5, 8);
+            group.add(light);
+
+            group.position.set(
+                (Math.random() - 0.5) * 30,
+                5 + Math.random() * 5,
+                z + (Math.random() - 0.5) * 10
+            );
+
+            // Store animation data
+            group.userData.floatOffset = Math.random() * Math.PI * 2;
+            group.userData.floatSpeed = 0.5 + Math.random() * 0.5;
+
+            this.scene.add(group);
+            this.decorations.push({ mesh: group, zPos: z, type: 'lantern' });
+        }
+    }
+
+    createSidewalkCharacter(z) {
+        const characterTypes = [
+            // Sanrio-style characters
+            { type: 'cat', colors: [0xFFB7C5, 0xFF69B4], size: 0.8, speed: 0.5 },
+            { type: 'bunny', colors: [0xFFF0F5, 0xFFB6C1], size: 0.7, speed: 0.6 },
+            { type: 'bear', colors: [0xFFDAB9, 0xD2691E], size: 0.9, speed: 0.4 },
+            { type: 'penguin', colors: [0x000000, 0xFFFFFF], size: 0.6, speed: 0.7 },
+            { type: 'frog', colors: [0x90EE90, 0x228B22], size: 0.5, speed: 0.8 },
+            // Small critters
+            { type: 'bird', colors: [0x87CEEB, 0xFFD700], size: 0.3, speed: 1.2 },
+            { type: 'butterfly', colors: [0xFF69B4, 0xDDA0DD], size: 0.2, speed: 0.3 },
+        ];
+
+        const type = characterTypes[Math.floor(Math.random() * characterTypes.length)];
+        const side = Math.random() > 0.5 ? 'left' : 'right';
+        const x = side === 'left' ? -7 : 7;
+        const direction = Math.random() > 0.5 ? 1 : -1; // Walking forward or backward
+
+        const group = new THREE.Group();
+
+        // Create simple character based on type
+        if (type.type === 'cat' || type.type === 'bunny' || type.type === 'bear' || type.type === 'penguin' || type.type === 'frog') {
+            // Body
+            const bodyGeometry = new THREE.SphereGeometry(type.size, 8, 8);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: type.colors[0],
+                flatShading: true
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = type.size;
+            body.castShadow = true;
+            group.add(body);
+
+            // Head
+            const headGeometry = new THREE.SphereGeometry(type.size * 0.7, 8, 8);
+            const head = new THREE.Mesh(headGeometry, bodyMaterial);
+            head.position.y = type.size * 2;
+            head.castShadow = true;
+            group.add(head);
+
+            // Ears (bunny gets long ears, cat gets triangular)
+            if (type.type === 'bunny') {
+                const earGeometry = new THREE.CapsuleGeometry(type.size * 0.15, type.size * 0.5, 4, 8);
+                const earMaterial = new THREE.MeshStandardMaterial({
+                    color: type.colors[1],
+                    flatShading: true
+                });
+                const leftEar = new THREE.Mesh(earGeometry, earMaterial);
+                leftEar.position.set(-type.size * 0.3, type.size * 2.5, 0);
+                group.add(leftEar);
+                const rightEar = new THREE.Mesh(earGeometry, earMaterial);
+                rightEar.position.set(type.size * 0.3, type.size * 2.5, 0);
+                group.add(rightEar);
+            } else if (type.type === 'cat') {
+                const earGeometry = new THREE.ConeGeometry(type.size * 0.2, type.size * 0.3, 3);
+                const earMaterial = new THREE.MeshStandardMaterial({
+                    color: type.colors[1],
+                    flatShading: true
+                });
+                const leftEar = new THREE.Mesh(earGeometry, earMaterial);
+                leftEar.position.set(-type.size * 0.3, type.size * 2.4, 0);
+                group.add(leftEar);
+                const rightEar = new THREE.Mesh(earGeometry, earMaterial);
+                rightEar.position.set(type.size * 0.3, type.size * 2.4, 0);
+                group.add(rightEar);
+            }
+
+            // Simple eyes
+            const eyeGeometry = new THREE.SphereGeometry(type.size * 0.1, 4, 4);
+            const eyeMaterial = new THREE.MeshStandardMaterial({
+                color: 0x000000,
+                flatShading: true
+            });
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-type.size * 0.25, type.size * 2.1, type.size * 0.5);
+            group.add(leftEye);
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(type.size * 0.25, type.size * 2.1, type.size * 0.5);
+            group.add(rightEye);
+
+        } else if (type.type === 'bird') {
+            // Simple bird - body + wings
+            const bodyGeometry = new THREE.SphereGeometry(type.size, 6, 6);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: type.colors[0],
+                flatShading: true
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = type.size + 0.5; // Flying height
+            body.castShadow = true;
+            group.add(body);
+
+            // Wings
+            const wingGeometry = new THREE.BoxGeometry(type.size * 0.6, type.size * 0.1, type.size * 0.3);
+            const wingMaterial = new THREE.MeshStandardMaterial({
+                color: type.colors[1],
+                flatShading: true
+            });
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-type.size * 0.5, type.size + 0.5, 0);
+            group.add(leftWing);
+            group.userData.leftWing = leftWing;
+            const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rightWing.position.set(type.size * 0.5, type.size + 0.5, 0);
+            group.add(rightWing);
+            group.userData.rightWing = rightWing;
+
+        } else if (type.type === 'butterfly') {
+            // Butterfly - body + colorful wings
+            const bodyGeometry = new THREE.CapsuleGeometry(type.size * 0.1, type.size * 0.4, 4, 8);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0x000000,
+                flatShading: true
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = type.size + 1;
+            group.add(body);
+
+            // Wings (flat, colorful)
+            const wingGeometry = new THREE.CircleGeometry(type.size * 0.8, 6);
+            const wingMaterial = new THREE.MeshStandardMaterial({
+                color: type.colors[0],
+                flatShading: true,
+                side: THREE.DoubleSide
+            });
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-type.size * 0.6, type.size + 1, 0);
+            leftWing.rotation.y = Math.PI / 6;
+            group.add(leftWing);
+            group.userData.leftWing = leftWing;
+
+            const rightWingMaterial = new THREE.MeshStandardMaterial({
+                color: type.colors[1],
+                flatShading: true,
+                side: THREE.DoubleSide
+            });
+            const rightWing = new THREE.Mesh(wingGeometry, rightWingMaterial);
+            rightWing.position.set(type.size * 0.6, type.size + 1, 0);
+            rightWing.rotation.y = -Math.PI / 6;
+            group.add(rightWing);
+            group.userData.rightWing = rightWing;
+        }
+
+        group.position.set(x, 0.05, z);
+        group.userData.type = type.type;
+        group.userData.speed = type.speed;
+        group.userData.direction = direction;
+        group.userData.zPos = z;
+        group.userData.animTime = Math.random() * Math.PI * 2; // Random start phase
+
+        this.scene.add(group);
+        this.sidewalkCharacters.push(group);
+    }
+
+    createMovingObject(playerZ) {
+        const objectTypes = [
+            { type: 'bird', size: 0.8, speed: 8, height: 3 + Math.random() * 4 }, // BIGGER - was 0.4
+            { type: 'butterfly', size: 0.6, speed: 5, height: 1.5 + Math.random() * 2 }, // BIGGER - was 0.3
+            { type: 'balloon', size: 1.2, speed: 3, height: 4 + Math.random() * 3 }, // BIGGER - was 0.6
+            { type: 'leaf', size: 0.4, speed: 6, height: 2 + Math.random() * 3 }, // BIGGER - was 0.2
+            { type: 'car', size: 1.2, speed: 20, height: 0.6 }, // NEW - ground level car
+            { type: 'bus', size: 1.8, speed: 15, height: 1.2 }, // NEW - larger bus
+        ];
+
+        const type = objectTypes[Math.floor(Math.random() * objectTypes.length)];
+        const group = new THREE.Group();
+        const spawnZ = playerZ - 200; // Spawn far ahead
+        const lane = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+        const x = lane * 2; // Lane positions
+
+        if (type.type === 'bird') {
+            // Bird body
+            const bodyGeometry = new THREE.SphereGeometry(type.size, 6, 6);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: [0x87CEEB, 0xFFD700, 0xFF69B4][Math.floor(Math.random() * 3)],
+                flatShading: true
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.castShadow = true;
+            group.add(body);
+
+            // Wings
+            const wingGeometry = new THREE.BoxGeometry(type.size * 1.5, type.size * 0.2, type.size * 0.5);
+            const wingMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFFFFFF,
+                flatShading: true
+            });
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-type.size * 0.8, 0, 0);
+            group.add(leftWing);
+            group.userData.leftWing = leftWing;
+
+            const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rightWing.position.set(type.size * 0.8, 0, 0);
+            group.add(rightWing);
+            group.userData.rightWing = rightWing;
+
+        } else if (type.type === 'butterfly') {
+            // Butterfly body
+            const bodyGeometry = new THREE.CapsuleGeometry(type.size * 0.2, type.size * 0.6, 4, 8);
+            const body = new THREE.Mesh(bodyGeometry, new THREE.MeshStandardMaterial({
+                color: 0x000000,
+                flatShading: true
+            }));
+            group.add(body);
+
+            // Colorful wings
+            const wingGeometry = new THREE.CircleGeometry(type.size * 1.2, 6);
+            const leftWingMaterial = new THREE.MeshStandardMaterial({
+                color: [0xFF69B4, 0xDDA0DD, 0xFFB6C1][Math.floor(Math.random() * 3)],
+                flatShading: true,
+                side: THREE.DoubleSide
+            });
+            const leftWing = new THREE.Mesh(wingGeometry, leftWingMaterial);
+            leftWing.position.set(-type.size * 0.8, 0, 0);
+            leftWing.rotation.y = Math.PI / 6;
+            group.add(leftWing);
+            group.userData.leftWing = leftWing;
+
+            const rightWing = new THREE.Mesh(wingGeometry, leftWingMaterial.clone());
+            rightWing.position.set(type.size * 0.8, 0, 0);
+            rightWing.rotation.y = -Math.PI / 6;
+            group.add(rightWing);
+            group.userData.rightWing = rightWing;
+
+        } else if (type.type === 'balloon') {
+            // Balloon
+            const balloonGeometry = new THREE.SphereGeometry(type.size, 8, 8);
+            const balloonColor = [0xFF69B4, 0x87CEEB, 0xFFD700, 0xDDA0DD][Math.floor(Math.random() * 4)];
+            const balloon = new THREE.Mesh(balloonGeometry, new THREE.MeshStandardMaterial({
+                color: balloonColor,
+                flatShading: true
+            }));
+            balloon.castShadow = true;
+            group.add(balloon);
+
+            // String
+            const stringGeometry = new THREE.CylinderGeometry(0.02, 0.02, 2, 4);
+            const string = new THREE.Mesh(stringGeometry, new THREE.MeshStandardMaterial({
+                color: 0xFFFFFF
+            }));
+            string.position.y = -1;
+            group.add(string);
+
+        } else if (type.type === 'leaf') {
+            // Leaf (flat circle)
+            const leafGeometry = new THREE.CircleGeometry(type.size, 6);
+            const leafColor = [0x90EE90, 0xFFB7C5, 0xFFE4E1][Math.floor(Math.random() * 3)];
+            const leaf = new THREE.Mesh(leafGeometry, new THREE.MeshStandardMaterial({
+                color: leafColor,
+                flatShading: true,
+                side: THREE.DoubleSide
+            }));
+            group.add(leaf);
+
+        } else if (type.type === 'car') {
+            // Car - cute low-poly vehicle
+            const carColors = [0xFF69B4, 0x87CEEB, 0xFFD700, 0xDDA0DD, 0xFF6B9D];
+            const carColor = carColors[Math.floor(Math.random() * carColors.length)];
+
+            // Car body (main box)
+            const bodyGeometry = new THREE.BoxGeometry(type.size * 1.5, type.size * 0.8, type.size * 2);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: carColor,
+                flatShading: true
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = type.size * 0.4;
+            body.castShadow = true;
+            group.add(body);
+
+            // Car roof (smaller box on top)
+            const roofGeometry = new THREE.BoxGeometry(type.size * 1.2, type.size * 0.5, type.size * 1.2);
+            const roof = new THREE.Mesh(roofGeometry, bodyMaterial);
+            roof.position.y = type.size * 1.05;
+            roof.castShadow = true;
+            group.add(roof);
+
+            // Windows (light blue)
+            const windowGeometry = new THREE.BoxGeometry(type.size * 1.15, type.size * 0.45, type.size * 0.5);
+            const windowMaterial = new THREE.MeshStandardMaterial({
+                color: 0x87CEEB,
+                transparent: true,
+                opacity: 0.7,
+                flatShading: true
+            });
+            const frontWindow = new THREE.Mesh(windowGeometry, windowMaterial);
+            frontWindow.position.set(0, type.size * 1.05, type.size * 0.6);
+            group.add(frontWindow);
+
+            const backWindow = new THREE.Mesh(windowGeometry, windowMaterial);
+            backWindow.position.set(0, type.size * 1.05, -type.size * 0.6);
+            group.add(backWindow);
+
+            // Wheels (black circles)
+            const wheelGeometry = new THREE.CylinderGeometry(type.size * 0.35, type.size * 0.35, type.size * 0.3, 8);
+            const wheelMaterial = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                flatShading: true
+            });
+
+            // Front wheels
+            const frontLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            frontLeftWheel.rotation.z = Math.PI / 2;
+            frontLeftWheel.position.set(-type.size * 0.8, type.size * 0.15, type.size * 0.8);
+            frontLeftWheel.castShadow = true;
+            group.add(frontLeftWheel);
+
+            const frontRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            frontRightWheel.rotation.z = Math.PI / 2;
+            frontRightWheel.position.set(type.size * 0.8, type.size * 0.15, type.size * 0.8);
+            frontRightWheel.castShadow = true;
+            group.add(frontRightWheel);
+
+            // Back wheels
+            const backLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            backLeftWheel.rotation.z = Math.PI / 2;
+            backLeftWheel.position.set(-type.size * 0.8, type.size * 0.15, -type.size * 0.8);
+            backLeftWheel.castShadow = true;
+            group.add(backLeftWheel);
+
+            const backRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            backRightWheel.rotation.z = Math.PI / 2;
+            backRightWheel.position.set(type.size * 0.8, type.size * 0.15, -type.size * 0.8);
+            backRightWheel.castShadow = true;
+            group.add(backRightWheel);
+
+            // Headlights (yellow)
+            const headlightGeometry = new THREE.SphereGeometry(type.size * 0.15, 6, 6);
+            const headlightMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFFFF00,
+                emissive: 0xFFFF00,
+                emissiveIntensity: 0.5,
+                flatShading: true
+            });
+            const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            leftHeadlight.position.set(-type.size * 0.5, type.size * 0.4, type.size * 1.05);
+            group.add(leftHeadlight);
+
+            const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            rightHeadlight.position.set(type.size * 0.5, type.size * 0.4, type.size * 1.05);
+            group.add(rightHeadlight);
+
+        } else if (type.type === 'bus') {
+            // Bus - larger vehicle
+            const busColors = [0xFFB7C5, 0xFFD700, 0xFF6B9D, 0xDDA0DD];
+            const busColor = busColors[Math.floor(Math.random() * busColors.length)];
+
+            // Bus body (tall box)
+            const bodyGeometry = new THREE.BoxGeometry(type.size * 1.8, type.size * 1.6, type.size * 3.5);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: busColor,
+                flatShading: true
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = type.size * 0.9;
+            body.castShadow = true;
+            group.add(body);
+
+            // Front hood (smaller front section)
+            const hoodGeometry = new THREE.BoxGeometry(type.size * 1.6, type.size * 1.2, type.size * 0.8);
+            const hood = new THREE.Mesh(hoodGeometry, bodyMaterial);
+            hood.position.set(0, type.size * 0.7, type.size * 2.15);
+            hood.castShadow = true;
+            group.add(hood);
+
+            // Windows (multiple rows for bus)
+            const windowGeometry = new THREE.BoxGeometry(type.size * 0.6, type.size * 0.5, type.size * 0.05);
+            const windowMaterial = new THREE.MeshStandardMaterial({
+                color: 0x87CEEB,
+                transparent: true,
+                opacity: 0.7,
+                flatShading: true
+            });
+
+            // Side windows (3 on each side)
+            for (let i = 0; i < 3; i++) {
+                const leftWindow = new THREE.Mesh(windowGeometry, windowMaterial);
+                leftWindow.rotation.y = Math.PI / 2;
+                leftWindow.position.set(-type.size * 0.91, type.size * 1.2, type.size * (0.5 - i * 1.2));
+                group.add(leftWindow);
+
+                const rightWindow = new THREE.Mesh(windowGeometry, windowMaterial);
+                rightWindow.rotation.y = -Math.PI / 2;
+                rightWindow.position.set(type.size * 0.91, type.size * 1.2, type.size * (0.5 - i * 1.2));
+                group.add(rightWindow);
+            }
+
+            // Front windshield
+            const windshieldGeometry = new THREE.BoxGeometry(type.size * 1.5, type.size * 0.8, type.size * 0.05);
+            const windshield = new THREE.Mesh(windshieldGeometry, windowMaterial);
+            windshield.position.set(0, type.size * 1.1, type.size * 1.76);
+            group.add(windshield);
+
+            // Wheels (6 wheels for bus - 2 front, 4 back)
+            const wheelGeometry = new THREE.CylinderGeometry(type.size * 0.4, type.size * 0.4, type.size * 0.3, 8);
+            const wheelMaterial = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                flatShading: true
+            });
+
+            // Front wheels
+            const frontLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            frontLeftWheel.rotation.z = Math.PI / 2;
+            frontLeftWheel.position.set(-type.size * 0.95, type.size * 0.2, type.size * 1.3);
+            frontLeftWheel.castShadow = true;
+            group.add(frontLeftWheel);
+
+            const frontRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            frontRightWheel.rotation.z = Math.PI / 2;
+            frontRightWheel.position.set(type.size * 0.95, type.size * 0.2, type.size * 1.3);
+            frontRightWheel.castShadow = true;
+            group.add(frontRightWheel);
+
+            // Back wheels (dual axle)
+            for (let i = 0; i < 2; i++) {
+                const backLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                backLeftWheel.rotation.z = Math.PI / 2;
+                backLeftWheel.position.set(-type.size * 0.95, type.size * 0.2, -type.size * (0.8 + i * 0.8));
+                backLeftWheel.castShadow = true;
+                group.add(backLeftWheel);
+
+                const backRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                backRightWheel.rotation.z = Math.PI / 2;
+                backRightWheel.position.set(type.size * 0.95, type.size * 0.2, -type.size * (0.8 + i * 0.8));
+                backRightWheel.castShadow = true;
+                group.add(backRightWheel);
+            }
+
+            // Headlights (yellow)
+            const headlightGeometry = new THREE.SphereGeometry(type.size * 0.2, 6, 6);
+            const headlightMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFFFF00,
+                emissive: 0xFFFF00,
+                emissiveIntensity: 0.5,
+                flatShading: true
+            });
+            const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            leftHeadlight.position.set(-type.size * 0.6, type.size * 0.5, type.size * 2.55);
+            group.add(leftHeadlight);
+
+            const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            rightHeadlight.position.set(type.size * 0.6, type.size * 0.5, type.size * 2.55);
+            group.add(rightHeadlight);
+
+            // Roof decoration (optional stripe)
+            const stripeGeometry = new THREE.BoxGeometry(type.size * 1.85, type.size * 0.15, type.size * 3.6);
+            const stripeMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFFFFFF,
+                flatShading: true
+            });
+            const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
+            stripe.position.y = type.size * 1.2;
+            group.add(stripe);
+        }
+
+        group.position.set(x, type.height, spawnZ);
+        group.userData.type = type.type;
+        group.userData.speed = type.speed;
+        group.userData.animTime = Math.random() * Math.PI * 2;
+        group.userData.wobble = Math.random() * 2;
+
+        // Add collision properties to make them act as obstacles
+        group.userData.isObstacle = true;
+        group.userData.collisionRadius = type.size * 1.5;
+
+        // Set collision height based on object position
+        // Objects at low heights can be jumped over, high objects need sliding under
+        if (type.height < 2.0) {
+            // Low flying object - player can jump over it
+            // Height represents how high the player needs to jump
+            group.userData.obstacleHeight = type.height - 0.3; // Slightly lower to make jumpable
+            group.userData.obstacleType = 'low';
+        } else {
+            // High flying object - player needs to slide under it
+            // Use tall obstacle height threshold
+            group.userData.obstacleHeight = 2.0;
+            group.userData.obstacleType = 'tall';
+        }
+
+        this.scene.add(group);
+        this.movingObjects.push(group);
+    }
+
+    updateMovingObjects(deltaTime, playerZ) {
+        // Spawn new moving objects
+        if (Math.random() < this.movingObjectSpawnChance * deltaTime) {
+            this.createMovingObject(playerZ);
+        }
+
+        // Update existing moving objects
+        this.movingObjects.forEach(obj => {
+            // Move toward player (positive Z direction)
+            obj.position.z += obj.userData.speed * deltaTime;
+            obj.userData.animTime += deltaTime * 5;
+
+            // Animate based on type
+            if (obj.userData.type === 'bird' && obj.userData.leftWing) {
+                const flapAmount = Math.sin(obj.userData.animTime * 10) * 0.4;
+                obj.userData.leftWing.rotation.z = flapAmount;
+                obj.userData.rightWing.rotation.z = -flapAmount;
+            }
+
+            if (obj.userData.type === 'butterfly' && obj.userData.leftWing) {
+                const flapAmount = Math.sin(obj.userData.animTime * 8) * 0.6;
+                obj.userData.leftWing.rotation.y = Math.PI / 6 + flapAmount;
+                obj.userData.rightWing.rotation.y = -Math.PI / 6 - flapAmount;
+            }
+
+            if (obj.userData.type === 'balloon') {
+                // Gentle bobbing
+                obj.position.y += Math.sin(obj.userData.animTime * 2) * deltaTime * 0.5;
+                obj.rotation.y += deltaTime * 0.3;
+            }
+
+            if (obj.userData.type === 'leaf') {
+                // Spinning and swaying
+                obj.rotation.z += deltaTime * 3;
+                obj.position.x += Math.sin(obj.userData.animTime * 3) * deltaTime * obj.userData.wobble;
+            }
+
+            // Wobble side to side for all
+            const wobble = Math.sin(obj.userData.animTime * 2) * 0.3;
+            obj.position.x += wobble * deltaTime * 0.2;
+        });
+
+        // Cleanup objects that passed the player
+        this.movingObjects = this.movingObjects.filter(obj => {
+            if (obj.position.z > playerZ + 20) {
+                this.scene.remove(obj);
+                return false;
+            }
+            return true;
+        });
+    }
+
+    updateSidewalkCharacters(deltaTime, playerZ) {
+        // Spawn new characters
+        if (Math.random() < this.characterSpawnChance * deltaTime * 2) {
+            const spawnZ = playerZ - 50 - Math.random() * 30;
+            this.createSidewalkCharacter(spawnZ);
+        }
+
+        // Update existing characters
+        this.sidewalkCharacters.forEach(character => {
+            // Move along sidewalk
+            character.position.z += character.userData.direction * character.userData.speed * deltaTime;
+            character.userData.animTime += deltaTime * 3;
+
+            // Animate based on type
+            if (character.userData.type === 'bird' && character.userData.leftWing) {
+                const flapAmount = Math.sin(character.userData.animTime * 10) * 0.3;
+                character.userData.leftWing.rotation.z = flapAmount;
+                character.userData.rightWing.rotation.z = -flapAmount;
+
+                // Bobbing flight
+                character.position.y = 0.5 + Math.sin(character.userData.animTime * 5) * 0.2;
+            }
+
+            if (character.userData.type === 'butterfly' && character.userData.leftWing) {
+                const flapAmount = Math.sin(character.userData.animTime * 8) * 0.5;
+                character.userData.leftWing.rotation.y = Math.PI / 6 + flapAmount;
+                character.userData.rightWing.rotation.y = -Math.PI / 6 - flapAmount;
+
+                // Gentle floating
+                character.position.y = 1 + Math.sin(character.userData.animTime * 3) * 0.3;
+            }
+
+            // Gentle bobbing for walking characters
+            if (character.userData.type !== 'bird' && character.userData.type !== 'butterfly') {
+                character.rotation.y = Math.sin(character.userData.animTime * 2) * 0.1;
+            }
+        });
+
+        // Cleanup old characters
+        this.sidewalkCharacters = this.sidewalkCharacters.filter(character => {
+            const distance = Math.abs(character.position.z - playerZ);
+            if (distance > 100) {
+                this.scene.remove(character);
+                return false;
+            }
+            return true;
+        });
+    }
+
+    getMovingObstacles() {
+        // Return moving objects that act as obstacles
+        return this.movingObjects.filter(obj => obj.userData.isObstacle);
+    }
+
+    reset() {
+        // Clean up all spawned elements
+        this.groundSegments.forEach(segment => {
+            this.scene.remove(segment);
+            segment.traverse((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
+        });
+        this.groundSegments = [];
+
+        this.buildings.forEach(building => {
+            this.scene.remove(building);
+        });
+        this.buildings = [];
+
+        this.decorations.forEach(decoration => {
+            this.scene.remove(decoration.mesh);
+        });
+        this.decorations = [];
+
+        this.sidewalkCharacters.forEach(character => {
+            this.scene.remove(character);
+        });
+        this.sidewalkCharacters = [];
+
+        this.movingObjects.forEach(obj => {
+            this.scene.remove(obj);
+        });
+        this.movingObjects = [];
+
+        // Reset spawn positions
+        this.nextBuildingZ = -50;
+        this.nextCharacterSpawnZ = -30;
+        this.nextGroundSegmentZ = 100;
+
+        // Regenerate initial ground segments (optimized for FPS)
+        for (let i = 0; i < 20; i++) {
+            this.spawnGroundSegment(this.nextGroundSegmentZ);
+            this.nextGroundSegmentZ -= this.groundSegmentLength;
+        }
+
+        // Regenerate initial buildings (optimized for FPS)
+        for (let i = 0; i < 18; i++) { // OPTIMIZED: Reduced from 25 to 18
+            this.spawnBuilding(this.nextBuildingZ);
+            this.nextBuildingZ -= this.buildingSpacing;
+        }
+    }
+
+    getScene() {
+        return this.scene;
+    }
+}

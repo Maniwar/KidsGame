@@ -17,14 +17,18 @@ export class GameLighting {
         this.directionalLight.castShadow = true;
 
         // Configure shadow properties
-        this.directionalLight.shadow.camera.left = -20;
-        this.directionalLight.shadow.camera.right = 20;
-        this.directionalLight.shadow.camera.top = 20;
-        this.directionalLight.shadow.camera.bottom = -20;
-        this.directionalLight.shadow.camera.near = 0.5;
-        this.directionalLight.shadow.camera.far = 100;
-        this.directionalLight.shadow.mapSize.width = 2048;
-        this.directionalLight.shadow.mapSize.height = 2048;
+        // PERFORMANCE: Tighter shadow frustum reduces wasted shadow map pixels
+        this.directionalLight.shadow.camera.left = -15;
+        this.directionalLight.shadow.camera.right = 15;
+        this.directionalLight.shadow.camera.top = 15;
+        this.directionalLight.shadow.camera.bottom = -15;
+        this.directionalLight.shadow.camera.near = 1;
+        this.directionalLight.shadow.camera.far = 60;
+        // PERFORMANCE: Reduced shadow map from 2048 to 1024 - big mobile perf gain
+        this.directionalLight.shadow.mapSize.width = 1024;
+        this.directionalLight.shadow.mapSize.height = 1024;
+        // PERFORMANCE: Add shadow bias to reduce artifacts at lower resolution
+        this.directionalLight.shadow.bias = -0.001;
 
         this.scene.add(this.directionalLight);
 

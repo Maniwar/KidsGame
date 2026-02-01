@@ -96,6 +96,10 @@ class Game {
             powerUpStylesInjected: false
         };
 
+        // PERFORMANCE: Throttle HUD updates (DOM operations are expensive)
+        this.lastHUDUpdate = 0;
+        this.hudUpdateInterval = 100; // Update HUD every 100ms instead of every frame
+
         // Setup UI
         this.setupUI();
 
@@ -954,6 +958,13 @@ class Game {
     }
 
     updateHUD() {
+        // PERFORMANCE: Throttle HUD updates - skip if updated recently
+        const now = this.frameTime;
+        if (now - this.lastHUDUpdate < this.hudUpdateInterval) {
+            return;
+        }
+        this.lastHUDUpdate = now;
+
         // PERFORMANCE: Use cached DOM elements
         this.domElements.score.textContent = Math.floor(this.score);
         this.domElements.coins.textContent = this.coins;

@@ -344,6 +344,9 @@ class Game {
         // Hide game over screen
         document.getElementById('game-over-screen').classList.remove('active');
 
+        // Reset death camera back to normal gameplay camera
+        this.camera.resetDeathCamera();
+
         // Reset player
         this.player.reset();
 
@@ -951,9 +954,14 @@ class Game {
                     // Trigger all death screen effects
                     this.triggerDeathEffects();
 
-                    // Play enhanced death animation with callback
+                    // Play enhanced death animation, then spin camera to face
                     this.player.playDeathAnimation(() => {
-                        this.gameOver();
+                        // Start dramatic camera spin to face close-up
+                        const playerPos = this.player.getPosition();
+                        this.camera.startDeathCamera(playerPos, () => {
+                            // Show game over screen after camera spin completes
+                            this.gameOver();
+                        });
                     });
                 }
                 return;
@@ -987,9 +995,14 @@ class Game {
                         // Trigger all death screen effects
                         this.triggerDeathEffects();
 
-                        // Play enhanced death animation with callback
+                        // Play enhanced death animation, then spin camera to face
                         this.player.playDeathAnimation(() => {
-                            this.gameOver();
+                            // Start dramatic camera spin to face close-up
+                            const playerPos = this.player.getPosition();
+                            this.camera.startDeathCamera(playerPos, () => {
+                                // Show game over screen after camera spin completes
+                                this.gameOver();
+                            });
                         });
                     }
                     return;

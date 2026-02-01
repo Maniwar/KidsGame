@@ -113,9 +113,6 @@ export class Collectible {
         this.mesh.castShadow = true;
         this.group.add(this.mesh);
 
-        // VISIBILITY: Add ground glow indicator under coin
-        this.addGroundGlow(0xFFD700);
-
         this.collisionRadius = 0.4; // VISIBILITY: Larger collision radius for bigger coins
         // Mark that we're using shared resources (don't dispose in cleanup)
         this.usesSharedGeometry = true;

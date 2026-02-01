@@ -50,13 +50,16 @@ class Game {
         // PERFORMANCE: Animation queue (replaces separate RAF callbacks)
         this.animations = [];
 
+        // Load settings first (before creating renderer)
+        this.loadSettings();
+
         // Initialize game systems
         this.init();
     }
 
     init() {
-        // Graphics
-        this.gameScene = new GameScene();
+        // Graphics - pass settings for antialias configuration
+        this.gameScene = new GameScene(this.settings);
         this.camera = new GameCamera();
         this.lighting = new GameLighting(this.gameScene.getScene());
 
@@ -110,10 +113,59 @@ class Game {
         this.render();
     }
 
+    loadSettings() {
+        // Load anti-aliasing preference (default: auto-detect based on device)
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                      || window.innerWidth < 768;
+        const savedAA = localStorage.getItem('antialiasing');
+
+        if (savedAA !== null) {
+            this.settings = { antialias: savedAA === 'true' };
+        } else {
+            // Default: enabled on desktop, disabled on mobile
+            this.settings = { antialias: !isMobile };
+        }
+    }
+
+    saveSettings() {
+        localStorage.setItem('antialiasing', this.settings.antialias.toString());
+    }
+
+    getSettings() {
+        return this.settings;
+    }
+
     setupUI() {
         // Start button
         const startButton = document.getElementById('start-button');
         startButton.addEventListener('click', () => this.startGame());
+
+        // Settings button
+        document.getElementById('settings-button').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('settings-panel').classList.add('active');
+            // Update toggle to match current setting
+            document.getElementById('aa-toggle').checked = this.settings.antialias;
+        });
+
+        // Settings back button
+        document.getElementById('settings-back-button').addEventListener('click', () => {
+            document.getElementById('settings-panel').classList.remove('active');
+            document.getElementById('start-screen').classList.add('active');
+        });
+
+        // Anti-aliasing toggle
+        document.getElementById('aa-toggle').addEventListener('change', (e) => {
+            const newValue = e.target.checked;
+            if (newValue !== this.settings.antialias) {
+                this.settings.antialias = newValue;
+                this.saveSettings();
+                // Notify user that reload is needed
+                if (confirm('Anti-aliasing setting changed. Reload now to apply?')) {
+                    window.location.reload();
+                }
+            }
+        });
 
         // Restart button
         const restartButton = document.getElementById('restart-button');

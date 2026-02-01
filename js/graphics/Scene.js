@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { COLORS } from '../utils/Constants.js';
 
 export class GameScene {
-    constructor() {
+    constructor(settings = {}) {
+        this.settings = settings;
         this.scene = new THREE.Scene();
         this.renderer = null;
         this.backgroundObjects = [];
@@ -64,10 +65,15 @@ export class GameScene {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
                       || window.innerWidth < 768;
 
+        // Use settings if provided, otherwise auto-detect
+        const useAntialias = this.settings.antialias !== undefined
+            ? this.settings.antialias
+            : !isMobile;
+
         this.renderer = new THREE.WebGLRenderer({
             canvas,
-            // PERFORMANCE: Disable antialias on mobile - major FPS boost
-            antialias: !isMobile,
+            // Use setting from user preference or auto-detect
+            antialias: useAntialias,
             alpha: false,
             // PERFORMANCE: Use low power preference on mobile
             powerPreference: isMobile ? 'default' : 'high-performance'

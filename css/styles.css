@@ -212,6 +212,87 @@ body {
     font-weight: bold;
 }
 
+/* Settings Panel */
+.settings-btn {
+    background: linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%);
+    font-size: 18px;
+    padding: 10px 25px;
+}
+
+.settings-options {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px 30px;
+    border-radius: 20px;
+    margin: 20px 0;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.setting-row label:first-child {
+    color: #FF69B4;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.setting-hint {
+    font-size: 14px !important;
+    color: #999 !important;
+    margin-top: 10px !important;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 34px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+input:checked + .toggle-slider {
+    background: linear-gradient(135deg, #FF69B4, #FFB7C5);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}
+
 /* Buttons */
 .game-button {
     font-family: 'Comic Sans MS', 'Arial', sans-serif;

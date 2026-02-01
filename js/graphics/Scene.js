@@ -22,17 +22,39 @@ export class GameScene {
         this.groundSegmentLength = 150; // FIXED: Longer segments to reduce gaps
         this.movingObjectSpawnChance = 0.08; // OPTIMIZED: Reduced spawn rate for better FPS
 
-        // Street lamp and tree spawning
+        // Street lamp and tree spawning - OPTIMIZED spacing
         this.nextLampZ = -100;
-        this.lampSpacing = 15;
+        this.lampSpacing = 25; // PERFORMANCE: Increased from 15 to reduce lamp count
         this.nextTreeZ = -100;
-        this.treeSpacing = 12;
+        this.treeSpacing = 20; // PERFORMANCE: Increased from 12 to reduce tree count
 
         // PERFORMANCE: Accumulated animation time (replaces Date.now() calls)
         this.animTime = 0;
 
+        // PERFORMANCE: Shared geometries and materials for trees/lamps
+        this.sharedGeometries = {};
+        this.sharedMaterials = {};
+        this.initSharedTreeLampResources();
+
         this.setupRenderer();
         this.setupEnvironment();
+    }
+
+    // PERFORMANCE: Pre-create shared geometries and materials
+    initSharedTreeLampResources() {
+        // Lamp geometries
+        this.sharedGeometries.lampPost = new THREE.CylinderGeometry(0.1, 0.12, 3, 6);
+        this.sharedGeometries.lampSphere = new THREE.SphereGeometry(0.3, 6, 6);
+        this.sharedGeometries.lampBox = new THREE.BoxGeometry(0.4, 0.5, 0.4);
+
+        // Tree geometries (one size, scale via mesh.scale)
+        this.sharedGeometries.trunk = new THREE.CylinderGeometry(0.15, 0.25, 2, 6);
+        this.sharedGeometries.foliageSphere = new THREE.SphereGeometry(1.2, 6, 6);
+        this.sharedGeometries.foliageCone = new THREE.ConeGeometry(1, 1.2, 6);
+
+        // Shared materials (will clone and modify color as needed)
+        this.sharedMaterials.lampPost = new THREE.MeshStandardMaterial({ color: 0x696969, flatShading: true });
+        this.sharedMaterials.trunk = new THREE.MeshStandardMaterial({ color: 0x8B4513, flatShading: true });
     }
 
     setupRenderer() {
@@ -486,20 +508,21 @@ export class GameScene {
     }
 
     createSideDecorations() {
+        // PERFORMANCE: Reduced initial spawn range
         // Create initial street lamps
-        for (let z = -100; z < 200; z += this.lampSpacing) {
+        for (let z = -50; z < 100; z += this.lampSpacing) {
             this.createStreetLamp(-8, 0, z);
             this.createStreetLamp(8, 0, z + this.lampSpacing / 2);
             this.nextLampZ = z - this.lampSpacing;
         }
 
         // Create initial trees with variety
-        for (let z = -100; z < 200; z += this.treeSpacing) {
-            // Random chance for trees on each side
-            if (Math.random() > 0.3) {
+        for (let z = -50; z < 100; z += this.treeSpacing) {
+            // PERFORMANCE: 50% chance per side
+            if (Math.random() > 0.5) {
                 this.createTree(-10 - Math.random() * 3, 0, z + Math.random() * 5);
             }
-            if (Math.random() > 0.3) {
+            if (Math.random() > 0.5) {
                 this.createTree(10 + Math.random() * 3, 0, z + Math.random() * 5);
             }
             this.nextTreeZ = z - this.treeSpacing;
@@ -509,58 +532,31 @@ export class GameScene {
     createStreetLamp(x, y, z) {
         const group = new THREE.Group();
 
-        // Variety in lamp styles
-        const lampStyles = [
-            { postColor: 0x696969, lampColor: COLORS.GOLD, height: 3 },
-            { postColor: 0x4A4A4A, lampColor: 0xFFE4B5, height: 3.5 },
-            { postColor: 0x2F4F4F, lampColor: 0xFFF8DC, height: 2.8 },
-            { postColor: 0x556B2F, lampColor: 0xFFDAB9, height: 3.2 }
-        ];
-        const style = lampStyles[Math.floor(Math.random() * lampStyles.length)];
+        // PERFORMANCE: Simplified lamp styles, no PointLights (use emissive only)
+        const lampColors = [COLORS.GOLD, 0xFFE4B5, 0xFFF8DC, 0xFFDAB9];
+        const lampColor = lampColors[Math.floor(Math.random() * lampColors.length)];
+        const height = 2.8 + Math.random() * 0.7;
 
-        // Post
-        const postGeometry = new THREE.CylinderGeometry(0.1, 0.12, style.height, 8);
-        const postMaterial = new THREE.MeshStandardMaterial({
-            color: style.postColor,
-            flatShading: true
-        });
-
-        const post = new THREE.Mesh(postGeometry, postMaterial);
-        post.position.y = style.height / 2;
-        post.castShadow = true;
+        // Post - use shared geometry, clone material only if needed
+        const post = new THREE.Mesh(this.sharedGeometries.lampPost, this.sharedMaterials.lampPost);
+        post.scale.y = height / 3;
+        post.position.y = height / 2;
         group.add(post);
 
-        // Lamp head variety
-        const lampType = Math.random();
-        let lamp;
-        if (lampType < 0.5) {
-            // Round lamp
-            const lampGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-            const lampMaterial = new THREE.MeshStandardMaterial({
-                color: style.lampColor,
-                emissive: style.lampColor,
-                emissiveIntensity: 0.5
-            });
-            lamp = new THREE.Mesh(lampGeometry, lampMaterial);
-        } else {
-            // Lantern style
-            const lampGeometry = new THREE.BoxGeometry(0.4, 0.5, 0.4);
-            const lampMaterial = new THREE.MeshStandardMaterial({
-                color: style.lampColor,
-                emissive: style.lampColor,
-                emissiveIntensity: 0.4,
-                transparent: true,
-                opacity: 0.9
-            });
-            lamp = new THREE.Mesh(lampGeometry, lampMaterial);
-        }
-        lamp.position.y = style.height;
+        // Lamp head - use shared geometry, emissive for glow (NO PointLight!)
+        const isRound = Math.random() < 0.5;
+        const lampGeo = isRound ? this.sharedGeometries.lampSphere : this.sharedGeometries.lampBox;
+        const lampMaterial = new THREE.MeshStandardMaterial({
+            color: lampColor,
+            emissive: lampColor,
+            emissiveIntensity: 0.6,
+            flatShading: true
+        });
+        const lamp = new THREE.Mesh(lampGeo, lampMaterial);
+        lamp.position.y = height;
         group.add(lamp);
 
-        // Point light
-        const light = new THREE.PointLight(style.lampColor, 0.5, 10);
-        light.position.y = style.height;
-        group.add(light);
+        // NO POINT LIGHT - emissive material provides the glow effect
 
         group.position.set(x, y, z);
         group.userData.zPos = z;
@@ -571,134 +567,59 @@ export class GameScene {
     createTree(x, y, z) {
         const group = new THREE.Group();
 
-        // Calculate progression based on z position (further = more variety)
+        // PERFORMANCE: Calculate progression for variety (further = more types)
         const distance = Math.abs(z);
         const progression = Math.min(distance / 300, 1);
 
-        // Tree types that unlock as you progress
+        // PERFORMANCE: Simplified tree types - max 2 meshes per tree
         const treeTypes = [
-            // Basic trees (always available)
-            { type: 'round', trunkColor: 0x8B4513, foliageColor: 0x90EE90, scale: 1 },
-            { type: 'round', trunkColor: 0x8B4513, foliageColor: 0x228B22, scale: 1.1 },
-            { type: 'round', trunkColor: 0x654321, foliageColor: 0x32CD32, scale: 0.9 },
+            // Basic round trees (always available)
+            { type: 'round', foliageColor: 0x90EE90 },
+            { type: 'round', foliageColor: 0x228B22 },
+            { type: 'round', foliageColor: 0x32CD32 },
         ];
 
-        // Cherry blossom trees (unlock at 20% progression)
-        if (progression > 0.2 || Math.random() < 0.1) {
-            treeTypes.push(
-                { type: 'cherry', trunkColor: 0x4A3728, foliageColor: 0xFFB7C5, scale: 1 },
-                { type: 'cherry', trunkColor: 0x5D4037, foliageColor: 0xFF69B4, scale: 1.1 }
-            );
+        // Cherry blossom (20%+ progression)
+        if (progression > 0.2) {
+            treeTypes.push({ type: 'round', foliageColor: 0xFFB7C5 });
+            treeTypes.push({ type: 'round', foliageColor: 0xFF69B4 });
         }
 
-        // Pine trees (unlock at 40% progression)
-        if (progression > 0.4 || Math.random() < 0.05) {
-            treeTypes.push(
-                { type: 'pine', trunkColor: 0x4A3728, foliageColor: 0x2E8B57, scale: 1.2 },
-                { type: 'pine', trunkColor: 0x3E2723, foliageColor: 0x006400, scale: 1 }
-            );
+        // Pine trees (40%+ progression) - use cone shape
+        if (progression > 0.4) {
+            treeTypes.push({ type: 'pine', foliageColor: 0x2E8B57 });
+            treeTypes.push({ type: 'pine', foliageColor: 0x006400 });
         }
 
-        // Palm trees (unlock at 60% progression)
-        if (progression > 0.6 || Math.random() < 0.03) {
-            treeTypes.push(
-                { type: 'palm', trunkColor: 0xD2691E, foliageColor: 0x228B22, scale: 1.3 }
-            );
-        }
-
-        // Magical/fantasy trees (unlock at 80% progression)
-        if (progression > 0.8 || Math.random() < 0.02) {
-            treeTypes.push(
-                { type: 'magical', trunkColor: 0x8B4513, foliageColor: 0xDDA0DD, scale: 1.1 },
-                { type: 'magical', trunkColor: 0x654321, foliageColor: 0x87CEEB, scale: 1 }
-            );
+        // Magical trees (70%+ progression) - glowing
+        if (progression > 0.7) {
+            treeTypes.push({ type: 'magical', foliageColor: 0xDDA0DD });
+            treeTypes.push({ type: 'magical', foliageColor: 0x87CEEB });
         }
 
         const treeStyle = treeTypes[Math.floor(Math.random() * treeTypes.length)];
-        const scale = treeStyle.scale * (0.8 + Math.random() * 0.4); // Random size variation
+        const scale = 0.8 + Math.random() * 0.5;
 
-        // Trunk
-        const trunkHeight = 2 * scale;
-        const trunkGeometry = new THREE.CylinderGeometry(0.15 * scale, 0.25 * scale, trunkHeight, 8);
-        const trunkMaterial = new THREE.MeshStandardMaterial({
-            color: treeStyle.trunkColor,
-            flatShading: true
-        });
-        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-        trunk.position.y = trunkHeight / 2;
-        trunk.castShadow = true;
+        // PERFORMANCE: Use shared trunk geometry, just scale it
+        const trunk = new THREE.Mesh(this.sharedGeometries.trunk, this.sharedMaterials.trunk);
+        trunk.scale.set(scale, scale, scale);
+        trunk.position.y = scale;
         group.add(trunk);
 
-        // Foliage based on tree type
-        if (treeStyle.type === 'round' || treeStyle.type === 'cherry' || treeStyle.type === 'magical') {
-            const foliageGeometry = new THREE.SphereGeometry(1.2 * scale, 8, 8);
-            const foliageMaterial = new THREE.MeshStandardMaterial({
-                color: treeStyle.foliageColor,
-                flatShading: true,
-                emissive: treeStyle.type === 'magical' ? treeStyle.foliageColor : 0x000000,
-                emissiveIntensity: treeStyle.type === 'magical' ? 0.2 : 0
-            });
-            const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-            foliage.position.y = trunkHeight + 0.5 * scale;
-            foliage.castShadow = true;
-            group.add(foliage);
+        // PERFORMANCE: Use shared foliage geometry with new material (color varies)
+        const isMagical = treeStyle.type === 'magical';
+        const foliageMaterial = new THREE.MeshStandardMaterial({
+            color: treeStyle.foliageColor,
+            flatShading: true,
+            emissive: isMagical ? treeStyle.foliageColor : 0x000000,
+            emissiveIntensity: isMagical ? 0.3 : 0
+        });
 
-            // Cherry blossoms get extra smaller spheres
-            if (treeStyle.type === 'cherry') {
-                for (let i = 0; i < 3; i++) {
-                    const blossomGeo = new THREE.SphereGeometry(0.4 * scale, 6, 6);
-                    const blossom = new THREE.Mesh(blossomGeo, foliageMaterial);
-                    blossom.position.set(
-                        (Math.random() - 0.5) * scale,
-                        trunkHeight + (Math.random() - 0.3) * scale,
-                        (Math.random() - 0.5) * scale
-                    );
-                    group.add(blossom);
-                }
-            }
-        } else if (treeStyle.type === 'pine') {
-            // Cone-shaped foliage (multiple layers)
-            const foliageMaterial = new THREE.MeshStandardMaterial({
-                color: treeStyle.foliageColor,
-                flatShading: true
-            });
-            for (let i = 0; i < 3; i++) {
-                const coneSize = (1.2 - i * 0.3) * scale;
-                const coneGeometry = new THREE.ConeGeometry(coneSize, 1.2 * scale, 8);
-                const cone = new THREE.Mesh(coneGeometry, foliageMaterial);
-                cone.position.y = trunkHeight + i * 0.8 * scale;
-                cone.castShadow = true;
-                group.add(cone);
-            }
-        } else if (treeStyle.type === 'palm') {
-            // Palm fronds
-            const frondMaterial = new THREE.MeshStandardMaterial({
-                color: treeStyle.foliageColor,
-                flatShading: true,
-                side: THREE.DoubleSide
-            });
-            for (let i = 0; i < 6; i++) {
-                const frondGeometry = new THREE.ConeGeometry(0.3 * scale, 2 * scale, 4);
-                const frond = new THREE.Mesh(frondGeometry, frondMaterial);
-                const angle = (i / 6) * Math.PI * 2;
-                frond.position.set(
-                    Math.cos(angle) * 0.5 * scale,
-                    trunkHeight,
-                    Math.sin(angle) * 0.5 * scale
-                );
-                frond.rotation.z = Math.PI / 3;
-                frond.rotation.y = angle;
-                group.add(frond);
-            }
-            // Coconuts
-            const coconutGeo = new THREE.SphereGeometry(0.15 * scale, 6, 6);
-            const coconutMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, flatShading: true });
-            for (let i = 0; i < 2; i++) {
-                const coconut = new THREE.Mesh(coconutGeo, coconutMat);
-                coconut.position.set((Math.random() - 0.5) * 0.3, trunkHeight - 0.2, (Math.random() - 0.5) * 0.3);
-                group.add(coconut);
-            }
-        }
+        const foliageGeo = treeStyle.type === 'pine' ? this.sharedGeometries.foliageCone : this.sharedGeometries.foliageSphere;
+        const foliage = new THREE.Mesh(foliageGeo, foliageMaterial);
+        foliage.scale.set(scale, scale, scale);
+        foliage.position.y = 2 * scale + 0.6 * scale;
+        group.add(foliage);
 
         group.position.set(x, y, z);
         group.userData.zPos = z;
@@ -1524,21 +1445,23 @@ export class GameScene {
     }
 
     updateStreetLamps(playerZ) {
-        // Spawn new street lamps ahead of player
-        while (playerZ - this.nextLampZ < 500) {
+        // PERFORMANCE: Reduced spawn distance from 500 to 150
+        while (playerZ - this.nextLampZ < 150) {
             this.createStreetLamp(-8, 0, this.nextLampZ);
             this.createStreetLamp(8, 0, this.nextLampZ - this.lampSpacing / 2);
             this.nextLampZ -= this.lampSpacing;
         }
 
-        // PERFORMANCE: In-place removal for old lamps
+        // PERFORMANCE: In-place removal for old lamps (don't dispose shared geometries)
         for (let i = this.streetLamps.length - 1; i >= 0; i--) {
             const lamp = this.streetLamps[i];
-            if (lamp.userData.zPos > playerZ + 50) {
+            if (lamp.userData.zPos > playerZ + 30) {
                 this.scene.remove(lamp);
+                // Only dispose materials (geometries are shared)
                 lamp.traverse((child) => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
+                    if (child.material && child.material !== this.sharedMaterials.lampPost) {
+                        child.material.dispose();
+                    }
                 });
                 this.streetLamps[i] = this.streetLamps[this.streetLamps.length - 1];
                 this.streetLamps.pop();
@@ -1547,26 +1470,28 @@ export class GameScene {
     }
 
     updateTrees(playerZ) {
-        // Spawn new trees ahead of player
-        while (playerZ - this.nextTreeZ < 500) {
-            // Random chance for trees on each side with varied positions
-            if (Math.random() > 0.25) {
-                this.createTree(-10 - Math.random() * 4, 0, this.nextTreeZ + Math.random() * 5);
+        // PERFORMANCE: Reduced spawn distance from 500 to 150
+        while (playerZ - this.nextTreeZ < 150) {
+            // PERFORMANCE: Reduced spawn chance from 75% to 50% per side
+            if (Math.random() > 0.5) {
+                this.createTree(-10 - Math.random() * 3, 0, this.nextTreeZ + Math.random() * 5);
             }
-            if (Math.random() > 0.25) {
-                this.createTree(10 + Math.random() * 4, 0, this.nextTreeZ + Math.random() * 5);
+            if (Math.random() > 0.5) {
+                this.createTree(10 + Math.random() * 3, 0, this.nextTreeZ + Math.random() * 5);
             }
             this.nextTreeZ -= this.treeSpacing;
         }
 
-        // PERFORMANCE: In-place removal for old trees
+        // PERFORMANCE: In-place removal for old trees (don't dispose shared geometries)
         for (let i = this.trees.length - 1; i >= 0; i--) {
             const tree = this.trees[i];
-            if (tree.userData.zPos > playerZ + 50) {
+            if (tree.userData.zPos > playerZ + 30) {
                 this.scene.remove(tree);
+                // Only dispose materials (geometries are shared)
                 tree.traverse((child) => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
+                    if (child.material && child.material !== this.sharedMaterials.trunk) {
+                        child.material.dispose();
+                    }
                 });
                 this.trees[i] = this.trees[this.trees.length - 1];
                 this.trees.pop();

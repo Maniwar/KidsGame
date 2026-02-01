@@ -12,6 +12,8 @@ export class GameScene {
         this.sidewalkCharacters = [];
         this.groundSegments = [];
         this.movingObjects = []; // Objects that move toward player
+        this.streetLamps = []; // Track street lamps for cleanup/respawn
+        this.trees = []; // Track trees for cleanup/respawn
         this.nextBuildingZ = -50;
         this.buildingSpacing = 20; // Space between buildings
         this.nextCharacterSpawnZ = -30;
@@ -19,6 +21,12 @@ export class GameScene {
         this.nextGroundSegmentZ = 200; // FIXED: Start much further ahead
         this.groundSegmentLength = 150; // FIXED: Longer segments to reduce gaps
         this.movingObjectSpawnChance = 0.08; // OPTIMIZED: Reduced spawn rate for better FPS
+
+        // Street lamp and tree spawning
+        this.nextLampZ = -100;
+        this.lampSpacing = 15;
+        this.nextTreeZ = -100;
+        this.treeSpacing = 12;
 
         // PERFORMANCE: Accumulated animation time (replaces Date.now() calls)
         this.animTime = 0;
@@ -478,86 +486,224 @@ export class GameScene {
     }
 
     createSideDecorations() {
-        // Street lamps
-        for (let z = -100; z < 100; z += 15) {
+        // Create initial street lamps
+        for (let z = -100; z < 200; z += this.lampSpacing) {
             this.createStreetLamp(-8, 0, z);
-            this.createStreetLamp(8, 0, z + 7.5);
+            this.createStreetLamp(8, 0, z + this.lampSpacing / 2);
+            this.nextLampZ = z - this.lampSpacing;
         }
 
-        // Trees
-        for (let z = -100; z < 100; z += 20) {
-            if (Math.random() > 0.5) {
-                this.createTree(-10, 0, z + Math.random() * 5);
-                this.createTree(10, 0, z + Math.random() * 5);
+        // Create initial trees with variety
+        for (let z = -100; z < 200; z += this.treeSpacing) {
+            // Random chance for trees on each side
+            if (Math.random() > 0.3) {
+                this.createTree(-10 - Math.random() * 3, 0, z + Math.random() * 5);
             }
+            if (Math.random() > 0.3) {
+                this.createTree(10 + Math.random() * 3, 0, z + Math.random() * 5);
+            }
+            this.nextTreeZ = z - this.treeSpacing;
         }
     }
 
     createStreetLamp(x, y, z) {
         const group = new THREE.Group();
 
+        // Variety in lamp styles
+        const lampStyles = [
+            { postColor: 0x696969, lampColor: COLORS.GOLD, height: 3 },
+            { postColor: 0x4A4A4A, lampColor: 0xFFE4B5, height: 3.5 },
+            { postColor: 0x2F4F4F, lampColor: 0xFFF8DC, height: 2.8 },
+            { postColor: 0x556B2F, lampColor: 0xFFDAB9, height: 3.2 }
+        ];
+        const style = lampStyles[Math.floor(Math.random() * lampStyles.length)];
+
         // Post
-        const postGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+        const postGeometry = new THREE.CylinderGeometry(0.1, 0.12, style.height, 8);
         const postMaterial = new THREE.MeshStandardMaterial({
-            color: 0x696969,
+            color: style.postColor,
             flatShading: true
         });
 
         const post = new THREE.Mesh(postGeometry, postMaterial);
-        post.position.y = 1.5;
+        post.position.y = style.height / 2;
         post.castShadow = true;
         group.add(post);
 
-        // Lamp
-        const lampGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-        const lampMaterial = new THREE.MeshStandardMaterial({
-            color: COLORS.GOLD,
-            emissive: COLORS.GOLD,
-            emissiveIntensity: 0.5
-        });
-
-        const lamp = new THREE.Mesh(lampGeometry, lampMaterial);
-        lamp.position.y = 3;
+        // Lamp head variety
+        const lampType = Math.random();
+        let lamp;
+        if (lampType < 0.5) {
+            // Round lamp
+            const lampGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+            const lampMaterial = new THREE.MeshStandardMaterial({
+                color: style.lampColor,
+                emissive: style.lampColor,
+                emissiveIntensity: 0.5
+            });
+            lamp = new THREE.Mesh(lampGeometry, lampMaterial);
+        } else {
+            // Lantern style
+            const lampGeometry = new THREE.BoxGeometry(0.4, 0.5, 0.4);
+            const lampMaterial = new THREE.MeshStandardMaterial({
+                color: style.lampColor,
+                emissive: style.lampColor,
+                emissiveIntensity: 0.4,
+                transparent: true,
+                opacity: 0.9
+            });
+            lamp = new THREE.Mesh(lampGeometry, lampMaterial);
+        }
+        lamp.position.y = style.height;
         group.add(lamp);
 
         // Point light
-        const light = new THREE.PointLight(COLORS.GOLD, 0.5, 10);
-        light.position.y = 3;
+        const light = new THREE.PointLight(style.lampColor, 0.5, 10);
+        light.position.y = style.height;
         group.add(light);
 
         group.position.set(x, y, z);
+        group.userData.zPos = z;
         this.scene.add(group);
+        this.streetLamps.push(group);
     }
 
     createTree(x, y, z) {
         const group = new THREE.Group();
 
+        // Calculate progression based on z position (further = more variety)
+        const distance = Math.abs(z);
+        const progression = Math.min(distance / 300, 1);
+
+        // Tree types that unlock as you progress
+        const treeTypes = [
+            // Basic trees (always available)
+            { type: 'round', trunkColor: 0x8B4513, foliageColor: 0x90EE90, scale: 1 },
+            { type: 'round', trunkColor: 0x8B4513, foliageColor: 0x228B22, scale: 1.1 },
+            { type: 'round', trunkColor: 0x654321, foliageColor: 0x32CD32, scale: 0.9 },
+        ];
+
+        // Cherry blossom trees (unlock at 20% progression)
+        if (progression > 0.2 || Math.random() < 0.1) {
+            treeTypes.push(
+                { type: 'cherry', trunkColor: 0x4A3728, foliageColor: 0xFFB7C5, scale: 1 },
+                { type: 'cherry', trunkColor: 0x5D4037, foliageColor: 0xFF69B4, scale: 1.1 }
+            );
+        }
+
+        // Pine trees (unlock at 40% progression)
+        if (progression > 0.4 || Math.random() < 0.05) {
+            treeTypes.push(
+                { type: 'pine', trunkColor: 0x4A3728, foliageColor: 0x2E8B57, scale: 1.2 },
+                { type: 'pine', trunkColor: 0x3E2723, foliageColor: 0x006400, scale: 1 }
+            );
+        }
+
+        // Palm trees (unlock at 60% progression)
+        if (progression > 0.6 || Math.random() < 0.03) {
+            treeTypes.push(
+                { type: 'palm', trunkColor: 0xD2691E, foliageColor: 0x228B22, scale: 1.3 }
+            );
+        }
+
+        // Magical/fantasy trees (unlock at 80% progression)
+        if (progression > 0.8 || Math.random() < 0.02) {
+            treeTypes.push(
+                { type: 'magical', trunkColor: 0x8B4513, foliageColor: 0xDDA0DD, scale: 1.1 },
+                { type: 'magical', trunkColor: 0x654321, foliageColor: 0x87CEEB, scale: 1 }
+            );
+        }
+
+        const treeStyle = treeTypes[Math.floor(Math.random() * treeTypes.length)];
+        const scale = treeStyle.scale * (0.8 + Math.random() * 0.4); // Random size variation
+
         // Trunk
-        const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2, 8);
+        const trunkHeight = 2 * scale;
+        const trunkGeometry = new THREE.CylinderGeometry(0.15 * scale, 0.25 * scale, trunkHeight, 8);
         const trunkMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8B4513,
+            color: treeStyle.trunkColor,
             flatShading: true
         });
-
         const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-        trunk.position.y = 1;
+        trunk.position.y = trunkHeight / 2;
         trunk.castShadow = true;
         group.add(trunk);
 
-        // Foliage
-        const foliageGeometry = new THREE.SphereGeometry(1.2, 8, 8);
-        const foliageMaterial = new THREE.MeshStandardMaterial({
-            color: 0x90EE90,
-            flatShading: true
-        });
+        // Foliage based on tree type
+        if (treeStyle.type === 'round' || treeStyle.type === 'cherry' || treeStyle.type === 'magical') {
+            const foliageGeometry = new THREE.SphereGeometry(1.2 * scale, 8, 8);
+            const foliageMaterial = new THREE.MeshStandardMaterial({
+                color: treeStyle.foliageColor,
+                flatShading: true,
+                emissive: treeStyle.type === 'magical' ? treeStyle.foliageColor : 0x000000,
+                emissiveIntensity: treeStyle.type === 'magical' ? 0.2 : 0
+            });
+            const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+            foliage.position.y = trunkHeight + 0.5 * scale;
+            foliage.castShadow = true;
+            group.add(foliage);
 
-        const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-        foliage.position.y = 2.5;
-        foliage.castShadow = true;
-        group.add(foliage);
+            // Cherry blossoms get extra smaller spheres
+            if (treeStyle.type === 'cherry') {
+                for (let i = 0; i < 3; i++) {
+                    const blossomGeo = new THREE.SphereGeometry(0.4 * scale, 6, 6);
+                    const blossom = new THREE.Mesh(blossomGeo, foliageMaterial);
+                    blossom.position.set(
+                        (Math.random() - 0.5) * scale,
+                        trunkHeight + (Math.random() - 0.3) * scale,
+                        (Math.random() - 0.5) * scale
+                    );
+                    group.add(blossom);
+                }
+            }
+        } else if (treeStyle.type === 'pine') {
+            // Cone-shaped foliage (multiple layers)
+            const foliageMaterial = new THREE.MeshStandardMaterial({
+                color: treeStyle.foliageColor,
+                flatShading: true
+            });
+            for (let i = 0; i < 3; i++) {
+                const coneSize = (1.2 - i * 0.3) * scale;
+                const coneGeometry = new THREE.ConeGeometry(coneSize, 1.2 * scale, 8);
+                const cone = new THREE.Mesh(coneGeometry, foliageMaterial);
+                cone.position.y = trunkHeight + i * 0.8 * scale;
+                cone.castShadow = true;
+                group.add(cone);
+            }
+        } else if (treeStyle.type === 'palm') {
+            // Palm fronds
+            const frondMaterial = new THREE.MeshStandardMaterial({
+                color: treeStyle.foliageColor,
+                flatShading: true,
+                side: THREE.DoubleSide
+            });
+            for (let i = 0; i < 6; i++) {
+                const frondGeometry = new THREE.ConeGeometry(0.3 * scale, 2 * scale, 4);
+                const frond = new THREE.Mesh(frondGeometry, frondMaterial);
+                const angle = (i / 6) * Math.PI * 2;
+                frond.position.set(
+                    Math.cos(angle) * 0.5 * scale,
+                    trunkHeight,
+                    Math.sin(angle) * 0.5 * scale
+                );
+                frond.rotation.z = Math.PI / 3;
+                frond.rotation.y = angle;
+                group.add(frond);
+            }
+            // Coconuts
+            const coconutGeo = new THREE.SphereGeometry(0.15 * scale, 6, 6);
+            const coconutMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, flatShading: true });
+            for (let i = 0; i < 2; i++) {
+                const coconut = new THREE.Mesh(coconutGeo, coconutMat);
+                coconut.position.set((Math.random() - 0.5) * 0.3, trunkHeight - 0.2, (Math.random() - 0.5) * 0.3);
+                group.add(coconut);
+            }
+        }
 
         group.position.set(x, y, z);
+        group.userData.zPos = z;
         this.scene.add(group);
+        this.trees.push(group);
     }
 
     createClouds() {
@@ -681,6 +827,12 @@ export class GameScene {
                 cloud.position.x = (Math.random() - 0.5) * 100;
             }
         }
+
+        // Spawn and cleanup street lamps
+        this.updateStreetLamps(playerZ);
+
+        // Spawn and cleanup trees
+        this.updateTrees(playerZ);
 
         // Update sidewalk characters/critters
         this.updateSidewalkCharacters(deltaTime, playerZ);
@@ -1371,6 +1523,57 @@ export class GameScene {
         this.movingObjects.push(group);
     }
 
+    updateStreetLamps(playerZ) {
+        // Spawn new street lamps ahead of player
+        while (playerZ - this.nextLampZ < 500) {
+            this.createStreetLamp(-8, 0, this.nextLampZ);
+            this.createStreetLamp(8, 0, this.nextLampZ - this.lampSpacing / 2);
+            this.nextLampZ -= this.lampSpacing;
+        }
+
+        // PERFORMANCE: In-place removal for old lamps
+        for (let i = this.streetLamps.length - 1; i >= 0; i--) {
+            const lamp = this.streetLamps[i];
+            if (lamp.userData.zPos > playerZ + 50) {
+                this.scene.remove(lamp);
+                lamp.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+                this.streetLamps[i] = this.streetLamps[this.streetLamps.length - 1];
+                this.streetLamps.pop();
+            }
+        }
+    }
+
+    updateTrees(playerZ) {
+        // Spawn new trees ahead of player
+        while (playerZ - this.nextTreeZ < 500) {
+            // Random chance for trees on each side with varied positions
+            if (Math.random() > 0.25) {
+                this.createTree(-10 - Math.random() * 4, 0, this.nextTreeZ + Math.random() * 5);
+            }
+            if (Math.random() > 0.25) {
+                this.createTree(10 + Math.random() * 4, 0, this.nextTreeZ + Math.random() * 5);
+            }
+            this.nextTreeZ -= this.treeSpacing;
+        }
+
+        // PERFORMANCE: In-place removal for old trees
+        for (let i = this.trees.length - 1; i >= 0; i--) {
+            const tree = this.trees[i];
+            if (tree.userData.zPos > playerZ + 50) {
+                this.scene.remove(tree);
+                tree.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+                this.trees[i] = this.trees[this.trees.length - 1];
+                this.trees.pop();
+            }
+        }
+    }
+
     updateMovingObjects(deltaTime, playerZ) {
         // Spawn new moving objects
         if (Math.random() < this.movingObjectSpawnChance * deltaTime) {
@@ -1513,10 +1716,32 @@ export class GameScene {
         });
         this.movingObjects = [];
 
+        // Clean up street lamps
+        this.streetLamps.forEach(lamp => {
+            this.scene.remove(lamp);
+            lamp.traverse((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
+        });
+        this.streetLamps = [];
+
+        // Clean up trees
+        this.trees.forEach(tree => {
+            this.scene.remove(tree);
+            tree.traverse((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
+        });
+        this.trees = [];
+
         // Reset spawn positions
         this.nextBuildingZ = -50;
         this.nextCharacterSpawnZ = -30;
         this.nextGroundSegmentZ = 100;
+        this.nextLampZ = -100;
+        this.nextTreeZ = -100;
 
         // Regenerate initial ground segments (optimized for FPS)
         for (let i = 0; i < 20; i++) {
@@ -1529,6 +1754,9 @@ export class GameScene {
             this.spawnBuilding(this.nextBuildingZ);
             this.nextBuildingZ -= this.buildingSpacing;
         }
+
+        // Regenerate initial street lamps and trees
+        this.createSideDecorations();
     }
 
     getScene() {

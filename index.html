@@ -39,6 +39,23 @@
             <p>Use Arrow Keys or WASD to move</p>
             <p>↑ Jump | ↓ Slide | ← → Switch Lanes</p>
             <button id="start-button" class="game-button">Start Game</button>
+            <button id="settings-button" class="game-button settings-btn">⚙️ Settings</button>
+        </div>
+
+        <!-- Settings Panel -->
+        <div id="settings-panel" class="screen">
+            <h2>⚙️ Settings</h2>
+            <div class="settings-options">
+                <div class="setting-row">
+                    <label for="aa-toggle">Anti-Aliasing (smoother edges)</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="aa-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <p class="setting-hint">Disable for better performance on mobile</p>
+            </div>
+            <button id="settings-back-button" class="game-button">Back</button>
         </div>
 
         <!-- Game Over Screen -->

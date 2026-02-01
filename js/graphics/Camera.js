@@ -61,18 +61,18 @@ export class GameCamera {
         this.deathCameraStartTime = performance.now();
         this.deathCameraDuration = 1200; // 1.2 seconds for initial spin
 
-        // Camera position: LOW and in front, looking UP at face
-        // This puts Kitty's face in the UPPER part of the screen (above the HUD)
+        // Camera position: EXTREMELY LOW and looking UP steeply at face
+        // This puts Kitty's face in the TOP blue sky area (top 25% of screen)
         this.deathCameraEndPos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 0.3, // Below face level - camera looks UP
-            playerPosition.z + 3.0  // In front of character
+            playerPosition.y - 4.0, // Way below character - very steep upward angle
+            playerPosition.z + 5.0  // Further back for full view
         );
 
-        // Look at character face (above camera = face appears at top of screen)
+        // Look at character face (way above camera = face at very top of screen)
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.5, // Face height
+            playerPosition.y + 2.0, // Head height
             playerPosition.z
         );
     }
@@ -85,10 +85,10 @@ export class GameCamera {
         const easeOutCubic = 1 - Math.pow(1 - progress, 3);
 
         if (progress < 1) {
-            // Initial spin around to front, ending low to look up at face
+            // Initial spin around to front, ending extremely low to look up at face
             const angle = Math.PI * easeOutCubic; // 0 to 180 degrees
-            const radius = 5 - easeOutCubic * 2; // Start far, end closer
-            const height = 4 - easeOutCubic * 3.7; // Start high, end LOW (below face)
+            const radius = 6 - easeOutCubic * 1; // Start far, end at 5
+            const height = 4 - easeOutCubic * 8; // Start high (4), end very low (-4)
 
             const camX = this.deathCameraTarget.x + Math.sin(angle) * radius;
             const camY = this.deathCameraTarget.y + height;
@@ -102,9 +102,9 @@ export class GameCamera {
             const idleTime = (elapsed - this.deathCameraDuration) * 0.001;
 
             // Sway side to side and slight up/down
-            const swayX = Math.sin(idleTime * 0.6) * 0.5; // Side to side
-            const swayY = Math.sin(idleTime * 0.4) * 0.2; // Subtle up and down
-            const swayZ = Math.cos(idleTime * 0.5) * 0.3; // Forward/back
+            const swayX = Math.sin(idleTime * 0.6) * 0.4; // Side to side
+            const swayY = Math.sin(idleTime * 0.4) * 0.15; // Subtle up and down
+            const swayZ = Math.cos(idleTime * 0.5) * 0.2; // Forward/back
 
             this.camera.position.set(
                 this.deathCameraEndPos.x + swayX,

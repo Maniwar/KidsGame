@@ -1635,54 +1635,50 @@ export class GameScene {
         // PERFORMANCE: Reset animation time
         this.animTime = 0;
 
-        // Clean up all spawned elements
-        this.groundSegments.forEach(segment => {
-            this.scene.remove(segment);
-            segment.traverse((child) => {
+        // Helper function to properly dispose Three.js objects
+        const disposeObject = (obj) => {
+            this.scene.remove(obj);
+            obj.traverse((child) => {
                 if (child.geometry) child.geometry.dispose();
-                if (child.material) child.material.dispose();
+                if (child.material) {
+                    // Handle both single materials and material arrays
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(mat => mat.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
             });
-        });
+        };
+
+        // Clean up all spawned elements with proper disposal
+        this.groundSegments.forEach(disposeObject);
         this.groundSegments = [];
 
-        this.buildings.forEach(building => {
-            this.scene.remove(building);
-        });
+        // MEMORY FIX: Buildings were not disposing geometry/materials
+        this.buildings.forEach(disposeObject);
         this.buildings = [];
 
+        // MEMORY FIX: Decorations were not disposing geometry/materials
         this.decorations.forEach(decoration => {
-            this.scene.remove(decoration.mesh);
+            disposeObject(decoration.mesh);
         });
         this.decorations = [];
 
-        this.sidewalkCharacters.forEach(character => {
-            this.scene.remove(character);
-        });
+        // MEMORY FIX: Sidewalk characters were not disposing geometry/materials
+        this.sidewalkCharacters.forEach(disposeObject);
         this.sidewalkCharacters = [];
 
-        this.movingObjects.forEach(obj => {
-            this.scene.remove(obj);
-        });
+        // MEMORY FIX: Moving objects (cars/buses) were not disposing geometry/materials
+        this.movingObjects.forEach(disposeObject);
         this.movingObjects = [];
 
         // Clean up street lamps
-        this.streetLamps.forEach(lamp => {
-            this.scene.remove(lamp);
-            lamp.traverse((child) => {
-                if (child.geometry) child.geometry.dispose();
-                if (child.material) child.material.dispose();
-            });
-        });
+        this.streetLamps.forEach(disposeObject);
         this.streetLamps = [];
 
         // Clean up trees
-        this.trees.forEach(tree => {
-            this.scene.remove(tree);
-            tree.traverse((child) => {
-                if (child.geometry) child.geometry.dispose();
-                if (child.material) child.material.dispose();
-            });
-        });
+        this.trees.forEach(disposeObject);
         this.trees = [];
 
         // Reset spawn positions

@@ -1155,6 +1155,8 @@ class Game {
             return;
         }
 
+        let highlightedEntry = null;
+
         this.highScores.forEach((entry, index) => {
             const div = document.createElement('div');
             div.className = 'leaderboard-entry';
@@ -1162,6 +1164,7 @@ class Game {
             // Highlight the newly added score
             if (entry.initials === highlightInitials && entry.score === Math.floor(this.score)) {
                 div.classList.add('highlight');
+                highlightedEntry = div; // Save reference to scroll to it
             }
 
             div.innerHTML = `
@@ -1172,6 +1175,16 @@ class Game {
 
             leaderboardList.appendChild(div);
         });
+
+        // Smooth scroll to highlighted entry after DOM updates
+        if (highlightedEntry) {
+            setTimeout(() => {
+                highlightedEntry.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 100);
+        }
     }
 }
 

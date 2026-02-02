@@ -1060,35 +1060,47 @@ class Game {
     }
 
     createFloatingText(text, position, color = 0xFFFFFF) {
-        // PERFORMANCE: Create canvas texture (unavoidable for text, but use animation queue)
+        // Create canvas texture with high visibility
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        canvas.width = 256;
-        canvas.height = 128;
+        canvas.width = 512;
+        canvas.height = 256;
 
-        context.font = 'Bold 60px Arial';
-        context.fillStyle = '#' + color.toString(16).padStart(6, '0');
+        // Draw black outline for contrast
+        context.font = 'Bold 100px Arial';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
-        context.fillText(text, 128, 64);
+        context.strokeStyle = '#000000';
+        context.lineWidth = 8;
+        context.strokeText(text, 256, 128);
+
+        // Draw colored fill
+        context.fillStyle = '#' + color.toString(16).padStart(6, '0');
+        context.fillText(text, 256, 128);
+
+        // Add glow effect
+        context.shadowColor = '#' + color.toString(16).padStart(6, '0');
+        context.shadowBlur = 20;
+        context.fillText(text, 256, 128);
 
         const texture = new THREE.CanvasTexture(canvas);
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
         const sprite = new THREE.Sprite(spriteMaterial);
 
         sprite.position.copy(position);
-        sprite.position.y += 1;
-        sprite.scale.set(2, 1, 1);
+        sprite.position.y += 1.5;
+        sprite.scale.set(4, 2, 1); // Bigger scale for visibility
 
         this.gameScene.getScene().add(sprite);
 
         const startY = sprite.position.y;
+        const startScale = 4;
         const scene = this.gameScene.getScene();
 
-        // PERFORMANCE: Use animation queue instead of separate RAF callback
+        // Animated pop-up with bounce effect
         this.animations.push({
             elapsed: 0,
-            duration: 1000,
+            duration: 1200,
             update: (progress) => {
                 if (progress >= 1) {
                     scene.remove(sprite);
@@ -1097,8 +1109,22 @@ class Game {
                     return true; // Animation complete
                 }
 
-                sprite.position.y = startY + progress * 3;
-                sprite.material.opacity = 1 - progress;
+                // Bounce up effect in first 20% of animation
+                let scale = startScale;
+                if (progress < 0.2) {
+                    const bounceProgress = progress / 0.2;
+                    scale = startScale * (1 + Math.sin(bounceProgress * Math.PI) * 0.3);
+                }
+                sprite.scale.set(scale, scale / 2, 1);
+
+                // Float upward
+                sprite.position.y = startY + progress * 4;
+
+                // Fade out in second half
+                if (progress > 0.5) {
+                    sprite.material.opacity = 1 - ((progress - 0.5) * 2);
+                }
+
                 return false;
             }
         });

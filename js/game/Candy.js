@@ -40,7 +40,7 @@ export class Candy {
 
         this.position = new THREE.Vector3(
             GAME_CONFIG.LANE_POSITIONS[lane],
-            1.2, // Float higher than coins for visibility
+            1.8, // Float higher for better visibility
             zPosition
         );
 
@@ -101,6 +101,11 @@ export class Candy {
             default:
                 this.createLollipop();
         }
+
+        // Scale up all candy to be more visible (1.8x bigger)
+        const candyScale = 1.8;
+        this.mesh.scale.set(candyScale, candyScale, candyScale);
+        this.collisionRadius *= candyScale; // Scale collision radius too
 
         // Add sparkle ring around candy
         this.createSparkleRing();
@@ -485,28 +490,28 @@ export class Candy {
     }
 
     createSparkleRing() {
-        // Sweet sparkle effect around candy
-        const ringGeometry = new THREE.TorusGeometry(0.35, 0.02, 8, 16);
+        // Sweet sparkle effect around candy - scaled up to match larger candy
+        const ringGeometry = new THREE.TorusGeometry(0.6, 0.03, 8, 16);
         const ringMaterial = new THREE.MeshBasicMaterial({
             color: 0xFF69B4,
             transparent: true,
-            opacity: 0.4,
+            opacity: 0.5,
         });
         this.ring = new THREE.Mesh(ringGeometry, ringMaterial);
         this.ring.rotation.x = Math.PI / 2;
         this.group.add(this.ring);
 
-        // Add ground glow
-        const glowGeometry = new THREE.CircleGeometry(0.4, 16);
+        // Add ground glow - larger for bigger candy
+        const glowGeometry = new THREE.CircleGeometry(0.8, 16);
         const glowMaterial = new THREE.MeshBasicMaterial({
             color: 0xFF69B4,
             transparent: true,
-            opacity: 0.3,
+            opacity: 0.4,
             side: THREE.DoubleSide,
         });
         this.groundGlow = new THREE.Mesh(glowGeometry, glowMaterial);
         this.groundGlow.rotation.x = -Math.PI / 2;
-        this.groundGlow.position.y = -1.15;
+        this.groundGlow.position.y = -1.75; // Lower to match higher floating candy
         this.group.add(this.groundGlow);
     }
 

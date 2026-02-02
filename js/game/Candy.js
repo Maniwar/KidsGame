@@ -669,14 +669,10 @@ export class Candy {
 
         this.animTime += deltaTime;
 
-        // Rotate candy - donuts tumble in all directions!
-        if (this.type === 'donut') {
-            this.mesh.rotation.x += this.rotationSpeed * deltaTime * 1.2;
-            this.mesh.rotation.y += this.rotationSpeed * deltaTime * 0.8;
-            this.mesh.rotation.z += this.rotationSpeed * deltaTime * 0.5;
-        } else {
-            this.mesh.rotation.y += this.rotationSpeed * deltaTime;
-        }
+        // All candy tumbles in all directions for fun bouncy animation!
+        this.mesh.rotation.x += this.rotationSpeed * deltaTime * 1.2;
+        this.mesh.rotation.y += this.rotationSpeed * deltaTime * 0.8;
+        this.mesh.rotation.z += this.rotationSpeed * deltaTime * 0.5;
 
         // Bob up and down
         const bobY = Math.sin(this.animTime * this.bobSpeed + this.bobOffset) * this.bobAmount;

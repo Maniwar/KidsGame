@@ -1173,26 +1173,63 @@ class Game {
             const pulse = 1 + Math.sin(time * 0.008) * 0.15;
             this.sugarRushAura.scale.set(pulse, pulse, pulse);
 
-            // Spawn rainbow trail particles
-            if (Math.random() < 0.5) {
-                const playerPos = this.player.getPosition();
-                const trailHue = (time % 1000) / 1000;
-                const trailColor = new THREE.Color().setHSL(trailHue, 1, 0.5);
+            // Spawn DRAMATIC rainbow trail particles - multiple per frame!
+            const playerPos = this.player.getPosition();
+
+            // Spawn 3-5 particles per frame for a thick, visible ribbon trail
+            const particlesToSpawn = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < particlesToSpawn; i++) {
+                // Rainbow colors cycling through spectrum
+                const trailHue = ((time * 0.003) + (i * 0.15)) % 1;
+                const trailColor = new THREE.Color().setHSL(trailHue, 1, 0.6);
                 const particle = this.getParticleFromPool(trailColor.getHex());
 
                 if (particle) {
+                    // Spread particles in a wider area behind player for ribbon effect
+                    const spreadX = (Math.random() - 0.5) * 1.5;
+                    const spreadY = Math.random() * 1.2;
+                    const offsetZ = 0.3 + Math.random() * 0.6; // Behind player
+
                     particle.position.set(
-                        playerPos.x + (Math.random() - 0.5) * 0.5,
-                        playerPos.y + 0.5 + Math.random() * 0.5,
-                        playerPos.z + 0.5
+                        playerPos.x + spreadX,
+                        playerPos.y + 0.3 + spreadY,
+                        playerPos.z + offsetZ
                     );
-                    particle.userData.life = 0.4;
-                    particle.userData.maxLife = 0.4;
+                    particle.userData.life = 0.8; // Longer life for longer trail
+                    particle.userData.maxLife = 0.8;
                     particle.userData.gravity = false;
                     particle.userData.shrink = true;
-                    particle.userData.velocity = { x: 0, y: 0.5, z: 1 };
+                    particle.userData.velocity = {
+                        x: spreadX * 0.5, // Drift outward slightly
+                        y: 0.3 + Math.random() * 0.5,
+                        z: 2 + Math.random() // Trail behind
+                    };
                     particle.userData.rotationSpeed = null;
-                    particle.scale.set(1.2, 1.2, 1.2);
+                    // Larger particles for more visibility
+                    const size = 1.5 + Math.random() * 1.0;
+                    particle.scale.set(size, size, size);
+                }
+            }
+
+            // Also spawn some sparkle stars in the trail
+            if (Math.random() < 0.3) {
+                const sparkleHue = Math.random();
+                const sparkleColor = new THREE.Color().setHSL(sparkleHue, 1, 0.8);
+                const sparkle = this.getParticleFromPool(sparkleColor.getHex());
+
+                if (sparkle) {
+                    sparkle.position.set(
+                        playerPos.x + (Math.random() - 0.5) * 2,
+                        playerPos.y + Math.random() * 1.5,
+                        playerPos.z + 0.5 + Math.random()
+                    );
+                    sparkle.userData.life = 0.5;
+                    sparkle.userData.maxLife = 0.5;
+                    sparkle.userData.gravity = false;
+                    sparkle.userData.shrink = false; // Stay same size then pop
+                    sparkle.userData.velocity = { x: 0, y: 1, z: 3 };
+                    sparkle.userData.rotationSpeed = 10; // Spin fast
+                    sparkle.scale.set(0.8, 0.8, 0.8);
                 }
             }
         }
@@ -1267,16 +1304,17 @@ class Game {
         // Check obstacle collisions
         const obstacles = this.world.getObstacles();
         for (const obstacle of obstacles) {
+            // Skip obstacles already being destroyed
+            if (obstacle.isBeingDestroyed) continue;
+
             if (this.checkCollision(playerPos, obstacle.getBoundingBox())) {
-                // Giant mode: smash through obstacles
+                // Giant mode: smash through obstacles with bouncy animation!
                 if (this.activePowerUps.has('giant')) {
-                    obstacle.isActive = false; // Destroy obstacle
+                    this.smashStaticObstacle(obstacle, false);
                     this.score += 50; // Bonus points
 
-                    // Visual feedback - explosion particles and floating text
-                    // (no screen shake to avoid jitter when smashing multiple obstacles)
-                    this.createObstacleExplosion(obstacle.getPosition());
-                    this.audio.playGemSound(); // Use gem sound for smash effect
+                    // Visual feedback
+                    this.audio.playGemSound();
                     this.createFloatingText('+50', obstacle.getPosition(), 0xFFAA00);
 
                     continue;
@@ -1284,11 +1322,10 @@ class Game {
 
                 // Sugar Rush mode: smash through obstacles with rainbow explosion!
                 if (this.isSugarRush) {
-                    obstacle.isActive = false; // Destroy obstacle
+                    this.smashStaticObstacle(obstacle, true);
                     this.score += 75; // Extra bonus during Sugar Rush!
 
-                    // Rainbow explosion effect
-                    this.createSugarRushSmash(obstacle.getPosition());
+                    // Visual feedback
                     this.audio.playGemSound();
                     this.createFloatingText('+75', obstacle.getPosition(), 0xFF69B4);
 
@@ -1491,6 +1528,65 @@ class Game {
             particle.userData.shrink = true;
             particle.rotation.set(0, 0, 0);
             particle.scale.set(1.8, 1.8, 1.8); // Bigger particles for impact
+        }
+    }
+
+    // Smash a static obstacle with bouncy animation (for Giant and Sugar Rush modes)
+    smashStaticObstacle(obstacle, isRainbow = false) {
+        // Mark as being destroyed (prevents re-collision)
+        obstacle.isBeingDestroyed = true;
+
+        const obstacleGroup = obstacle.group;
+        const position = obstacle.getPosition().clone();
+
+        // Animate the obstacle bouncing up and spinning away
+        const startY = obstacleGroup.position.y;
+        const startTime = performance.now();
+        const duration = 600; // 0.6 seconds
+
+        const animateSmash = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Bounce up with gravity curve
+            const bounceHeight = 4 * progress * (1 - progress) * 5; // Parabola peaking at 5 units
+            obstacleGroup.position.y = startY + bounceHeight;
+
+            // Spin wildly
+            obstacleGroup.rotation.x += 0.25;
+            obstacleGroup.rotation.z += 0.15;
+            obstacleGroup.rotation.y += 0.2;
+
+            // Fly away from player (backwards)
+            obstacleGroup.position.z += 0.2;
+
+            // Shrink as it flies away
+            const scale = 1 - progress * 0.9;
+            obstacleGroup.scale.set(scale, scale, scale);
+
+            // Fade out
+            obstacleGroup.traverse((child) => {
+                if (child.material) {
+                    child.material.transparent = true;
+                    child.material.opacity = 1 - progress;
+                }
+            });
+
+            if (progress < 1) {
+                requestAnimationFrame(animateSmash);
+            } else {
+                // Now mark as inactive so World can clean it up
+                obstacle.isActive = false;
+            }
+        };
+
+        animateSmash();
+
+        // Create appropriate explosion effect
+        if (isRainbow) {
+            this.createSugarRushSmash(position);
+        } else {
+            this.createObstacleExplosion(position);
         }
     }
 

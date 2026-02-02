@@ -362,6 +362,9 @@ export class Candy {
             donutGroup.add(sprinkle);
         }
 
+        // Donut already faces player (hole towards camera) from mesh rotation
+        // No additional tilt needed - spin animation rotates around Y axis
+
         this.mesh = donutGroup;
         this.group.add(this.mesh);
         this.collisionRadius = 0.35;

@@ -108,8 +108,8 @@ export class Obstacle {
             cone.castShadow = true;
             this.group.add(cone);
 
-            // White stripe
-            const stripeGeometry = new THREE.CylinderGeometry(0.62, 0.5, 0.2, 8);
+            // White stripe - tapers to match cone shape (wider at bottom, narrower at top)
+            const stripeGeometry = new THREE.CylinderGeometry(0.32, 0.42, 0.2, 8);
             const stripeMaterial = new THREE.MeshStandardMaterial({
                 color: 0xFFFFFF,
                 flatShading: true,

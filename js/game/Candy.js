@@ -224,7 +224,7 @@ export class Candy {
         rightTwist.rotation.z = -Math.PI / 2;
         candyGroup.add(rightTwist);
 
-        // Add stripe decoration
+        // Add stripe decoration - wraps around the horizontal candy body
         const stripeGeometry = new THREE.TorusGeometry(0.16, 0.02, 4, 12);
         const stripeMaterial = new THREE.MeshStandardMaterial({
             color: 0xFFFFFF,
@@ -232,7 +232,7 @@ export class Candy {
             emissiveIntensity: 0.2,
         });
         const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
-        stripe.rotation.y = Math.PI / 2;
+        stripe.rotation.z = Math.PI / 2; // Rotate to wrap around horizontal body
         candyGroup.add(stripe);
 
         this.mesh = candyGroup;

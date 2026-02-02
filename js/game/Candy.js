@@ -362,8 +362,7 @@ export class Candy {
             donutGroup.add(sprinkle);
         }
 
-        // Donut already faces player (hole towards camera) from mesh rotation
-        // No additional tilt needed - spin animation rotates around Y axis
+        // Donut tumbles in all directions - see update() for multi-axis rotation
 
         this.mesh = donutGroup;
         this.group.add(this.mesh);

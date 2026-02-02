@@ -4,6 +4,8 @@ import { COLORS, GAME_CONFIG } from '../utils/Constants.js';
 // PERFORMANCE: Static shared geometries and materials (created once, reused by all coins)
 let sharedCoinGeometry = null;
 let sharedCoinMaterial = null;
+let sharedCoinRimGeometry = null;
+let sharedCoinRimMaterial = null;
 let sharedGemGeometry = null;
 
 function getSharedCoinGeometry() {
@@ -22,10 +24,32 @@ function getSharedCoinMaterial() {
             metalness: 0.95,
             roughness: 0.05,
             emissive: 0xFFD700,
-            emissiveIntensity: 0.5, // VISIBILITY: Increased glow from 0.2 to 0.5
+            emissiveIntensity: 0.5,
         });
     }
     return sharedCoinMaterial;
+}
+
+function getSharedCoinRimGeometry() {
+    if (!sharedCoinRimGeometry) {
+        // Torus around the edge of the coin for a raised rim effect
+        sharedCoinRimGeometry = new THREE.TorusGeometry(0.6, 0.06, 8, 16);
+    }
+    return sharedCoinRimGeometry;
+}
+
+function getSharedCoinRimMaterial() {
+    if (!sharedCoinRimMaterial) {
+        // Slightly darker gold for the rim edge
+        sharedCoinRimMaterial = new THREE.MeshStandardMaterial({
+            color: 0xDAA520, // Goldenrod - darker than main coin
+            metalness: 0.9,
+            roughness: 0.1,
+            emissive: 0xB8860B,
+            emissiveIntensity: 0.3,
+        });
+    }
+    return sharedCoinRimMaterial;
 }
 
 function getSharedGemGeometry() {
@@ -107,10 +131,25 @@ export class Collectible {
     }
 
     createCoin() {
-        // PERFORMANCE: Use shared geometry and material for coins
-        this.mesh = new THREE.Mesh(getSharedCoinGeometry(), getSharedCoinMaterial());
+        // Create a group for the coin so rim rotates with it
+        this.mesh = new THREE.Group();
+
+        // Main coin body
+        const coinBody = new THREE.Mesh(getSharedCoinGeometry(), getSharedCoinMaterial());
+        coinBody.castShadow = true;
+        this.mesh.add(coinBody);
+
+        // Raised rim around the edge (front)
+        const rimFront = new THREE.Mesh(getSharedCoinRimGeometry(), getSharedCoinRimMaterial());
+        rimFront.position.z = 0.1; // Slightly in front
+        this.mesh.add(rimFront);
+
+        // Raised rim around the edge (back)
+        const rimBack = new THREE.Mesh(getSharedCoinRimGeometry(), getSharedCoinRimMaterial());
+        rimBack.position.z = -0.1; // Slightly behind
+        this.mesh.add(rimBack);
+
         this.mesh.rotation.x = Math.PI / 2; // Lay flat so it spins vertically
-        this.mesh.castShadow = true;
         this.group.add(this.mesh);
 
         this.collisionRadius = 0.65; // Match coin size

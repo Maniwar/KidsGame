@@ -72,8 +72,8 @@ export class GameCamera {
         // pushing kitty to the upper portion of the screen
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            0, // Ground level
-            playerPosition.z + 2 // Slightly in front of kitty (road ahead)
+            -0.5, // Below ground level to push kitty higher
+            playerPosition.z + 3 // Further in front of kitty
         );
     }
 

@@ -362,6 +362,9 @@ export class Candy {
             donutGroup.add(sprinkle);
         }
 
+        // Tilt the donut so the spin is more visible
+        donutGroup.rotation.x = 0.4; // Tilt forward so spin is noticeable
+
         this.mesh = donutGroup;
         this.group.add(this.mesh);
         this.collisionRadius = 0.35;

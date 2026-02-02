@@ -1304,16 +1304,17 @@ class Game {
         // Check obstacle collisions
         const obstacles = this.world.getObstacles();
         for (const obstacle of obstacles) {
+            // Skip obstacles already being destroyed
+            if (obstacle.isBeingDestroyed) continue;
+
             if (this.checkCollision(playerPos, obstacle.getBoundingBox())) {
-                // Giant mode: smash through obstacles
+                // Giant mode: smash through obstacles with bouncy animation!
                 if (this.activePowerUps.has('giant')) {
-                    obstacle.isActive = false; // Destroy obstacle
+                    this.smashStaticObstacle(obstacle, false);
                     this.score += 50; // Bonus points
 
-                    // Visual feedback - explosion particles and floating text
-                    // (no screen shake to avoid jitter when smashing multiple obstacles)
-                    this.createObstacleExplosion(obstacle.getPosition());
-                    this.audio.playGemSound(); // Use gem sound for smash effect
+                    // Visual feedback
+                    this.audio.playGemSound();
                     this.createFloatingText('+50', obstacle.getPosition(), 0xFFAA00);
 
                     continue;
@@ -1321,11 +1322,10 @@ class Game {
 
                 // Sugar Rush mode: smash through obstacles with rainbow explosion!
                 if (this.isSugarRush) {
-                    obstacle.isActive = false; // Destroy obstacle
+                    this.smashStaticObstacle(obstacle, true);
                     this.score += 75; // Extra bonus during Sugar Rush!
 
-                    // Rainbow explosion effect
-                    this.createSugarRushSmash(obstacle.getPosition());
+                    // Visual feedback
                     this.audio.playGemSound();
                     this.createFloatingText('+75', obstacle.getPosition(), 0xFF69B4);
 
@@ -1528,6 +1528,65 @@ class Game {
             particle.userData.shrink = true;
             particle.rotation.set(0, 0, 0);
             particle.scale.set(1.8, 1.8, 1.8); // Bigger particles for impact
+        }
+    }
+
+    // Smash a static obstacle with bouncy animation (for Giant and Sugar Rush modes)
+    smashStaticObstacle(obstacle, isRainbow = false) {
+        // Mark as being destroyed (prevents re-collision)
+        obstacle.isBeingDestroyed = true;
+
+        const obstacleGroup = obstacle.group;
+        const position = obstacle.getPosition().clone();
+
+        // Animate the obstacle bouncing up and spinning away
+        const startY = obstacleGroup.position.y;
+        const startTime = performance.now();
+        const duration = 600; // 0.6 seconds
+
+        const animateSmash = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Bounce up with gravity curve
+            const bounceHeight = 4 * progress * (1 - progress) * 5; // Parabola peaking at 5 units
+            obstacleGroup.position.y = startY + bounceHeight;
+
+            // Spin wildly
+            obstacleGroup.rotation.x += 0.25;
+            obstacleGroup.rotation.z += 0.15;
+            obstacleGroup.rotation.y += 0.2;
+
+            // Fly away from player (backwards)
+            obstacleGroup.position.z += 0.2;
+
+            // Shrink as it flies away
+            const scale = 1 - progress * 0.9;
+            obstacleGroup.scale.set(scale, scale, scale);
+
+            // Fade out
+            obstacleGroup.traverse((child) => {
+                if (child.material) {
+                    child.material.transparent = true;
+                    child.material.opacity = 1 - progress;
+                }
+            });
+
+            if (progress < 1) {
+                requestAnimationFrame(animateSmash);
+            } else {
+                // Now mark as inactive so World can clean it up
+                obstacle.isActive = false;
+            }
+        };
+
+        animateSmash();
+
+        // Create appropriate explosion effect
+        if (isRainbow) {
+            this.createSugarRushSmash(position);
+        } else {
+            this.createObstacleExplosion(position);
         }
     }
 

@@ -8,9 +8,9 @@ let sharedGemGeometry = null;
 
 function getSharedCoinGeometry() {
     if (!sharedCoinGeometry) {
-        // Coin size: 0.6 radius - visible but not oversized
+        // Coin size: 0.6 radius, 0.25 thick - chunky and visible
         // PERFORMANCE: Reduced segments from 32 to 16 - barely noticeable difference
-        sharedCoinGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.15, 16);
+        sharedCoinGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.25, 16);
     }
     return sharedCoinGeometry;
 }

@@ -64,14 +64,14 @@ export class GameCamera {
         // Camera position: IN FRONT of character, positioned to show face above UI
         this.deathCameraEndPos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 0.8, // Lower camera to push kitty higher in frame
-            playerPosition.z - 4.0  // Closer for better face visibility
+            playerPosition.y + 0.0, // Camera at ground level to push kitty way up in frame
+            playerPosition.z - 3.5  // Closer for better face visibility
         );
 
-        // Look directly at face level to center the face in frame
+        // Look directly at face level
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.2, // Face level (head center)
+            playerPosition.y + 1.0, // Look at lower face/chin area
             playerPosition.z
         );
     }
@@ -86,8 +86,8 @@ export class GameCamera {
         if (progress < 1) {
             // Initial spin around to front
             const angle = Math.PI * easeOutCubic; // 0 to 180 degrees
-            const radius = 4.5 - easeOutCubic * 0.5; // Start far, end closer
-            const height = 2.5 - easeOutCubic * 1.7; // Start high, end lower to push kitty up in frame
+            const radius = 4.5 - easeOutCubic * 1.0; // Start far, end closer
+            const height = 2.5 - easeOutCubic * 2.5; // Start high, end at ground level (0)
 
             const camX = this.deathCameraTarget.x + Math.sin(angle) * radius;
             const camY = this.deathCameraTarget.y + height;

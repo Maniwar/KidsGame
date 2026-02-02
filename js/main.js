@@ -978,17 +978,17 @@ class Game {
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-notification';
         notification.innerHTML = `
-            <span class="icon">🍭✨🍬</span>
+            <span class="icon">🍭</span>
             <div class="title">SUGAR RUSH!</div>
-            <div class="description">Invincible! 3x Score! Go crazy!</div>
         `;
 
         document.body.appendChild(notification);
 
+        // Shorter display time - 1.2 seconds then fade out
         setTimeout(() => {
-            notification.style.animation = 'sugarRushFadeOut 0.5s ease-out forwards';
-            setTimeout(() => notification.remove(), 500);
-        }, 2000);
+            notification.style.animation = 'sugarRushFadeOut 0.3s ease-out forwards';
+            setTimeout(() => notification.remove(), 300);
+        }, 1200);
     }
 
     showSugarRushEndNotification() {
@@ -1330,46 +1330,167 @@ class Game {
             }
         }
 
-        // Check moving object collisions (birds, butterflies, etc.)
-        // Skip if shield was consumed this frame or if invincible
-        if (!isInvincible && !shieldConsumedThisFrame) {
-            const movingObstacles = this.gameScene.getMovingObstacles();
-            for (const movingObj of movingObstacles) {
-                const boundingBox = {
-                    center: movingObj.position,
-                    radius: movingObj.userData.collisionRadius,
-                    height: movingObj.userData.obstacleHeight
-                };
+        // Check moving object collisions (cars, buses, etc.)
+        const movingObstacles = this.gameScene.getMovingObstacles();
+        for (const movingObj of movingObstacles) {
+            // Skip if already destroyed
+            if (movingObj.userData.isDestroyed) continue;
 
-                if (this.checkCollision(playerPos, boundingBox)) {
-                    // Shield: protect once then remove
-                    if (this.hasShield) {
-                        this.deactivatePowerUp('shield');
-                        this.audio.playShieldBreakSound();
-                        this.invincibilityTimer = 1.0; // 1 second of invincibility after shield breaks
-                        break; // Exit loop to prevent multiple hits
-                    }
+            const boundingBox = {
+                center: movingObj.position,
+                radius: movingObj.userData.collisionRadius,
+                height: movingObj.userData.obstacleHeight
+            };
 
-                    // Hit a moving obstacle - trigger death effects and play animation
-                    if (this.isRunning) {
-                        this.isRunning = false; // Stop game immediately
+            if (this.checkCollision(playerPos, boundingBox)) {
+                // Giant mode: SMASH cars with bouncy explosion!
+                if (this.activePowerUps.has('giant')) {
+                    this.smashMovingObstacle(movingObj);
+                    this.score += 75; // Bonus for smashing cars!
+                    this.audio.playGemSound();
+                    this.createFloatingText('+75', movingObj.position, 0xFFAA00);
+                    continue;
+                }
 
-                        // Trigger all death screen effects
-                        this.triggerDeathEffects();
+                // Sugar Rush mode: SMASH cars with rainbow explosion!
+                if (this.isSugarRush) {
+                    this.smashMovingObstacle(movingObj);
+                    this.score += 100; // Extra bonus during Sugar Rush!
+                    this.audio.playGemSound();
+                    this.createFloatingText('+100', movingObj.position, 0xFF69B4);
+                    continue;
+                }
 
-                        // Play enhanced death animation, then spin camera to face
-                        this.player.playDeathAnimation(() => {
-                            // Start dramatic camera spin to face close-up
-                            const playerPos = this.player.getPosition();
-                            this.camera.startDeathCamera(playerPos, () => {
-                                // Show game over screen after camera spin completes
-                                this.gameOver();
-                            });
+                // Flight mode: float above
+                if (this.activePowerUps.has('flight')) {
+                    continue;
+                }
+
+                // Skip if shield was consumed this frame
+                if (shieldConsumedThisFrame) continue;
+
+                // Shield: protect once then remove
+                if (this.hasShield) {
+                    this.deactivatePowerUp('shield');
+                    this.audio.playShieldBreakSound();
+                    this.invincibilityTimer = 1.0; // 1 second of invincibility after shield breaks
+                    break; // Exit loop to prevent multiple hits
+                }
+
+                // Still invincible from shield break
+                if (this.invincibilityTimer > 0) continue;
+
+                // Hit a moving obstacle - trigger death effects and play animation
+                if (this.isRunning) {
+                    this.isRunning = false; // Stop game immediately
+
+                    // Trigger all death screen effects
+                    this.triggerDeathEffects();
+
+                    // Play enhanced death animation, then spin camera to face
+                    this.player.playDeathAnimation(() => {
+                        // Start dramatic camera spin to face close-up
+                        const playerPos = this.player.getPosition();
+                        this.camera.startDeathCamera(playerPos, () => {
+                            // Show game over screen after camera spin completes
+                            this.gameOver();
                         });
-                    }
-                    return;
+                    });
+                }
+                return;
+            }
+        }
+    }
+
+    // Smash a moving obstacle (car/bus) with bouncy explosion effect
+    smashMovingObstacle(movingObj) {
+        movingObj.userData.isDestroyed = true;
+
+        const position = movingObj.position.clone();
+
+        // Animate the car bouncing up and spinning away
+        const startY = movingObj.position.y;
+        const startTime = performance.now();
+        const duration = 800; // 0.8 seconds
+
+        const animateSmash = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Bounce up with gravity curve
+            const bounceHeight = 4 * progress * (1 - progress) * 6; // Parabola peaking at 6 units
+            movingObj.position.y = startY + bounceHeight;
+
+            // Spin wildly
+            movingObj.rotation.x += 0.3;
+            movingObj.rotation.z += 0.2;
+
+            // Fly away from player
+            movingObj.position.z += 0.3;
+            movingObj.position.x += (Math.random() - 0.5) * 0.2;
+
+            // Shrink as it flies away
+            const scale = 1 - progress * 0.8;
+            movingObj.scale.set(scale, scale, scale);
+
+            // Fade out
+            movingObj.traverse((child) => {
+                if (child.material) {
+                    child.material.transparent = true;
+                    child.material.opacity = 1 - progress;
+                }
+            });
+
+            if (progress < 1) {
+                requestAnimationFrame(animateSmash);
+            } else {
+                // Remove from scene
+                if (movingObj.parent) {
+                    movingObj.parent.remove(movingObj);
                 }
             }
+        };
+
+        animateSmash();
+
+        // Create colorful explosion particles
+        this.createCarSmashExplosion(position);
+    }
+
+    // Colorful bouncy explosion for smashing cars
+    createCarSmashExplosion(position) {
+        const particleCount = 20;
+        const colors = [0xFF6B6B, 0xFFE66D, 0x4ECDC4, 0xFF69B4, 0xFFD700, 0x87CEEB];
+
+        for (let i = 0; i < particleCount; i++) {
+            const color = colors[i % colors.length];
+            const particle = this.getParticleFromPool(color);
+            if (!particle) continue;
+
+            particle.position.copy(position);
+            particle.position.y += 0.5;
+
+            // Explode outward in all directions
+            const angle = (i / particleCount) * Math.PI * 2;
+            const upAngle = Math.random() * Math.PI * 0.5; // Mostly upward
+            const speed = 5 + Math.random() * 4;
+
+            particle.userData.velocity = {
+                x: Math.cos(angle) * Math.cos(upAngle) * speed,
+                y: Math.sin(upAngle) * speed + 2,
+                z: Math.sin(angle) * Math.cos(upAngle) * speed
+            };
+            particle.userData.rotationSpeed = {
+                x: (Math.random() - 0.5) * 15,
+                y: (Math.random() - 0.5) * 15,
+                z: (Math.random() - 0.5) * 15
+            };
+            particle.userData.life = 1.0;
+            particle.userData.maxLife = 1.0;
+            particle.userData.gravity = true;
+            particle.userData.shrink = true;
+            particle.rotation.set(0, 0, 0);
+            particle.scale.set(1.8, 1.8, 1.8); // Bigger particles for impact
         }
     }
 
@@ -1686,42 +1807,45 @@ class Game {
                     }
                     .sugar-rush-notification {
                         position: fixed;
-                        top: 50%;
+                        top: 80px;
                         left: 50%;
-                        transform: translate(-50%, -50%) scale(0);
+                        transform: translateX(-50%) scale(0);
                         background: linear-gradient(135deg, #FF69B4 0%, #FFD700 50%, #87CEEB 100%);
                         color: white;
-                        padding: 30px 50px;
-                        border-radius: 20px;
+                        padding: 12px 25px;
+                        border-radius: 15px;
                         font-weight: bold;
-                        font-size: 32px;
-                        box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+                        font-size: 16px;
+                        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
                         z-index: 1000;
-                        animation: sugarRushPop 0.6s ease-out forwards;
+                        animation: sugarRushPop 0.4s ease-out forwards;
                         text-align: center;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
                     }
                     .sugar-rush-notification .icon {
-                        font-size: 64px;
-                        display: block;
-                        margin-bottom: 10px;
+                        font-size: 28px;
+                        display: inline;
+                        margin-bottom: 0;
                     }
                     .sugar-rush-notification .title {
-                        font-size: 36px;
-                        text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
-                        margin-bottom: 5px;
+                        font-size: 20px;
+                        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                        margin-bottom: 0;
                     }
                     .sugar-rush-notification .description {
-                        font-size: 18px;
+                        font-size: 12px;
                         opacity: 0.9;
                     }
                     @keyframes sugarRushPop {
-                        0% { transform: translate(-50%, -50%) scale(0) rotate(-10deg); }
-                        50% { transform: translate(-50%, -50%) scale(1.2) rotate(5deg); }
-                        100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+                        0% { transform: translateX(-50%) scale(0); }
+                        60% { transform: translateX(-50%) scale(1.1); }
+                        100% { transform: translateX(-50%) scale(1); }
                     }
                     @keyframes sugarRushFadeOut {
                         to {
-                            transform: translate(-50%, -50%) scale(1.5);
+                            transform: translateX(-50%) scale(0.8);
                             opacity: 0;
                         }
                     }
@@ -1756,14 +1880,14 @@ class Game {
                             bottom: 40px;
                         }
                         .sugar-rush-notification {
-                            padding: 20px 30px;
-                            font-size: 20px;
+                            padding: 10px 20px;
+                            top: 60px;
                         }
                         .sugar-rush-notification .icon {
-                            font-size: 40px;
+                            font-size: 22px;
                         }
                         .sugar-rush-notification .title {
-                            font-size: 24px;
+                            font-size: 16px;
                         }
                     }
                 `;

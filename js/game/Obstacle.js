@@ -311,7 +311,7 @@ export class Obstacle {
 
         this.warningStripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
         this.warningStripe.rotation.x = -Math.PI / 2; // Lay flat on ground
-        this.warningStripe.position.set(0, 0.02, -2.0); // In front of obstacle
+        this.warningStripe.position.set(0, 0.02, 2.0); // In front of obstacle (toward player)
         this.warningStripe.userData.isWarningStripe = true;
         this.group.add(this.warningStripe);
     }

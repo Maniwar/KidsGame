@@ -275,10 +275,12 @@ export class PowerUp {
         mushroomGroup.add(stem);
 
         this.mesh = mushroomGroup;
+        // Scale up mushroom for better visibility
+        this.mesh.scale.set(1.8, 1.8, 1.8);
         this.group.add(this.mesh);
 
         this.createSparkleRing(0xFF0000);
-        this.collisionRadius = 0.35;
+        this.collisionRadius = 0.5; // Larger collision for bigger mushroom
     }
 
     createSparkleRing(color) {

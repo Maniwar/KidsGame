@@ -139,14 +139,16 @@ export class Collectible {
         coinBody.castShadow = true;
         this.mesh.add(coinBody);
 
-        // Raised rim around the edge (front)
+        // Raised rim around the edge (top face) - rotated to lie flat on coin face
         const rimFront = new THREE.Mesh(getSharedCoinRimGeometry(), getSharedCoinRimMaterial());
-        rimFront.position.z = 0.1; // Slightly in front
+        rimFront.rotation.x = Math.PI / 2; // Rotate to lie flat on coin face
+        rimFront.position.y = 0.125; // Top face of coin (half thickness)
         this.mesh.add(rimFront);
 
-        // Raised rim around the edge (back)
+        // Raised rim around the edge (bottom face)
         const rimBack = new THREE.Mesh(getSharedCoinRimGeometry(), getSharedCoinRimMaterial());
-        rimBack.position.z = -0.1; // Slightly behind
+        rimBack.rotation.x = Math.PI / 2; // Rotate to lie flat on coin face
+        rimBack.position.y = -0.125; // Bottom face of coin
         this.mesh.add(rimBack);
 
         this.mesh.rotation.x = Math.PI / 2; // Lay flat so it spins vertically

@@ -21,7 +21,7 @@ export class World {
         this.collectibleTypes = ['coin', 'blue-gem', 'pink-gem'];
         this.powerUpTypes = ['magnet', 'shield', 'speed', 'multiplier', 'flight', 'giant'];
         // Candy types - different sweets to collect!
-        this.candyTypes = ['lollipop', 'wrapped-candy', 'cupcake', 'donut', 'ice-cream', 'star-cookie'];
+        this.candyTypes = ['lollipop', 'wrapped-candy', 'cupcake', 'donut', 'ice-cream', 'strawberry', 'cherry', 'star-cookie'];
 
         // Generate initial chunks
         for (let i = 0; i < 3; i++) {

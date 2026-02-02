@@ -362,8 +362,8 @@ export class Candy {
             donutGroup.add(sprinkle);
         }
 
-        // Tilt the donut so the spin is more visible
-        donutGroup.rotation.x = 0.4; // Tilt forward so spin is noticeable
+        // Donut already faces player (hole towards camera) from mesh rotation
+        // No additional tilt needed - spin animation rotates around Y axis
 
         this.mesh = donutGroup;
         this.group.add(this.mesh);

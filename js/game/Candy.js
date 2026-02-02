@@ -69,6 +69,10 @@ export class Candy {
                 return 12;
             case 'ice-cream':
                 return 12;
+            case 'strawberry':
+                return 10;
+            case 'cherry':
+                return 12;
             case 'star-cookie':
                 return 25; // Rare, fills meter more!
             default:
@@ -94,6 +98,12 @@ export class Candy {
                 break;
             case 'ice-cream':
                 this.createIceCream();
+                break;
+            case 'strawberry':
+                this.createStrawberry();
+                break;
+            case 'cherry':
+                this.createCherry();
                 break;
             case 'star-cookie':
                 this.createStarCookie();
@@ -490,6 +500,142 @@ export class Candy {
         this.group.add(this.mesh);
         this.collisionRadius = 0.4;
         this.isRare = true;
+    }
+
+    createStrawberry() {
+        const strawberryGroup = new THREE.Group();
+
+        // Main strawberry body (red, slightly elongated sphere)
+        const bodyGeometry = new THREE.SphereGeometry(0.18, 12, 12);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFF2D2D,
+            emissive: 0xFF2D2D,
+            emissiveIntensity: 0.2,
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.scale.set(1, 1.3, 1); // Elongate vertically
+        strawberryGroup.add(body);
+
+        // Seeds (small yellow dots)
+        const seedGeometry = new THREE.SphereGeometry(0.02, 4, 4);
+        const seedMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFD700,
+            emissive: 0xFFD700,
+            emissiveIntensity: 0.3,
+        });
+
+        for (let i = 0; i < 16; i++) {
+            const seed = new THREE.Mesh(seedGeometry, seedMaterial);
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.random() * Math.PI * 0.7 + 0.3; // Avoid top and bottom
+            const r = 0.17;
+            seed.position.set(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.cos(phi) * 1.3 - 0.05,
+                r * Math.sin(phi) * Math.sin(theta)
+            );
+            strawberryGroup.add(seed);
+        }
+
+        // Green leaf top
+        const leafGeometry = new THREE.ConeGeometry(0.12, 0.08, 5);
+        const leafMaterial = new THREE.MeshStandardMaterial({
+            color: 0x228B22,
+            emissive: 0x228B22,
+            emissiveIntensity: 0.1,
+        });
+        const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+        leaf.position.y = 0.22;
+        leaf.rotation.x = Math.PI; // Flip so it sits on top
+        strawberryGroup.add(leaf);
+
+        // Small stem
+        const stemGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.08, 6);
+        const stemMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2E7D32,
+        });
+        const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+        stem.position.y = 0.28;
+        strawberryGroup.add(stem);
+
+        this.mesh = strawberryGroup;
+        this.group.add(this.mesh);
+        this.collisionRadius = 0.3;
+    }
+
+    createCherry() {
+        const cherryGroup = new THREE.Group();
+
+        // Two cherries (pair)
+        const cherryGeometry = new THREE.SphereGeometry(0.12, 12, 12);
+        const cherryMaterial = new THREE.MeshStandardMaterial({
+            color: 0xDC143C,
+            emissive: 0xDC143C,
+            emissiveIntensity: 0.3,
+            metalness: 0.3,
+            roughness: 0.4,
+        });
+
+        // Left cherry
+        const leftCherry = new THREE.Mesh(cherryGeometry, cherryMaterial);
+        leftCherry.position.set(-0.1, -0.05, 0);
+        cherryGroup.add(leftCherry);
+
+        // Right cherry
+        const rightCherry = new THREE.Mesh(cherryGeometry, cherryMaterial);
+        rightCherry.position.set(0.1, -0.08, 0);
+        cherryGroup.add(rightCherry);
+
+        // Highlight spots on cherries (shiny)
+        const highlightGeometry = new THREE.SphereGeometry(0.03, 6, 6);
+        const highlightMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFFFFF,
+            emissive: 0xFFFFFF,
+            emissiveIntensity: 0.5,
+        });
+
+        const leftHighlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+        leftHighlight.position.set(-0.06, 0.02, 0.08);
+        cherryGroup.add(leftHighlight);
+
+        const rightHighlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+        rightHighlight.position.set(0.14, -0.01, 0.08);
+        cherryGroup.add(rightHighlight);
+
+        // Stems
+        const stemMaterial = new THREE.MeshStandardMaterial({
+            color: 0x228B22,
+        });
+
+        // Left stem (curved using a bent cylinder approximation)
+        const leftStemGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.18, 6);
+        const leftStem = new THREE.Mesh(leftStemGeo, stemMaterial);
+        leftStem.position.set(-0.08, 0.1, 0);
+        leftStem.rotation.z = 0.3;
+        cherryGroup.add(leftStem);
+
+        // Right stem
+        const rightStemGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.2, 6);
+        const rightStem = new THREE.Mesh(rightStemGeo, stemMaterial);
+        rightStem.position.set(0.08, 0.12, 0);
+        rightStem.rotation.z = -0.3;
+        cherryGroup.add(rightStem);
+
+        // Small leaf at top where stems meet
+        const leafGeometry = new THREE.SphereGeometry(0.05, 6, 6);
+        const leafMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2E7D32,
+            emissive: 0x2E7D32,
+            emissiveIntensity: 0.1,
+        });
+        const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+        leaf.scale.set(1.5, 0.5, 1);
+        leaf.position.set(0, 0.22, 0);
+        cherryGroup.add(leaf);
+
+        this.mesh = cherryGroup;
+        this.group.add(this.mesh);
+        this.collisionRadius = 0.25;
     }
 
     createSparkleRing() {

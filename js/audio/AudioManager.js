@@ -735,6 +735,127 @@ export class AudioManager {
         noise.stop(this.context.currentTime + 0.3);
     }
 
+    // Sweet candy collection sound - bubbly "pop" with sparkle
+    playCandySound() {
+        if (!this.isInitialized) return;
+
+        const now = this.context.currentTime;
+
+        // Main sweet "pop" - high frequency burst
+        const pop = this.context.createOscillator();
+        const popGain = this.context.createGain();
+
+        pop.frequency.setValueAtTime(1200, now);
+        pop.frequency.exponentialRampToValueAtTime(600, now + 0.08);
+        pop.type = 'sine';
+
+        popGain.gain.setValueAtTime(0.25, now);
+        popGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+        pop.connect(popGain);
+        popGain.connect(this.sfxGain);
+
+        pop.start(now);
+        pop.stop(now + 0.1);
+
+        // Sparkle overtone
+        const sparkle = this.context.createOscillator();
+        const sparkleGain = this.context.createGain();
+
+        sparkle.frequency.value = 1800;
+        sparkle.type = 'triangle';
+
+        sparkleGain.gain.setValueAtTime(0.15, now + 0.02);
+        sparkleGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+        sparkle.connect(sparkleGain);
+        sparkleGain.connect(this.sfxGain);
+
+        sparkle.start(now + 0.02);
+        sparkle.stop(now + 0.12);
+    }
+
+    // Sugar Rush activation - exciting whoosh with ascending fanfare
+    playSugarRushSound() {
+        if (!this.isInitialized) return;
+
+        const now = this.context.currentTime;
+
+        // Whoosh sweep
+        const sweep = this.context.createOscillator();
+        const sweepGain = this.context.createGain();
+
+        sweep.frequency.setValueAtTime(200, now);
+        sweep.frequency.exponentialRampToValueAtTime(2000, now + 0.3);
+        sweep.type = 'sawtooth';
+
+        sweepGain.gain.setValueAtTime(0.15, now);
+        sweepGain.gain.linearRampToValueAtTime(0.25, now + 0.15);
+        sweepGain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+        // Filter for smooth sweep
+        const sweepFilter = this.context.createBiquadFilter();
+        sweepFilter.type = 'lowpass';
+        sweepFilter.frequency.setValueAtTime(500, now);
+        sweepFilter.frequency.exponentialRampToValueAtTime(4000, now + 0.3);
+
+        sweep.connect(sweepFilter);
+        sweepFilter.connect(sweepGain);
+        sweepGain.connect(this.sfxGain);
+
+        sweep.start(now);
+        sweep.stop(now + 0.35);
+
+        // Celebratory fanfare notes - C E G C E G C (ascending!)
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00];
+
+        notes.forEach((freq, index) => {
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+
+            osc.frequency.value = freq;
+            osc.type = 'triangle';
+
+            const startTime = now + 0.1 + index * 0.04;
+            gain.gain.setValueAtTime(0.2, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.25);
+
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.25);
+        });
+    }
+
+    // Sugar Rush ending - gentle descending notes
+    playSugarRushEndSound() {
+        if (!this.isInitialized) return;
+
+        const now = this.context.currentTime;
+
+        // Gentle descending chime
+        const notes = [783.99, 659.25, 523.25]; // G5-E5-C5
+
+        notes.forEach((freq, index) => {
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+
+            const startTime = now + index * 0.12;
+            gain.gain.setValueAtTime(0.2, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.3);
+        });
+    }
+
     setMusicVolume(volume) {
         this.musicVolume = Math.max(0, Math.min(1, volume));
         if (this.musicGain) {

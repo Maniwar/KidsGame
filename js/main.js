@@ -30,9 +30,9 @@ class Game {
 
         // Candy & Sugar Rush system
         this.candyMeter = 0;
-        this.candyMeterMax = 100; // Fill to 100 to trigger Sugar Rush!
+        this.candyMeterMax = 75; // Reduced from 100 - faster gratification for kids!
         this.isSugarRush = false;
-        this.sugarRushDuration = 5; // 5 seconds of Sugar Rush
+        this.sugarRushDuration = 6; // Increased from 5 - more fun time!
         this.sugarRushTimer = 0;
 
         // Leaderboard
@@ -786,8 +786,8 @@ class Game {
         // Create visual effects
         this.createSugarRushVisuals();
 
-        // Play milestone sound
-        this.audio.playMilestoneSound();
+        // Play exciting Sugar Rush fanfare!
+        this.audio.playSugarRushSound();
     }
 
     endSugarRush() {
@@ -799,6 +799,9 @@ class Game {
 
         // Show end notification
         this.showSugarRushEndNotification();
+
+        // Play gentle end sound
+        this.audio.playSugarRushEndSound();
     }
 
     createSugarRushVisuals() {
@@ -1240,8 +1243,8 @@ class Game {
                 const meterValue = candy.collect();
                 this.addToSugarMeter(meterValue);
 
-                // Play candy collect sound (reuse gem sound for now)
-                this.audio.playGemSound();
+                // Play sweet candy pop sound!
+                this.audio.playCandySound();
 
                 // Bonus score for candy
                 const candyScoreBonus = this.isSugarRush ? meterValue * 5 : meterValue * 2;

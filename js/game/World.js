@@ -117,13 +117,13 @@ export class World {
         // Generate candies - sweet collectibles for Sugar Rush meter!
         let lastCandyZ = chunkStartZ;
         while (lastCandyZ > chunkEndZ) {
-            const spacing = 8 + Math.random() * 8; // Candies are rarer than coins
+            const spacing = 6 + Math.random() * 6; // Reduced spacing for more candies!
             lastCandyZ -= spacing;
 
             if (lastCandyZ < chunkEndZ) break;
 
-            // 25% chance of candy at each position
-            if (Math.random() < 0.25) {
+            // 35% chance of candy at each position (increased for faster meter filling)
+            if (Math.random() < 0.35) {
                 // Determine candy type (weighted - star cookie is rare)
                 let type = 'lollipop';
                 const candyRoll = Math.random();

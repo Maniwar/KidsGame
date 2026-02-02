@@ -40,13 +40,13 @@ function getSharedCoinRimGeometry() {
 
 function getSharedCoinRimMaterial() {
     if (!sharedCoinRimMaterial) {
-        // Slightly darker gold for the rim edge
+        // Same gold color as main coin for consistent look
         sharedCoinRimMaterial = new THREE.MeshStandardMaterial({
-            color: 0xDAA520, // Goldenrod - darker than main coin
-            metalness: 0.9,
-            roughness: 0.1,
-            emissive: 0xB8860B,
-            emissiveIntensity: 0.3,
+            color: 0xFFD700, // Matching gold color
+            metalness: 0.95,
+            roughness: 0.05,
+            emissive: 0xFFD700,
+            emissiveIntensity: 0.5,
         });
     }
     return sharedCoinRimMaterial;

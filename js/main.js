@@ -1173,26 +1173,63 @@ class Game {
             const pulse = 1 + Math.sin(time * 0.008) * 0.15;
             this.sugarRushAura.scale.set(pulse, pulse, pulse);
 
-            // Spawn rainbow trail particles
-            if (Math.random() < 0.5) {
-                const playerPos = this.player.getPosition();
-                const trailHue = (time % 1000) / 1000;
-                const trailColor = new THREE.Color().setHSL(trailHue, 1, 0.5);
+            // Spawn DRAMATIC rainbow trail particles - multiple per frame!
+            const playerPos = this.player.getPosition();
+
+            // Spawn 3-5 particles per frame for a thick, visible ribbon trail
+            const particlesToSpawn = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < particlesToSpawn; i++) {
+                // Rainbow colors cycling through spectrum
+                const trailHue = ((time * 0.003) + (i * 0.15)) % 1;
+                const trailColor = new THREE.Color().setHSL(trailHue, 1, 0.6);
                 const particle = this.getParticleFromPool(trailColor.getHex());
 
                 if (particle) {
+                    // Spread particles in a wider area behind player for ribbon effect
+                    const spreadX = (Math.random() - 0.5) * 1.5;
+                    const spreadY = Math.random() * 1.2;
+                    const offsetZ = 0.3 + Math.random() * 0.6; // Behind player
+
                     particle.position.set(
-                        playerPos.x + (Math.random() - 0.5) * 0.5,
-                        playerPos.y + 0.5 + Math.random() * 0.5,
-                        playerPos.z + 0.5
+                        playerPos.x + spreadX,
+                        playerPos.y + 0.3 + spreadY,
+                        playerPos.z + offsetZ
                     );
-                    particle.userData.life = 0.4;
-                    particle.userData.maxLife = 0.4;
+                    particle.userData.life = 0.8; // Longer life for longer trail
+                    particle.userData.maxLife = 0.8;
                     particle.userData.gravity = false;
                     particle.userData.shrink = true;
-                    particle.userData.velocity = { x: 0, y: 0.5, z: 1 };
+                    particle.userData.velocity = {
+                        x: spreadX * 0.5, // Drift outward slightly
+                        y: 0.3 + Math.random() * 0.5,
+                        z: 2 + Math.random() // Trail behind
+                    };
                     particle.userData.rotationSpeed = null;
-                    particle.scale.set(1.2, 1.2, 1.2);
+                    // Larger particles for more visibility
+                    const size = 1.5 + Math.random() * 1.0;
+                    particle.scale.set(size, size, size);
+                }
+            }
+
+            // Also spawn some sparkle stars in the trail
+            if (Math.random() < 0.3) {
+                const sparkleHue = Math.random();
+                const sparkleColor = new THREE.Color().setHSL(sparkleHue, 1, 0.8);
+                const sparkle = this.getParticleFromPool(sparkleColor.getHex());
+
+                if (sparkle) {
+                    sparkle.position.set(
+                        playerPos.x + (Math.random() - 0.5) * 2,
+                        playerPos.y + Math.random() * 1.5,
+                        playerPos.z + 0.5 + Math.random()
+                    );
+                    sparkle.userData.life = 0.5;
+                    sparkle.userData.maxLife = 0.5;
+                    sparkle.userData.gravity = false;
+                    sparkle.userData.shrink = false; // Stay same size then pop
+                    sparkle.userData.velocity = { x: 0, y: 1, z: 3 };
+                    sparkle.userData.rotationSpeed = 10; // Spin fast
+                    sparkle.scale.set(0.8, 0.8, 0.8);
                 }
             }
         }

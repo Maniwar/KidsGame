@@ -144,20 +144,22 @@ export class Candy {
         mainDisc.rotation.x = Math.PI / 2;
         candyGroup.add(mainDisc);
 
-        // Add swirl pattern with white segments
+        // Add swirl pattern with white segments - flat on the candy face
         for (let i = 0; i < segments; i += 2) {
             const angle = (i / segments) * Math.PI * 2;
-            const swirlGeo = new THREE.BoxGeometry(0.05, 0.09, radius * 0.8);
+            // Box lies flat on the disc face (XY plane after disc rotation)
+            const swirlGeo = new THREE.BoxGeometry(0.05, radius * 0.7, 0.09);
             const whiteMaterial = new THREE.MeshStandardMaterial({
                 color: swirlColors[1],
             });
             const swirl = new THREE.Mesh(swirlGeo, whiteMaterial);
+            // Position on the XY plane (disc face) with slight Z offset to sit on top
             swirl.position.set(
-                Math.cos(angle) * radius * 0.5,
-                0,
-                Math.sin(angle) * radius * 0.5
+                Math.cos(angle) * radius * 0.4,
+                Math.sin(angle) * radius * 0.4,
+                0.05
             );
-            swirl.rotation.y = angle;
+            swirl.rotation.z = angle; // Rotate around Z to radiate from center
             candyGroup.add(swirl);
         }
 
@@ -377,13 +379,14 @@ export class Candy {
     createIceCream() {
         const iceCreamGroup = new THREE.Group();
 
-        // Waffle cone
+        // Waffle cone - flipped so point is at bottom
         const coneGeometry = new THREE.ConeGeometry(0.12, 0.35, 8);
         const coneMaterial = new THREE.MeshStandardMaterial({
             color: 0xD2691E,
             flatShading: true,
         });
         const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+        cone.rotation.x = Math.PI; // Flip cone so point faces down
         cone.position.y = -0.15;
         iceCreamGroup.add(cone);
 

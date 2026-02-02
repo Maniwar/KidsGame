@@ -28,6 +28,13 @@ class Game {
         this.hasShield = false;
         this.invincibilityTimer = 0; // Brief invincibility after shield breaks
 
+        // Candy & Sugar Rush system
+        this.candyMeter = 0;
+        this.candyMeterMax = 100; // Fill to 100 to trigger Sugar Rush!
+        this.isSugarRush = false;
+        this.sugarRushDuration = 5; // 5 seconds of Sugar Rush
+        this.sugarRushTimer = 0;
+
         // Leaderboard
         this.highScores = this.loadHighScores();
         this.isNewHighScore = false;
@@ -288,6 +295,10 @@ class Game {
         if (this.domElements.powerUpDisplay) {
             this.domElements.powerUpDisplay.style.opacity = '1';
         }
+        // Restore candy meter visibility
+        if (this.domElements.candyMeter) {
+            this.domElements.candyMeter.style.opacity = '1';
+        }
 
         // Initialize and start audio
         this.audio.init();
@@ -345,6 +356,13 @@ class Game {
         this.hasShield = false;
         this.invincibilityTimer = 0;
         this.lastHUDUpdate = 0; // MEMORY FIX: Reset HUD throttle timer
+
+        // Reset candy meter and Sugar Rush
+        this.candyMeter = 0;
+        this.isSugarRush = false;
+        this.sugarRushTimer = 0;
+        this.removeSugarRushEffects();
+
         this.updateHUD();
 
         this.isRunning = true;
@@ -464,6 +482,17 @@ class Game {
         // Update invincibility timer (from shield breaking)
         if (this.invincibilityTimer > 0) {
             this.invincibilityTimer -= deltaTime;
+        }
+
+        // Update Sugar Rush timer
+        if (this.isSugarRush) {
+            this.sugarRushTimer -= deltaTime;
+            if (this.sugarRushTimer <= 0) {
+                this.endSugarRush();
+            } else {
+                // Sugar Rush effects - candy magnet
+                this.attractCandies(deltaTime);
+            }
         }
 
         // Update power-up visual effects
@@ -724,6 +753,254 @@ class Game {
         }
     }
 
+    // ============================================
+    // SUGAR RUSH SYSTEM
+    // ============================================
+
+    addToSugarMeter(value) {
+        if (this.isSugarRush) {
+            // Already in Sugar Rush - extend duration slightly
+            this.sugarRushTimer = Math.min(this.sugarRushTimer + 0.5, this.sugarRushDuration + 2);
+            return;
+        }
+
+        this.candyMeter += value;
+
+        // Trigger candy meter UI animation
+        this.animateCandyMeter();
+
+        // Check if meter is full
+        if (this.candyMeter >= this.candyMeterMax) {
+            this.activateSugarRush();
+        }
+    }
+
+    activateSugarRush() {
+        this.isSugarRush = true;
+        this.sugarRushTimer = this.sugarRushDuration;
+        this.candyMeter = 0; // Reset meter
+
+        // Show notification
+        this.showSugarRushNotification();
+
+        // Create visual effects
+        this.createSugarRushVisuals();
+
+        // Play milestone sound
+        this.audio.playMilestoneSound();
+    }
+
+    endSugarRush() {
+        this.isSugarRush = false;
+        this.sugarRushTimer = 0;
+
+        // Remove visual effects
+        this.removeSugarRushEffects();
+
+        // Show end notification
+        this.showSugarRushEndNotification();
+    }
+
+    createSugarRushVisuals() {
+        // Rainbow aura around player
+        const auraGeometry = new THREE.SphereGeometry(1.0, 16, 16);
+        const auraMaterial = new THREE.MeshBasicMaterial({
+            color: 0xFF69B4,
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.DoubleSide
+        });
+        this.sugarRushAura = new THREE.Mesh(auraGeometry, auraMaterial);
+        this.player.character.add(this.sugarRushAura);
+
+        // Rainbow trail particles array
+        this.sugarRushTrail = [];
+
+        // Screen tint overlay
+        if (!document.getElementById('sugar-rush-overlay')) {
+            const overlay = document.createElement('div');
+            overlay.id = 'sugar-rush-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: radial-gradient(circle, rgba(255,105,180,0.1) 0%, rgba(255,182,193,0.15) 100%);
+                pointer-events: none;
+                z-index: 5;
+                animation: sugarRushPulse 0.5s ease-in-out infinite alternate;
+            `;
+            document.body.appendChild(overlay);
+
+            // Add animation keyframes if not exist
+            if (!document.getElementById('sugar-rush-style')) {
+                const style = document.createElement('style');
+                style.id = 'sugar-rush-style';
+                style.textContent = `
+                    @keyframes sugarRushPulse {
+                        from { opacity: 0.5; }
+                        to { opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+    }
+
+    removeSugarRushEffects() {
+        // Remove aura
+        if (this.sugarRushAura) {
+            this.player.character.remove(this.sugarRushAura);
+            this.sugarRushAura.geometry.dispose();
+            this.sugarRushAura.material.dispose();
+            this.sugarRushAura = null;
+        }
+
+        // Remove trail particles
+        if (this.sugarRushTrail) {
+            this.sugarRushTrail.forEach(p => {
+                if (p.parent) p.parent.remove(p);
+                if (p.geometry) p.geometry.dispose();
+                if (p.material) p.material.dispose();
+            });
+            this.sugarRushTrail = [];
+        }
+
+        // Remove screen overlay
+        const overlay = document.getElementById('sugar-rush-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    }
+
+    attractCandies(deltaTime) {
+        const playerPos = this.player.getPosition();
+        const magnetRadius = 8; // Larger radius during Sugar Rush
+        const magnetRadiusSq = magnetRadius * magnetRadius;
+        const attractSpeed = 20; // Fast attraction
+
+        const candies = this.world.getCandies();
+        for (let i = 0, len = candies.length; i < len; i++) {
+            const candy = candies[i];
+            if (candy.isCollected) continue;
+
+            const dz = playerPos.z - candy.position.z;
+            if (dz > magnetRadius || dz < -magnetRadius) continue;
+
+            const dx = playerPos.x - candy.position.x;
+            if (dx > magnetRadius || dx < -magnetRadius) continue;
+
+            const distanceSq = dx * dx + dz * dz;
+            if (distanceSq < magnetRadiusSq && distanceSq > 0.01) {
+                const distance = Math.sqrt(distanceSq);
+                const invDist = 1 / distance;
+                candy.position.x += dx * invDist * attractSpeed * deltaTime;
+                candy.position.z += dz * invDist * attractSpeed * deltaTime;
+                candy.group.position.x = candy.position.x;
+                candy.group.position.z = candy.position.z;
+            }
+        }
+
+        // Also attract coins during Sugar Rush
+        const collectibles = this.world.getCollectibles();
+        for (let i = 0, len = collectibles.length; i < len; i++) {
+            const collectible = collectibles[i];
+            if (collectible.isCollected) continue;
+
+            const dz = playerPos.z - collectible.position.z;
+            if (dz > magnetRadius || dz < -magnetRadius) continue;
+
+            const dx = playerPos.x - collectible.position.x;
+            if (dx > magnetRadius || dx < -magnetRadius) continue;
+
+            const distanceSq = dx * dx + dz * dz;
+            if (distanceSq < magnetRadiusSq && distanceSq > 0.01) {
+                const distance = Math.sqrt(distanceSq);
+                const invDist = 1 / distance;
+                collectible.position.x += dx * invDist * attractSpeed * deltaTime;
+                collectible.position.z += dz * invDist * attractSpeed * deltaTime;
+                collectible.group.position.x = collectible.position.x;
+                collectible.group.position.z = collectible.position.z;
+            }
+        }
+    }
+
+    createSugarRushSmash(position) {
+        // Rainbow colored explosion!
+        const particleCount = 16;
+        const colors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0x98FB98, 0xDDA0DD, 0xFFB347];
+
+        for (let i = 0; i < particleCount; i++) {
+            const color = colors[i % colors.length];
+            const particle = this.getParticleFromPool(color);
+            if (!particle) continue;
+
+            particle.position.copy(position);
+
+            const angle = (i / particleCount) * Math.PI * 2;
+            const speed = 4 + Math.random() * 3;
+            particle.userData.velocity = {
+                x: Math.cos(angle) * speed,
+                y: 3 + Math.random() * 3,
+                z: Math.sin(angle) * speed
+            };
+            particle.userData.rotationSpeed = {
+                x: (Math.random() - 0.5) * 12,
+                y: (Math.random() - 0.5) * 12,
+                z: (Math.random() - 0.5) * 12
+            };
+            particle.userData.life = 0.8;
+            particle.userData.maxLife = 0.8;
+            particle.userData.gravity = true;
+            particle.userData.shrink = true;
+            particle.rotation.set(0, 0, 0);
+            particle.scale.set(1.5, 1.5, 1.5);
+        }
+    }
+
+    animateCandyMeter() {
+        const meterFill = document.getElementById('candy-meter-fill');
+        if (meterFill) {
+            const percent = Math.min((this.candyMeter / this.candyMeterMax) * 100, 100);
+            meterFill.style.width = `${percent}%`;
+
+            // Pulse animation on collect
+            meterFill.classList.add('candy-pulse');
+            setTimeout(() => meterFill.classList.remove('candy-pulse'), 300);
+        }
+    }
+
+    showSugarRushNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'sugar-rush-notification';
+        notification.innerHTML = `
+            <span class="icon">🍭✨🍬</span>
+            <div class="title">SUGAR RUSH!</div>
+            <div class="description">Invincible! 3x Score! Go crazy!</div>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'sugarRushFadeOut 0.5s ease-out forwards';
+            setTimeout(() => notification.remove(), 500);
+        }, 2000);
+    }
+
+    showSugarRushEndNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'sugar-rush-end-notification';
+        notification.textContent = 'Sugar Rush ended!';
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 1500);
+    }
+
     createObstacleExplosion(position) {
         // PERFORMANCE: Use particle pool instead of creating new objects
         const particleCount = 12;
@@ -882,6 +1159,40 @@ class Game {
             const bob = Math.sin(time * 0.002) * 0.1;
             this.cloudMesh.position.y = -0.5 + bob;
         }
+
+        // Animate Sugar Rush aura (rainbow color cycle!)
+        if (this.sugarRushAura && this.isSugarRush) {
+            const hue = (time * 0.002) % 1;
+            this.sugarRushAura.material.color.setHSL(hue, 1, 0.6);
+            this.sugarRushAura.rotation.y += deltaTime * 2;
+
+            // Pulsing size
+            const pulse = 1 + Math.sin(time * 0.008) * 0.15;
+            this.sugarRushAura.scale.set(pulse, pulse, pulse);
+
+            // Spawn rainbow trail particles
+            if (Math.random() < 0.5) {
+                const playerPos = this.player.getPosition();
+                const trailHue = (time % 1000) / 1000;
+                const trailColor = new THREE.Color().setHSL(trailHue, 1, 0.5);
+                const particle = this.getParticleFromPool(trailColor.getHex());
+
+                if (particle) {
+                    particle.position.set(
+                        playerPos.x + (Math.random() - 0.5) * 0.5,
+                        playerPos.y + 0.5 + Math.random() * 0.5,
+                        playerPos.z + 0.5
+                    );
+                    particle.userData.life = 0.4;
+                    particle.userData.maxLife = 0.4;
+                    particle.userData.gravity = false;
+                    particle.userData.shrink = true;
+                    particle.userData.velocity = { x: 0, y: 0.5, z: 1 };
+                    particle.userData.rotationSpeed = null;
+                    particle.scale.set(1.2, 1.2, 1.2);
+                }
+            }
+        }
     }
 
     checkCollisions() {
@@ -907,8 +1218,10 @@ class Game {
             if (!collectible.isCollected && this.checkCollision(playerPos, collectible.getBoundingBox())) {
                 // Collect the item
                 const value = collectible.collect();
-                this.coins += value * this.coinMultiplier; // Apply multiplier
-                this.score += value * 10 * this.coinMultiplier; // Bonus points for collecting
+                // Apply Sugar Rush 3x multiplier if active
+                const activeMultiplier = this.isSugarRush ? this.coinMultiplier * 3 : this.coinMultiplier;
+                this.coins += value * activeMultiplier;
+                this.score += value * 10 * activeMultiplier;
 
                 // Play appropriate sound
                 if (collectible.type === 'coin') {
@@ -919,8 +1232,26 @@ class Game {
             }
         }
 
-        // Skip obstacle collisions if flying or giant
+        // Check candy collisions - fill Sugar Rush meter!
+        const candies = this.world.getCandies();
+        for (const candy of candies) {
+            if (!candy.isCollected && this.checkCollision(playerPos, candy.getBoundingBox())) {
+                // Collect the candy
+                const meterValue = candy.collect();
+                this.addToSugarMeter(meterValue);
+
+                // Play candy collect sound (reuse gem sound for now)
+                this.audio.playGemSound();
+
+                // Bonus score for candy
+                const candyScoreBonus = this.isSugarRush ? meterValue * 5 : meterValue * 2;
+                this.score += candyScoreBonus;
+            }
+        }
+
+        // Skip obstacle collisions if flying, giant, or Sugar Rush (invincible!)
         const isFlyingOrGiant = this.activePowerUps.has('flight') || this.activePowerUps.has('giant');
+        const isInvincible = isFlyingOrGiant || this.isSugarRush;
 
         // Track if shield was consumed this frame to prevent multiple hits
         let shieldConsumedThisFrame = false;
@@ -944,6 +1275,19 @@ class Game {
                     this.createObstacleExplosion(obstacle.getPosition());
                     this.audio.playGemSound(); // Use gem sound for smash effect
                     this.createFloatingText('+50', obstacle.getPosition(), 0xFFAA00);
+
+                    continue;
+                }
+
+                // Sugar Rush mode: smash through obstacles with rainbow explosion!
+                if (this.isSugarRush) {
+                    obstacle.isActive = false; // Destroy obstacle
+                    this.score += 75; // Extra bonus during Sugar Rush!
+
+                    // Rainbow explosion effect
+                    this.createSugarRushSmash(obstacle.getPosition());
+                    this.audio.playGemSound();
+                    this.createFloatingText('+75', obstacle.getPosition(), 0xFF69B4);
 
                     continue;
                 }
@@ -984,8 +1328,8 @@ class Game {
         }
 
         // Check moving object collisions (birds, butterflies, etc.)
-        // Skip if shield was consumed this frame
-        if (!isFlyingOrGiant && !shieldConsumedThisFrame) {
+        // Skip if shield was consumed this frame or if invincible
+        if (!isInvincible && !shieldConsumedThisFrame) {
             const movingObstacles = this.gameScene.getMovingObstacles();
             for (const movingObj of movingObstacles) {
                 const boundingBox = {
@@ -1082,6 +1426,9 @@ class Game {
 
         // Update power-up indicators
         this.updatePowerUpHUD();
+
+        // Update candy meter
+        this.updateCandyMeterHUD();
     }
 
     updatePowerUpHUD() {
@@ -1255,6 +1602,215 @@ class Game {
 
             // PERFORMANCE: Only update textContent (no innerHTML parsing)
             elem.textContent = `${icons[type]} ${timeLeft}s`;
+        }
+    }
+
+    updateCandyMeterHUD() {
+        // Create candy meter container if it doesn't exist
+        if (!this.domElements.candyMeter) {
+            // Inject candy meter styles
+            if (!document.getElementById('candy-meter-styles')) {
+                const style = document.createElement('style');
+                style.id = 'candy-meter-styles';
+                style.textContent = `
+                    #candy-meter-container {
+                        position: fixed;
+                        bottom: 20px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 200px;
+                        z-index: 100;
+                        text-align: center;
+                    }
+                    #candy-meter-label {
+                        font-family: 'Comic Sans MS', 'Arial', sans-serif;
+                        font-size: 14px;
+                        font-weight: bold;
+                        color: #FF69B4;
+                        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+                        margin-bottom: 5px;
+                    }
+                    #candy-meter-bar {
+                        width: 100%;
+                        height: 20px;
+                        background: rgba(255, 255, 255, 0.7);
+                        border-radius: 15px;
+                        overflow: hidden;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.2), inset 0 2px 4px rgba(0,0,0,0.1);
+                        border: 2px solid #FF69B4;
+                    }
+                    #candy-meter-fill {
+                        height: 100%;
+                        width: 0%;
+                        background: linear-gradient(90deg,
+                            #FF69B4 0%,
+                            #FFD700 25%,
+                            #87CEEB 50%,
+                            #98FB98 75%,
+                            #FF69B4 100%);
+                        background-size: 200% 100%;
+                        animation: candyGradient 2s linear infinite;
+                        border-radius: 12px;
+                        transition: width 0.3s ease-out;
+                    }
+                    @keyframes candyGradient {
+                        0% { background-position: 0% 50%; }
+                        100% { background-position: 200% 50%; }
+                    }
+                    .candy-pulse {
+                        animation: candyPulse 0.3s ease-out !important;
+                    }
+                    @keyframes candyPulse {
+                        0% { transform: scaleY(1); }
+                        50% { transform: scaleY(1.3); }
+                        100% { transform: scaleY(1); }
+                    }
+                    #sugar-rush-timer {
+                        position: fixed;
+                        bottom: 50px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        font-family: 'Comic Sans MS', 'Arial', sans-serif;
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #FF69B4;
+                        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                        animation: sugarTimerPulse 0.5s ease-in-out infinite alternate;
+                    }
+                    @keyframes sugarTimerPulse {
+                        from { transform: translateX(-50%) scale(1); }
+                        to { transform: translateX(-50%) scale(1.1); }
+                    }
+                    .sugar-rush-notification {
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%) scale(0);
+                        background: linear-gradient(135deg, #FF69B4 0%, #FFD700 50%, #87CEEB 100%);
+                        color: white;
+                        padding: 30px 50px;
+                        border-radius: 20px;
+                        font-weight: bold;
+                        font-size: 32px;
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+                        z-index: 1000;
+                        animation: sugarRushPop 0.6s ease-out forwards;
+                        text-align: center;
+                    }
+                    .sugar-rush-notification .icon {
+                        font-size: 64px;
+                        display: block;
+                        margin-bottom: 10px;
+                    }
+                    .sugar-rush-notification .title {
+                        font-size: 36px;
+                        text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+                        margin-bottom: 5px;
+                    }
+                    .sugar-rush-notification .description {
+                        font-size: 18px;
+                        opacity: 0.9;
+                    }
+                    @keyframes sugarRushPop {
+                        0% { transform: translate(-50%, -50%) scale(0) rotate(-10deg); }
+                        50% { transform: translate(-50%, -50%) scale(1.2) rotate(5deg); }
+                        100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+                    }
+                    @keyframes sugarRushFadeOut {
+                        to {
+                            transform: translate(-50%, -50%) scale(1.5);
+                            opacity: 0;
+                        }
+                    }
+                    .sugar-rush-end-notification {
+                        position: fixed;
+                        top: 30%;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: rgba(255, 105, 180, 0.9);
+                        color: white;
+                        padding: 15px 30px;
+                        border-radius: 10px;
+                        font-family: 'Comic Sans MS', 'Arial', sans-serif;
+                        font-size: 20px;
+                        font-weight: bold;
+                        z-index: 1000;
+                        transition: opacity 0.3s ease-out;
+                    }
+                    @media (max-width: 600px) {
+                        #candy-meter-container {
+                            width: 150px;
+                            bottom: 15px;
+                        }
+                        #candy-meter-label {
+                            font-size: 12px;
+                        }
+                        #candy-meter-bar {
+                            height: 16px;
+                        }
+                        #sugar-rush-timer {
+                            font-size: 18px;
+                            bottom: 40px;
+                        }
+                        .sugar-rush-notification {
+                            padding: 20px 30px;
+                            font-size: 20px;
+                        }
+                        .sugar-rush-notification .icon {
+                            font-size: 40px;
+                        }
+                        .sugar-rush-notification .title {
+                            font-size: 24px;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            // Create candy meter container
+            const container = document.createElement('div');
+            container.id = 'candy-meter-container';
+            container.innerHTML = `
+                <div id="candy-meter-label">🍭 Sugar Rush 🍬</div>
+                <div id="candy-meter-bar">
+                    <div id="candy-meter-fill"></div>
+                </div>
+            `;
+            document.body.appendChild(container);
+            this.domElements.candyMeter = container;
+            this.domElements.candyMeterFill = document.getElementById('candy-meter-fill');
+        }
+
+        // Update meter fill
+        if (this.domElements.candyMeterFill) {
+            const percent = this.isSugarRush ? 100 : Math.min((this.candyMeter / this.candyMeterMax) * 100, 100);
+            this.domElements.candyMeterFill.style.width = `${percent}%`;
+        }
+
+        // Show/hide Sugar Rush timer
+        if (this.isSugarRush) {
+            if (!this.domElements.sugarRushTimer) {
+                const timer = document.createElement('div');
+                timer.id = 'sugar-rush-timer';
+                document.body.appendChild(timer);
+                this.domElements.sugarRushTimer = timer;
+            }
+            this.domElements.sugarRushTimer.textContent = `🍭 ${Math.ceil(this.sugarRushTimer)}s 🍬`;
+            this.domElements.sugarRushTimer.style.display = 'block';
+
+            // Hide candy meter during Sugar Rush
+            if (this.domElements.candyMeter) {
+                this.domElements.candyMeter.style.display = 'none';
+            }
+        } else {
+            // Hide timer when not in Sugar Rush
+            if (this.domElements.sugarRushTimer) {
+                this.domElements.sugarRushTimer.style.display = 'none';
+            }
+            // Show candy meter
+            if (this.domElements.candyMeter) {
+                this.domElements.candyMeter.style.display = 'block';
+            }
         }
     }
 
@@ -1458,6 +2014,20 @@ class Game {
         // Hide power-up display during death
         if (this.domElements.powerUpDisplay) {
             this.domElements.powerUpDisplay.style.opacity = '0';
+        }
+
+        // Hide candy meter and sugar rush timer during death
+        if (this.domElements.candyMeter) {
+            this.domElements.candyMeter.style.opacity = '0';
+        }
+        if (this.domElements.sugarRushTimer) {
+            this.domElements.sugarRushTimer.style.display = 'none';
+        }
+
+        // End Sugar Rush if active
+        if (this.isSugarRush) {
+            this.removeSugarRushEffects();
+            this.isSugarRush = false;
         }
 
         // Screen flash

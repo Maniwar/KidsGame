@@ -68,12 +68,12 @@ export class GameCamera {
             playerPosition.z - 3.5  // In front of character
         );
 
-        // Look BELOW the character to push kitty UP in the frame
-        // (whatever the camera looks at gets centered - so look very low to push kitty high)
+        // Look at the GROUND in front of kitty - this centers the ground in frame,
+        // pushing kitty to the upper portion of the screen
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y - 2.5, // Look way below ground - dramatic tilt down
-            playerPosition.z
+            0, // Ground level
+            playerPosition.z + 2 // Slightly in front of kitty (road ahead)
         );
     }
 

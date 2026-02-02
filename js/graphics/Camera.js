@@ -72,7 +72,7 @@ export class GameCamera {
         // (whatever the camera looks at gets centered - so look low to push kitty high)
         this.deathCameraFacePos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 0.3, // Look at feet/ground area - this pushes face to upper portion
+            playerPosition.y - 0.8, // Look below ground - this pushes face well above center
             playerPosition.z
         );
     }

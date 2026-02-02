@@ -1,6 +1,7 @@
 import { Obstacle } from './Obstacle.js';
 import { Collectible } from './Collectible.js';
 import { PowerUp } from './PowerUp.js';
+import { Candy } from './Candy.js';
 import { GAME_CONFIG } from '../utils/Constants.js';
 
 export class World {
@@ -9,6 +10,7 @@ export class World {
         this.obstacles = [];
         this.collectibles = [];
         this.powerUps = [];
+        this.candies = []; // New candy collectibles!
 
         this.chunkLength = GAME_CONFIG.CHUNK_LENGTH;
         this.nextChunkZ = -this.chunkLength; // Start ahead of player
@@ -18,6 +20,8 @@ export class World {
         this.obstacleTypes = ['low', 'tall'];
         this.collectibleTypes = ['coin', 'blue-gem', 'pink-gem'];
         this.powerUpTypes = ['magnet', 'shield', 'speed', 'multiplier', 'flight', 'giant'];
+        // Candy types - different sweets to collect!
+        this.candyTypes = ['lollipop', 'wrapped-candy', 'cupcake', 'donut', 'ice-cream', 'star-cookie'];
 
         // Generate initial chunks
         for (let i = 0; i < 3; i++) {
@@ -110,6 +114,39 @@ export class World {
             this.powerUps.push(powerUp);
         }
 
+        // Generate candies - sweet collectibles for Sugar Rush meter!
+        let lastCandyZ = chunkStartZ;
+        while (lastCandyZ > chunkEndZ) {
+            const spacing = 6 + Math.random() * 6; // Reduced spacing for more candies!
+            lastCandyZ -= spacing;
+
+            if (lastCandyZ < chunkEndZ) break;
+
+            // 35% chance of candy at each position (increased for faster meter filling)
+            if (Math.random() < 0.35) {
+                // Determine candy type (weighted - star cookie is rare)
+                let type = 'lollipop';
+                const candyRoll = Math.random();
+
+                if (candyRoll < 0.03) {
+                    type = 'star-cookie'; // 3% - rare, fills meter a lot!
+                } else if (candyRoll < 0.18) {
+                    type = 'cupcake'; // 15%
+                } else if (candyRoll < 0.35) {
+                    type = 'donut'; // 17%
+                } else if (candyRoll < 0.52) {
+                    type = 'ice-cream'; // 17%
+                } else if (candyRoll < 0.72) {
+                    type = 'wrapped-candy'; // 20%
+                }
+                // else lollipop - 28% (most common)
+
+                const lane = Math.floor(Math.random() * GAME_CONFIG.NUM_LANES);
+                const candy = new Candy(this.scene, lane, lastCandyZ, type);
+                this.candies.push(candy);
+            }
+        }
+
         this.nextChunkZ = chunkEndZ;
         this.chunksGenerated++;
     }
@@ -154,6 +191,17 @@ export class World {
                 this.powerUps.pop();
             }
         }
+
+        // Update and cleanup candies
+        for (let i = this.candies.length - 1; i >= 0; i--) {
+            const candy = this.candies[i];
+            candy.update(deltaTime, playerZ);
+            if (!candy.isActive) {
+                candy.dispose();
+                this.candies[i] = this.candies[this.candies.length - 1];
+                this.candies.pop();
+            }
+        }
     }
 
     getObstacles() {
@@ -168,15 +216,21 @@ export class World {
         return this.powerUps;
     }
 
+    getCandies() {
+        return this.candies;
+    }
+
     reset() {
         // Clean up all objects
         this.obstacles.forEach(o => o.dispose());
         this.collectibles.forEach(c => c.dispose());
         this.powerUps.forEach(p => p.dispose());
+        this.candies.forEach(c => c.dispose());
 
         this.obstacles = [];
         this.collectibles = [];
         this.powerUps = [];
+        this.candies = [];
         this.nextChunkZ = -this.chunkLength;
         this.chunksGenerated = 0;
 

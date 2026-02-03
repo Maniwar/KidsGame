@@ -467,8 +467,10 @@ class Game {
         document.getElementById('final-candies').textContent = this.candyCollected;
         document.getElementById('final-distance').textContent = Math.floor(this.distance) + 'm';
 
-        // Check if it's a high score
-        this.isNewHighScore = this.checkHighScore(finalScore);
+        // Check if it's a high score (global OR local qualifies)
+        const isGlobalHighScore = this.checkHighScore(finalScore);
+        const isLocalHighScore = this.checkLocalHighScore(finalScore);
+        this.isNewHighScore = isGlobalHighScore || isLocalHighScore;
 
         if (this.isNewHighScore) {
             document.getElementById('new-high-score').style.display = 'block';

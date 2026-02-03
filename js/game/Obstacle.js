@@ -94,33 +94,42 @@ export class Obstacle {
             // VISIBILITY: Add ground warning stripe
             this.addWarningStripe('jump');
         } else {
-            // Traffic cone - LARGER for visibility
-            const coneGeometry = new THREE.ConeGeometry(0.6, 1.3, 8);
+            // Traffic cone - BIG and BRIGHT for visibility
+            const coneGeometry = new THREE.ConeGeometry(0.8, 1.6, 8);
             const coneMaterial = new THREE.MeshStandardMaterial({
-                color: 0xFF6347,
-                emissive: 0xFF4500, // VISIBILITY: Orange-red glow
-                emissiveIntensity: 0.3,
+                color: 0xFF5500, // Bright orange
+                emissive: 0xFF6600, // Strong orange glow
+                emissiveIntensity: 0.5,
                 flatShading: true,
             });
 
             const cone = new THREE.Mesh(coneGeometry, coneMaterial);
-            cone.position.y = 0.65;
+            cone.position.y = 0.8;
             cone.castShadow = true;
             this.group.add(cone);
 
-            // White stripe - tapers to match cone shape (wider at bottom, narrower at top)
-            const stripeGeometry = new THREE.CylinderGeometry(0.32, 0.42, 0.2, 8);
+            // White stripes - two stripes for better visibility
             const stripeMaterial = new THREE.MeshStandardMaterial({
                 color: 0xFFFFFF,
+                emissive: 0xFFFFFF,
+                emissiveIntensity: 0.2,
                 flatShading: true,
             });
 
-            const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
-            stripe.position.y = 0.55;
-            this.group.add(stripe);
+            // Lower stripe
+            const stripe1Geometry = new THREE.CylinderGeometry(0.48, 0.58, 0.18, 8);
+            const stripe1 = new THREE.Mesh(stripe1Geometry, stripeMaterial);
+            stripe1.position.y = 0.5;
+            this.group.add(stripe1);
 
-            this.height = 1.3;
-            this.collisionRadius = 0.75;
+            // Upper stripe
+            const stripe2Geometry = new THREE.CylinderGeometry(0.32, 0.42, 0.15, 8);
+            const stripe2 = new THREE.Mesh(stripe2Geometry, stripeMaterial);
+            stripe2.position.y = 1.0;
+            this.group.add(stripe2);
+
+            this.height = 1.6;
+            this.collisionRadius = 0.9;
 
             // VISIBILITY: Add ground warning stripe
             this.addWarningStripe('jump');

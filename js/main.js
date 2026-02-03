@@ -14,6 +14,7 @@ class Game {
         this.isPaused = false;
         this.score = 0;
         this.coins = 0;
+        this.candyCollected = 0;
         this.distance = 0;
 
         // Input debounce for discrete actions
@@ -103,6 +104,7 @@ class Game {
         this.domElements = {
             score: document.getElementById('score'),
             coins: document.getElementById('coins'),
+            candies: document.getElementById('candies'),
             distance: document.getElementById('distance'),
             fps: document.getElementById('fps'),
             powerUpDisplay: null,
@@ -350,6 +352,7 @@ class Game {
         // Reset game state
         this.score = 0;
         this.coins = 0;
+        this.candyCollected = 0;
         this.distance = 0;
         this.activePowerUps.clear();
         this.coinMultiplier = 1;
@@ -404,6 +407,7 @@ class Game {
         const finalScore = Math.floor(this.score);
         document.getElementById('final-score').textContent = finalScore;
         document.getElementById('final-coins').textContent = this.coins;
+        document.getElementById('final-candies').textContent = this.candyCollected;
         document.getElementById('final-distance').textContent = Math.floor(this.distance) + 'm';
 
         // Check if it's a high score
@@ -1305,6 +1309,7 @@ class Game {
                 // Collect the candy
                 const meterValue = candy.collect();
                 this.addToSugarMeter(meterValue);
+                this.candyCollected++;
 
                 // Play sweet candy pop sound!
                 this.audio.playCandySound();
@@ -1668,6 +1673,7 @@ class Game {
         // PERFORMANCE: Use cached DOM elements
         this.domElements.score.textContent = Math.floor(this.score);
         this.domElements.coins.textContent = this.coins;
+        this.domElements.candies.textContent = this.candyCollected;
         this.domElements.distance.textContent = Math.floor(this.distance) + 'm';
 
         // Update power-up indicators

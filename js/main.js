@@ -39,8 +39,7 @@ class Game {
 
         // Leaderboard (Firebase-backed with local fallback)
         this.leaderboard = new LeaderboardManager();
-        this.highScores = [];  // Global scores from Firebase
-        this.localScores = this.loadLocalScores();  // Personal best scores
+        this.highScores = [];
         this.isNewHighScore = false;
         this.leaderboardInitialized = false;
 
@@ -133,14 +132,11 @@ class Game {
     }
 
     async initLeaderboard() {
-        // Always display local scores first (instant)
-        this.displayLocalLeaderboard();
-
         try {
             await this.leaderboard.init();
             this.leaderboardInitialized = true;
 
-            // Load initial global scores
+            // Load initial scores
             this.highScores = await this.leaderboard.getTopScores(10);
             this.displayLeaderboard();
 
@@ -158,7 +154,6 @@ class Game {
         } catch (error) {
             console.warn('Leaderboard running in offline mode:', error);
             this.highScores = this.leaderboard.localScores;
-            this.displayLeaderboard();
         }
     }
 
@@ -230,9 +225,8 @@ class Game {
             e.target.value = e.target.value.toUpperCase();
         });
 
-        // Display leaderboards on start
+        // Display leaderboard on start
         this.displayLeaderboard();
-        this.displayLocalLeaderboard();
 
         // Keyboard shortcuts for menu navigation
         window.addEventListener('keydown', (e) => {
@@ -459,9 +453,8 @@ class Game {
             document.getElementById('new-high-score').style.display = 'none';
         }
 
-        // Display leaderboards
+        // Display leaderboard
         this.displayLeaderboard();
-        this.displayLocalLeaderboard();
 
         // Show game over screen
         document.getElementById('game-over-screen').classList.add('active');
@@ -2560,54 +2553,11 @@ class Game {
         setTimeout(() => impactDiv.remove(), 800);
     }
 
-    // Local scores methods (personal best scores stored on device)
-    loadLocalScores() {
-        try {
-            const saved = localStorage.getItem('helloKittyLocalScores');
-            return saved ? JSON.parse(saved) : [];
-        } catch {
-            return [];
-        }
-    }
-
-    saveLocalScores() {
-        try {
-            localStorage.setItem('helloKittyLocalScores', JSON.stringify(this.localScores));
-        } catch (e) {
-            console.warn('Could not save local scores:', e);
-        }
-    }
-
-    addLocalScore(initials, score, distance, coins, candies) {
-        this.localScores.push({
-            initials: initials,
-            score: score,
-            distance: distance,
-            coins: coins,
-            candies: candies,
-            timestamp: Date.now()
-        });
-
-        // Sort by score (highest first)
-        this.localScores.sort((a, b) => b.score - a.score);
-
-        // Keep only top 10
-        this.localScores = this.localScores.slice(0, 10);
-
-        this.saveLocalScores();
-    }
-
     // Leaderboard methods (Firebase-backed)
     checkHighScore(score) {
-        // Check if score makes it to global top 10
+        // Check if score makes it to top 10
         if (this.highScores.length < 10) return true;
         return score > this.highScores[this.highScores.length - 1].score;
-    }
-
-    checkLocalHighScore(score) {
-        // Check if score makes it to personal top 10
-        if (this.localScores.length < 10) return true;
-        return score > this.localScores[this.localScores.length - 1].score;
     }
 
     async saveHighScore() {
@@ -2623,9 +2573,6 @@ class Game {
         const finalCoins = this.coins;
         const finalCandies = this.candyCollected;
 
-        // Always save to local scores first
-        this.addLocalScore(initials, finalScore, finalDistance, finalCoins, finalCandies);
-
         // Show saving indicator
         const saveBtn = document.getElementById('save-score-button');
         const originalText = saveBtn.textContent;
@@ -2633,16 +2580,15 @@ class Game {
         saveBtn.disabled = true;
 
         try {
-            // Submit to Firebase
+            // Submit to Firebase (also saves locally as backup)
             await this.leaderboard.submitScore(initials, finalScore, finalDistance, finalCoins, finalCandies);
 
-            // Refresh global leaderboard
+            // Refresh leaderboard
             this.highScores = await this.leaderboard.getTopScores(10);
 
-            // Hide input, show leaderboards
+            // Hide input, show leaderboard
             document.getElementById('new-high-score').style.display = 'none';
             this.displayLeaderboard(initials, finalScore);
-            this.displayLocalLeaderboard(initials, finalScore);
 
             // Play celebration sound
             this.audio.playMilestoneSound();
@@ -2653,7 +2599,6 @@ class Game {
             // Hide input anyway
             document.getElementById('new-high-score').style.display = 'none';
             this.displayLeaderboard(initials, finalScore);
-            this.displayLocalLeaderboard(initials, finalScore);
         } finally {
             saveBtn.textContent = originalText;
             saveBtn.disabled = false;
@@ -2665,7 +2610,7 @@ class Game {
         leaderboardList.innerHTML = '';
 
         if (this.highScores.length === 0) {
-            leaderboardList.innerHTML = '<p style="text-align: center; color: #FF69B4;">No global scores yet!</p>';
+            leaderboardList.innerHTML = '<p style="text-align: center; color: #FF69B4;">No scores yet! Be the first!</p>';
             return;
         }
 
@@ -2692,49 +2637,6 @@ class Game {
         });
 
         // Smooth scroll to highlighted entry after DOM updates
-        if (highlightedEntry) {
-            setTimeout(() => {
-                highlightedEntry.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center'
-                });
-            }, 100);
-        }
-    }
-
-    displayLocalLeaderboard(highlightInitials = null, highlightScore = null) {
-        const localList = document.getElementById('local-leaderboard-list');
-        if (!localList) return;
-
-        localList.innerHTML = '';
-
-        if (this.localScores.length === 0) {
-            localList.innerHTML = '<p style="text-align: center; color: #87CEEB;">Play to set your records!</p>';
-            return;
-        }
-
-        let highlightedEntry = null;
-        const scoreToHighlight = highlightScore || Math.floor(this.score);
-
-        this.localScores.forEach((entry, index) => {
-            const div = document.createElement('div');
-            div.className = 'leaderboard-entry';
-
-            // Highlight the newly added score
-            if (highlightInitials && entry.initials === highlightInitials && entry.score === scoreToHighlight) {
-                div.classList.add('highlight');
-                highlightedEntry = div;
-            }
-
-            div.innerHTML = `
-                <span class="leaderboard-rank">${index + 1}.</span>
-                <span class="leaderboard-initials">${entry.initials}</span>
-                <span class="leaderboard-score">${entry.score.toLocaleString()}</span>
-            `;
-
-            localList.appendChild(div);
-        });
-
         if (highlightedEntry) {
             setTimeout(() => {
                 highlightedEntry.scrollIntoView({

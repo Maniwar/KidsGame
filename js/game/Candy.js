@@ -220,7 +220,7 @@ export class Candy {
         body.rotation.z = Math.PI / 2;
         candyGroup.add(body);
 
-        // Wrapper twist ends (triangles pointing outward like 🍬)
+        // Wrapper twist ends (triangles with flat end facing outward like 🍬)
         const twistGeometry = new THREE.ConeGeometry(0.1, 0.18, 4);
         const twistMaterial = new THREE.MeshStandardMaterial({
             color: wrapperColor,
@@ -230,16 +230,16 @@ export class Candy {
             opacity: 0.8,
         });
 
-        // Left twist - triangle pointing left (outward)
+        // Left twist - flat end faces left, point faces candy
         const leftTwist = new THREE.Mesh(twistGeometry, twistMaterial);
         leftTwist.position.x = -0.3;
-        leftTwist.rotation.z = Math.PI / 2; // Point left
+        leftTwist.rotation.z = -Math.PI / 2; // Flip: flat end outward
         candyGroup.add(leftTwist);
 
-        // Right twist - triangle pointing right (outward)
+        // Right twist - flat end faces right, point faces candy
         const rightTwist = new THREE.Mesh(twistGeometry, twistMaterial);
         rightTwist.position.x = 0.3;
-        rightTwist.rotation.z = -Math.PI / 2; // Point right
+        rightTwist.rotation.z = Math.PI / 2; // Flip: flat end outward
         candyGroup.add(rightTwist);
 
         // Add stripe decoration - wraps around the horizontal candy body

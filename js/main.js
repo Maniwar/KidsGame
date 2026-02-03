@@ -1041,79 +1041,8 @@ class Game {
     }
 
     showSugarRushBenefitsUI() {
-        // Remove existing panel
-        this.removeSugarRushBenefitsUI();
-
-        const config = this.sugarRushConfigs[this.sugarRushLevel] || this.sugarRushConfigs[1];
-        const panel = document.createElement('div');
-        panel.id = 'sugar-rush-benefits';
-
-        // Check if mobile - make compact badge at top instead of side panel
-        const isMobile = window.innerWidth < 768;
-
-        if (isMobile) {
-            // Mobile: Compact horizontal badge at top-left, below HUD
-            panel.style.cssText = `
-                position: fixed;
-                left: 10px;
-                top: 45px;
-                background: linear-gradient(90deg, rgba(255,105,180,0.85) 0%, rgba(255,182,193,0.85) 100%);
-                border: 2px solid ${config.invincible ? '#FFD700' : '#FF69B4'};
-                border-radius: 8px;
-                padding: 4px 8px;
-                color: white;
-                font-family: 'Comic Sans MS', cursive, sans-serif;
-                font-size: 10px;
-                z-index: 100;
-                box-shadow: 0 2px 8px rgba(255,105,180,0.4);
-                display: flex;
-                align-items: center;
-                gap: 6px;
-            `;
-
-            const levelStars = '⭐'.repeat(this.sugarRushLevel);
-            const invincibleBadge = config.invincible ? '🛡️' : '';
-
-            panel.innerHTML = `
-                <span style="font-weight:bold;">${levelStars}</span>
-                <span>🎯${config.multiplier}x</span>
-                <span>🧲${config.magnetRadius}m</span>
-                ${invincibleBadge}
-            `;
-        } else {
-            // Desktop: Full side panel
-            panel.style.cssText = `
-                position: fixed;
-                right: 10px;
-                top: 50%;
-                transform: translateY(-50%);
-                background: linear-gradient(135deg, rgba(255,105,180,0.9) 0%, rgba(255,182,193,0.9) 100%);
-                border: 3px solid ${config.invincible ? '#FFD700' : '#FF69B4'};
-                border-radius: 15px;
-                padding: 12px 15px;
-                color: white;
-                font-family: 'Comic Sans MS', cursive, sans-serif;
-                font-size: 14px;
-                z-index: 100;
-                box-shadow: 0 4px 15px rgba(255,105,180,0.5);
-                min-width: 140px;
-            `;
-
-            const levelStars = '⭐'.repeat(this.sugarRushLevel);
-            const invincibleBadge = config.invincible ? '<div style="color:#FFD700;font-weight:bold;margin-top:5px;">🛡️ INVINCIBLE!</div>' : '';
-
-            panel.innerHTML = `
-                <div style="font-weight:bold;font-size:16px;text-align:center;margin-bottom:8px;">${config.name}</div>
-                <div style="text-align:center;margin-bottom:8px;">${levelStars}</div>
-                <div>🎯 ${config.multiplier}x</div>
-                <div>🧲 ${config.magnetRadius}m</div>
-                ${config.speedBoost > 1 ? `<div>💨 +${Math.round((config.speedBoost - 1) * 100)}%</div>` : ''}
-                ${invincibleBadge}
-                <div style="font-size:11px;margin-top:8px;text-align:center;opacity:0.9;">Collect candy to maintain!</div>
-            `;
-        }
-
-        document.body.appendChild(panel);
+        // Disabled - was overlapping with other UI elements
+        // The timer and meter already show Sugar Rush status
     }
 
     removeSugarRushBenefitsUI() {

@@ -30,6 +30,10 @@ export class Player {
         this.blinkDuration = 0.15; // How long a blink takes
         this.blinksRemaining = 1; // For occasional double blinks
 
+        // Knocked out animation (game over screen)
+        this.knockedOutTimer = 0;
+        this.isKnockedOut = false;
+
         // Create character
         this.createCharacter();
     }
@@ -466,6 +470,73 @@ export class Player {
                 this.leftEye.scale.y = this.eyeOpenScale;
                 this.rightEye.scale.y = this.eyeOpenScale;
             }
+        }
+    }
+
+    // Update knocked out animation (rubbing head, shaking head on game over screen)
+    updateKnockedOutAnimation(deltaTime) {
+        if (!this.isKnockedOut) return;
+
+        this.knockedOutTimer += deltaTime;
+        const t = this.knockedOutTimer;
+
+        // Head shaking side to side (dazed look)
+        if (this.head) {
+            const headShake = Math.sin(t * 4) * 0.15; // Gentle side-to-side shake
+            const headTilt = Math.sin(t * 2.5) * 0.08; // Slight forward/back wobble
+            this.head.rotation.z = headShake;
+            this.head.rotation.x = headTilt;
+        }
+
+        // Right arm rubbing head
+        if (this.rightArm) {
+            // Raise arm up to head
+            const baseRaise = -1.8; // Arm raised up
+            const rubMotion = Math.sin(t * 6) * 0.2; // Rubbing back and forth
+            this.rightArm.rotation.x = baseRaise + rubMotion;
+            this.rightArm.rotation.z = -0.5; // Angled inward toward head
+        }
+
+        // Left arm hanging or on hip
+        if (this.leftArm) {
+            const armSway = Math.sin(t * 2) * 0.1;
+            this.leftArm.rotation.x = armSway;
+            this.leftArm.rotation.z = 0.2; // Slightly out
+        }
+
+        // Body slight sway (woozy)
+        if (this.character) {
+            const bodySway = Math.sin(t * 1.5) * 0.05;
+            this.character.rotation.z = bodySway;
+        }
+    }
+
+    // Start knocked out animation (call when game over screen shows)
+    startKnockedOutAnimation() {
+        this.isKnockedOut = true;
+        this.knockedOutTimer = 0;
+    }
+
+    // Stop knocked out animation and reset pose
+    stopKnockedOutAnimation() {
+        this.isKnockedOut = false;
+        this.knockedOutTimer = 0;
+
+        // Reset all rotations
+        if (this.head) {
+            this.head.rotation.z = 0;
+            this.head.rotation.x = 0;
+        }
+        if (this.rightArm) {
+            this.rightArm.rotation.x = 0;
+            this.rightArm.rotation.z = 0;
+        }
+        if (this.leftArm) {
+            this.leftArm.rotation.x = 0;
+            this.leftArm.rotation.z = 0;
+        }
+        if (this.character) {
+            this.character.rotation.z = 0;
         }
     }
 

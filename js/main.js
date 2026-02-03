@@ -38,6 +38,7 @@ class Game {
         this.sugarRushCooldown = 0; // Cooldown after Sugar Rush ends
         this.sugarRushCooldownDuration = 4; // Seconds before meter can fill again
         this.sugarRushDecayRate = 12; // Meter drains this much per second during Sugar Rush
+        this.sugarRushLevelChangeCooldown = 0; // Cooldown between level changes to prevent oscillation
 
         // Sugar Rush level configs - only level 3 grants invincibility!
         // Each level requires more candy to reach and decays FASTER, making MEGA hard to maintain
@@ -583,6 +584,11 @@ class Game {
             this.sugarRushCooldown -= deltaTime;
         }
 
+        // Update level change cooldown (prevents rapid oscillation)
+        if (this.sugarRushLevelChangeCooldown > 0) {
+            this.sugarRushLevelChangeCooldown -= deltaTime;
+        }
+
         // Update power-up visual effects
         this.updatePowerUpVisuals(deltaTime);
 
@@ -903,12 +909,18 @@ class Game {
     }
 
     levelUpSugarRush() {
+        // Prevent rapid level oscillation
+        if (this.sugarRushLevelChangeCooldown > 0) return;
+
         // Level up!
         this.sugarRushLevel = Math.min(this.sugarRushLevel + 1, 3);
 
-        // Set meter to the new level's threshold (gives buffer time at new level)
+        // Set meter to the new level's threshold + buffer
         const newConfig = this.sugarRushConfigs[this.sugarRushLevel];
-        this.candyMeter = newConfig.meterThreshold + 20; // Small buffer above threshold
+        this.candyMeter = newConfig.meterThreshold + 25; // Buffer above threshold
+
+        // Cooldown before next level change (1.5 seconds)
+        this.sugarRushLevelChangeCooldown = 1.5;
 
         // Update visuals for new level
         this.updateSugarRushVisuals();
@@ -916,13 +928,19 @@ class Game {
         // Show level up notification
         this.showSugarRushLevelUpNotification();
 
-        // Play FF-inspired level up fanfare!
+        // Play level up sound
         this.audio.playSugarRushLevelUpSound(this.sugarRushLevel);
     }
 
     levelDownSugarRush() {
+        // Prevent rapid level oscillation
+        if (this.sugarRushLevelChangeCooldown > 0) return;
+
         // Level down!
         this.sugarRushLevel = Math.max(this.sugarRushLevel - 1, 1);
+
+        // Cooldown before next level change (1 second)
+        this.sugarRushLevelChangeCooldown = 1.0;
 
         // Update visuals for lower level
         this.updateSugarRushVisuals();

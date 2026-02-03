@@ -393,61 +393,94 @@ export class GameScene {
     spawnBuilding(z) {
         // Calculate progression factor based on distance (gets cooler the further you go!)
         const distance = Math.abs(z);
-        const progression = Math.min(distance / 500, 1.5); // OPTIMIZED: Capped at 1.5x instead of 3x to prevent extremely tall buildings
+        const progression = Math.min(distance / 500, 1.5);
 
-        // Basic building types
+        // TIER 1: Basic cozy buildings (start of game)
         const basicTypes = [
-            { width: 4, height: 8, depth: 3, color: 0xFFB7C5, roofType: 'cone' },      // Pink house
-            { width: 3, height: 6, depth: 3, color: 0xFFE4E1, roofType: 'cone' },      // Misty rose
-            { width: 5, height: 10, depth: 3, color: 0xFFC0CB, roofType: 'pyramid' },  // Light pink
-            { width: 3.5, height: 7, depth: 3, color: 0xFFDAB9, roofType: 'cone' },    // Peach
+            { width: 4, height: 8, depth: 3, color: 0xFFB7C5, roofType: 'cone', style: 'house' },
+            { width: 3, height: 6, depth: 3, color: 0xFFE4E1, roofType: 'cone', style: 'house' },
+            { width: 3.5, height: 7, depth: 3, color: 0xFFDAB9, roofType: 'cone', style: 'house' },
+            // Wide shops
+            { width: 8, height: 5, depth: 4, color: 0xFFC0CB, roofType: 'flat', style: 'shop' },
+            { width: 7, height: 4, depth: 3.5, color: 0xFFE4B5, roofType: 'flat', style: 'shop' },
         ];
 
-        // Advanced building types (unlock as you go further) - OPTIMIZED: Reduced max heights
+        // TIER 2: Mixed neighborhood (medium progression)
+        const mediumTypes = [
+            { width: 5, height: 10, depth: 3, color: 0xFFC0CB, roofType: 'pyramid', style: 'apartment' },
+            { width: 4.5, height: 12, depth: 3, color: 0xE6E6FA, roofType: 'flat', style: 'apartment' },
+            // Wide buildings
+            { width: 10, height: 6, depth: 4, color: 0xB0E0E6, roofType: 'flat', style: 'warehouse' },
+            { width: 9, height: 7, depth: 4, color: 0xDDA0DD, roofType: 'flat', style: 'mall' },
+            { width: 12, height: 5, depth: 5, color: 0x98FB98, roofType: 'flat', style: 'supermarket' },
+        ];
+
+        // TIER 3: Downtown/city center (high progression)
         const advancedTypes = [
-            { width: 4.5, height: 12, depth: 3, color: 0xE6E6FA, roofType: 'flat' },   // Lavender tower
-            { width: 6, height: 14, depth: 3.5, color: 0xFFB6C1, roofType: 'cone' },   // Tall pink building (was 15)
-            { width: 5, height: 15, depth: 4, color: 0xDDA0DD, roofType: 'pyramid' },  // Plum skyscraper (was 18)
-            { width: 7, height: 16, depth: 4, color: 0xB0E0E6, roofType: 'flat' },     // Powder blue tower (was 20)
+            { width: 6, height: 14, depth: 3.5, color: 0xFFB6C1, roofType: 'cone', style: 'tower' },
+            { width: 5, height: 15, depth: 4, color: 0xDDA0DD, roofType: 'pyramid', style: 'tower' },
+            { width: 7, height: 16, depth: 4, color: 0xB0E0E6, roofType: 'flat', style: 'skyscraper' },
+            // Wide modern buildings
+            { width: 14, height: 8, depth: 5, color: 0x87CEEB, roofType: 'flat', style: 'office' },
+            { width: 12, height: 10, depth: 5, color: 0xE6E6FA, roofType: 'flat', style: 'hotel' },
         ];
 
-        // OPTIMIZED: Removed epicTypes to prevent extremely tall buildings that cause performance issues
-        // Buildings are now capped at reasonable heights for smooth gameplay
+        // TIER 4: Futuristic/special landmarks (very high progression)
+        const epicTypes = [
+            { width: 8, height: 18, depth: 5, color: 0xFFD700, roofType: 'pyramid', style: 'landmark' },
+            { width: 16, height: 12, depth: 6, color: 0xFF69B4, roofType: 'dome', style: 'stadium' },
+            { width: 6, height: 20, depth: 4, color: 0xC0C0C0, roofType: 'spire', style: 'spire' },
+        ];
 
         // Select building pool based on progression
         let buildingPool = [...basicTypes];
-        if (progression > 0.8) {
+        if (progression > 0.3) {
+            buildingPool = [...buildingPool, ...mediumTypes];
+        }
+        if (progression > 0.7) {
             buildingPool = [...buildingPool, ...advancedTypes];
+        }
+        if (progression > 1.2 && Math.random() < 0.2) {
+            // 20% chance for epic buildings at high progression
+            buildingPool = [...buildingPool, ...epicTypes];
         }
 
         const type = buildingPool[Math.floor(Math.random() * buildingPool.length)];
 
-        // Add height variation for more interesting skyline - OPTIMIZED: Reduced variation
-        const heightVariation = 1 + (Math.random() * 0.15 * progression); // Reduced from 0.3 to 0.15
-        const adjustedHeight = Math.min(type.height * heightVariation, 18); // OPTIMIZED: Hard cap at 18 units
+        // Height variation based on style
+        let heightVariation = 1;
+        if (type.style === 'tower' || type.style === 'skyscraper' || type.style === 'spire') {
+            heightVariation = 1 + (Math.random() * 0.2 * progression);
+        } else if (type.style === 'shop' || type.style === 'warehouse') {
+            heightVariation = 0.9 + (Math.random() * 0.2); // Slight variation for wide buildings
+        }
+        const adjustedHeight = Math.min(type.height * heightVariation, 22);
 
         // Create building on left side
-        const leftBuilding = this.createBuilding(-15, adjustedHeight / 2, z, type.width, adjustedHeight, type.depth, type.color, type.roofType);
+        const leftBuilding = this.createBuilding(-15, adjustedHeight / 2, z, type.width, adjustedHeight, type.depth, type.color, type.roofType, type.style);
         leftBuilding.userData.side = 'left';
         leftBuilding.userData.zPos = z;
         this.buildings.push(leftBuilding);
 
         // Create different building on right side for variety
         const rightType = buildingPool[Math.floor(Math.random() * buildingPool.length)];
-        const rightHeightVariation = 1 + (Math.random() * 0.3 * progression);
-        const rightAdjustedHeight = rightType.height * rightHeightVariation;
-        const rightBuilding = this.createBuilding(15, rightAdjustedHeight / 2, z, rightType.width, rightAdjustedHeight, rightType.depth, rightType.color, rightType.roofType);
+        let rightHeightVar = 1;
+        if (rightType.style === 'tower' || rightType.style === 'skyscraper') {
+            rightHeightVar = 1 + (Math.random() * 0.2 * progression);
+        }
+        const rightAdjustedHeight = Math.min(rightType.height * rightHeightVar, 22);
+        const rightBuilding = this.createBuilding(15, rightAdjustedHeight / 2, z, rightType.width, rightAdjustedHeight, rightType.depth, rightType.color, rightType.roofType, rightType.style);
         rightBuilding.userData.side = 'right';
         rightBuilding.userData.zPos = z;
         this.buildings.push(rightBuilding);
 
-        // Add special decorations at higher progression levels - OPTIMIZED: Reduced spawn rate
-        if (progression > 1.0 && Math.random() < 0.15) { // Reduced from 0.3 to 0.15
+        // Add special decorations at higher progression levels
+        if (progression > 1.0 && Math.random() < 0.15) {
             this.addSpecialDecoration(z, progression);
         }
     }
 
-    createBuilding(x, y, z, width, height, depth, color, roofType = 'cone') {
+    createBuilding(x, y, z, width, height, depth, color, roofType = 'cone', style = 'house') {
         const group = new THREE.Group();
 
         // Main building body
@@ -476,46 +509,105 @@ export class GameScene {
             const roofGeometry = new THREE.ConeGeometry(width * 0.7, height * 0.2, 4);
             roof = new THREE.Mesh(roofGeometry, roofMaterial);
             roof.rotation.y = Math.PI / 4;
+            roof.position.y = height / 2 + height * 0.1;
         } else if (roofType === 'pyramid') {
             const roofGeometry = new THREE.ConeGeometry(width * 0.8, height * 0.25, 4);
             roof = new THREE.Mesh(roofGeometry, roofMaterial);
             roof.rotation.y = 0;
+            roof.position.y = height / 2 + height * 0.125;
         } else if (roofType === 'flat') {
-            const roofGeometry = new THREE.BoxGeometry(width * 1.1, height * 0.1, depth * 1.1);
+            const roofGeometry = new THREE.BoxGeometry(width * 1.1, height * 0.08, depth * 1.1);
             roof = new THREE.Mesh(roofGeometry, roofMaterial);
+            roof.position.y = height / 2 + height * 0.04;
+        } else if (roofType === 'dome') {
+            // Dome roof for stadiums/special buildings
+            const roofGeometry = new THREE.SphereGeometry(width * 0.5, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            roof = new THREE.Mesh(roofGeometry, roofMaterial);
+            roof.position.y = height / 2;
+        } else if (roofType === 'spire') {
+            // Tall spire for landmark buildings
+            const roofGeometry = new THREE.ConeGeometry(width * 0.3, height * 0.4, 8);
+            roof = new THREE.Mesh(roofGeometry, new THREE.MeshStandardMaterial({
+                color: 0xFFD700,
+                metalness: 0.6,
+                roughness: 0.3,
+                emissive: 0xFFD700,
+                emissiveIntensity: 0.2
+            }));
+            roof.position.y = height / 2 + height * 0.2;
         }
 
-        roof.position.y = height / 2 + height * 0.1;
-        roof.castShadow = true;
-        group.add(roof);
+        if (roof) {
+            roof.castShadow = true;
+            group.add(roof);
+        }
 
-        // Windows - scaled to building height for proper look
+        // Windows - scaled to building dimensions
         const windowMaterial = new THREE.MeshStandardMaterial({
             color: 0x87CEEB,
             emissive: 0x87CEEB,
             emissiveIntensity: 0.3
         });
 
-        // Calculate window rows based on building height (more realistic)
-        const windowHeight = 0.8;
-        const windowSpacing = 1.5;
-        const numRows = Math.max(2, Math.min(5, Math.floor(height / windowSpacing)));
-        const numCols = Math.max(2, Math.min(4, Math.floor(width / 2)));
+        // Calculate window grid based on building size
+        const windowSpacingV = Math.max(1.2, height / 6);
+        const windowSpacingH = Math.max(1.5, width / 5);
+        const numRows = Math.max(2, Math.min(6, Math.floor(height / windowSpacingV)));
+        const numCols = Math.max(2, Math.min(8, Math.floor(width / windowSpacingH)));
 
-        const windowGeometry = new THREE.BoxGeometry(width * 0.12, windowHeight * 0.6, 0.1);
+        const windowW = Math.min(width * 0.1, 0.8);
+        const windowH = Math.min(height * 0.08, 0.6);
+        const windowGeometry = new THREE.BoxGeometry(windowW, windowH, 0.1);
 
         for (let row = 0; row < numRows; row++) {
             for (let col = 0; col < numCols; col++) {
                 const window = new THREE.Mesh(windowGeometry, windowMaterial);
-                const rowOffset = ((row - (numRows - 1) / 2) * windowSpacing);
-                const colOffset = ((col - (numCols - 1) / 2) * (width * 0.25));
-                window.position.set(
-                    colOffset,
-                    rowOffset,
-                    depth / 2 + 0.05
-                );
+                const rowOffset = ((row - (numRows - 1) / 2) * windowSpacingV);
+                const colOffset = ((col - (numCols - 1) / 2) * windowSpacingH);
+                window.position.set(colOffset, rowOffset, depth / 2 + 0.05);
                 group.add(window);
             }
+        }
+
+        // Style-specific decorations
+        if (style === 'shop' || style === 'supermarket') {
+            // Awning over front
+            const awningGeo = new THREE.BoxGeometry(width * 0.95, 0.15, 1.5);
+            const awningColors = [0xFF69B4, 0xFFB347, 0x98FB98, 0x87CEEB];
+            const awningMat = new THREE.MeshStandardMaterial({
+                color: awningColors[Math.floor(Math.random() * awningColors.length)],
+                flatShading: true
+            });
+            const awning = new THREE.Mesh(awningGeo, awningMat);
+            awning.position.set(0, -height * 0.35, depth / 2 + 0.7);
+            awning.rotation.x = -0.2;
+            group.add(awning);
+        } else if (style === 'mall' || style === 'hotel') {
+            // Entrance canopy
+            const canopyGeo = new THREE.BoxGeometry(width * 0.4, 0.2, 2);
+            const canopyMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, flatShading: true });
+            const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+            canopy.position.set(0, -height * 0.4, depth / 2 + 1);
+            group.add(canopy);
+        } else if (style === 'skyscraper' || style === 'tower') {
+            // Antenna on top
+            const antennaGeo = new THREE.CylinderGeometry(0.1, 0.15, height * 0.15, 6);
+            const antennaMat = new THREE.MeshStandardMaterial({ color: 0xC0C0C0, metalness: 0.8 });
+            const antenna = new THREE.Mesh(antennaGeo, antennaMat);
+            antenna.position.y = height / 2 + height * 0.15;
+            group.add(antenna);
+        } else if (style === 'landmark') {
+            // Decorative top ornament
+            const ornamentGeo = new THREE.OctahedronGeometry(width * 0.15);
+            const ornamentMat = new THREE.MeshStandardMaterial({
+                color: 0xFFD700,
+                metalness: 0.7,
+                emissive: 0xFFD700,
+                emissiveIntensity: 0.3
+            });
+            const ornament = new THREE.Mesh(ornamentGeo, ornamentMat);
+            ornament.position.y = height / 2 + height * 0.3;
+            group.add(ornament);
         }
 
         group.position.set(x, y, z);

@@ -263,27 +263,27 @@ export class Candy {
     createCupcake() {
         const cupcakeGroup = new THREE.Group();
 
-        // Cupcake wrapper/base (fluted cup shape)
-        const wrapperGeometry = new THREE.CylinderGeometry(0.18, 0.12, 0.18, 12);
+        // Cupcake wrapper/base (fluted cup shape) - wider and shorter
+        const wrapperGeometry = new THREE.CylinderGeometry(0.2, 0.14, 0.14, 12);
         const wrapperMaterial = new THREE.MeshStandardMaterial({
             color: 0xFFB6C1,
             flatShading: true,
         });
         const wrapper = new THREE.Mesh(wrapperGeometry, wrapperMaterial);
-        wrapper.position.y = -0.1;
+        wrapper.position.y = -0.07;
         cupcakeGroup.add(wrapper);
 
-        // Cake part
-        const cakeGeometry = new THREE.CylinderGeometry(0.16, 0.18, 0.1, 12);
+        // Cake part - wider
+        const cakeGeometry = new THREE.CylinderGeometry(0.18, 0.2, 0.08, 12);
         const cakeMaterial = new THREE.MeshStandardMaterial({
             color: 0xDEB887,
             flatShading: true,
         });
         const cake = new THREE.Mesh(cakeGeometry, cakeMaterial);
-        cake.position.y = 0.04;
+        cake.position.y = 0.02;
         cupcakeGroup.add(cake);
 
-        // Frosting swirl (multiple spheres stacked)
+        // Frosting swirl - single dome instead of stacked spheres
         const frostingColor = CANDY_COLORS.CUPCAKE_FROSTING[
             Math.floor(Math.random() * CANDY_COLORS.CUPCAKE_FROSTING.length)
         ];
@@ -294,44 +294,29 @@ export class Candy {
             flatShading: true,
         });
 
-        // Bottom frosting layer
-        const frost1Geo = new THREE.SphereGeometry(0.15, 8, 8);
-        const frost1 = new THREE.Mesh(frost1Geo, frostingMaterial);
-        frost1.position.y = 0.15;
-        frost1.scale.y = 0.6;
-        cupcakeGroup.add(frost1);
+        // Main frosting dome - wider, less tall
+        const frostingGeo = new THREE.SphereGeometry(0.16, 12, 12);
+        const frosting = new THREE.Mesh(frostingGeo, frostingMaterial);
+        frosting.position.y = 0.12;
+        frosting.scale.set(1.1, 0.7, 1.1); // Wider and flatter
+        cupcakeGroup.add(frosting);
 
-        // Middle frosting layer
-        const frost2Geo = new THREE.SphereGeometry(0.12, 8, 8);
-        const frost2 = new THREE.Mesh(frost2Geo, frostingMaterial);
-        frost2.position.y = 0.25;
-        frost2.scale.y = 0.7;
-        cupcakeGroup.add(frost2);
-
-        // Top frosting swirl
-        const frost3Geo = new THREE.ConeGeometry(0.08, 0.12, 8);
-        const frost3 = new THREE.Mesh(frost3Geo, frostingMaterial);
-        frost3.position.y = 0.35;
-        cupcakeGroup.add(frost3);
+        // Small swirl tip on top
+        const tipGeo = new THREE.ConeGeometry(0.06, 0.08, 8);
+        const tip = new THREE.Mesh(tipGeo, frostingMaterial);
+        tip.position.y = 0.22;
+        cupcakeGroup.add(tip);
 
         // Cherry on top!
-        const cherryGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+        const cherryGeometry = new THREE.SphereGeometry(0.05, 8, 8);
         const cherryMaterial = new THREE.MeshStandardMaterial({
             color: 0xFF0000,
             emissive: 0xFF0000,
             emissiveIntensity: 0.3,
         });
         const cherry = new THREE.Mesh(cherryGeometry, cherryMaterial);
-        cherry.position.y = 0.44;
+        cherry.position.y = 0.28;
         cupcakeGroup.add(cherry);
-
-        // Cherry stem
-        const stemGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.08, 4);
-        const stemMat = new THREE.MeshStandardMaterial({ color: 0x228B22 });
-        const stem = new THREE.Mesh(stemGeo, stemMat);
-        stem.position.y = 0.5;
-        stem.rotation.z = 0.3;
-        cupcakeGroup.add(stem);
 
         this.mesh = cupcakeGroup;
         this.group.add(this.mesh);

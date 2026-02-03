@@ -90,11 +90,13 @@ export class PowerUp {
         magnetGroup.add(blueHalf);
 
         this.mesh = magnetGroup;
+        // Scale up for better visibility
+        this.mesh.scale.set(1.8, 1.8, 1.8);
         this.group.add(this.mesh);
 
         // Sparkle effect
         this.createSparkleRing(0x00FFFF);
-        this.collisionRadius = 0.4;
+        this.collisionRadius = 0.5;
     }
 
     createShield() {
@@ -111,7 +113,6 @@ export class PowerUp {
         });
 
         this.mesh = new THREE.Mesh(shieldGeometry, shieldMaterial);
-        this.group.add(this.mesh);
 
         // Inner core
         const coreGeometry = new THREE.SphereGeometry(0.15, 12, 12);
@@ -123,8 +124,12 @@ export class PowerUp {
         const core = new THREE.Mesh(coreGeometry, coreMaterial);
         this.mesh.add(core);
 
+        // Scale up for better visibility
+        this.mesh.scale.set(1.8, 1.8, 1.8);
+        this.group.add(this.mesh);
+
         this.createSparkleRing(0x00FFFF);
-        this.collisionRadius = 0.35;
+        this.collisionRadius = 0.5;
     }
 
     createSpeed() {
@@ -160,10 +165,12 @@ export class PowerUp {
         }
 
         this.mesh = boltGroup;
+        // Scale up for better visibility
+        this.mesh.scale.set(1.8, 1.8, 1.8);
         this.group.add(this.mesh);
 
         this.createSparkleRing(0xFFFF00);
-        this.collisionRadius = 0.35;
+        this.collisionRadius = 0.5;
     }
 
     createMultiplier() {
@@ -196,10 +203,12 @@ export class PowerUp {
         group.add(two);
 
         this.mesh = group;
+        // Scale up for better visibility
+        this.mesh.scale.set(1.8, 1.8, 1.8);
         this.group.add(this.mesh);
 
         this.createSparkleRing(0xFFD700);
-        this.collisionRadius = 0.35;
+        this.collisionRadius = 0.5;
     }
 
     createFlight() {
@@ -232,8 +241,11 @@ export class PowerUp {
         knot.position.y = -0.55;
         this.mesh.add(knot);
 
+        // Scale up for better visibility
+        this.mesh.scale.set(1.8, 1.8, 1.8);
+
         this.createSparkleRing(COLORS.SECONDARY_PINK);
-        this.collisionRadius = 0.35;
+        this.collisionRadius = 0.5;
     }
 
     createGiant() {

@@ -243,10 +243,10 @@ export class PowerUp {
     }
 
     createGiant() {
-        // Mushroom
+        // Mushroom 🍄
         const mushroomGroup = new THREE.Group();
 
-        // Cap
+        // Red cap (dome shape)
         const capGeometry = new THREE.SphereGeometry(0.3, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
         const capMaterial = new THREE.MeshStandardMaterial({
             color: 0xFF0000,
@@ -255,29 +255,42 @@ export class PowerUp {
             emissiveIntensity: 0.2,
         });
         const cap = new THREE.Mesh(capGeometry, capMaterial);
-        cap.position.y = 0.15;
+        cap.position.y = 0.1;
         mushroomGroup.add(cap);
 
-        // White spots on cap
-        const spotGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+        // White spots on cap - more visible
+        const spotGeometry = new THREE.SphereGeometry(0.06, 8, 8);
         const spotMaterial = new THREE.MeshStandardMaterial({
             color: 0xFFFFFF,
+            emissive: 0xFFFFFF,
+            emissiveIntensity: 0.3,
         });
-        for (let i = 0; i < 3; i++) {
+
+        // Top spot
+        const topSpot = new THREE.Mesh(spotGeometry, spotMaterial);
+        topSpot.position.set(0, 0.35, 0);
+        mushroomGroup.add(topSpot);
+
+        // Ring of spots around the cap
+        for (let i = 0; i < 5; i++) {
             const spot = new THREE.Mesh(spotGeometry, spotMaterial);
-            const angle = (i / 3) * Math.PI * 2;
-            spot.position.set(Math.cos(angle) * 0.15, 0.25, Math.sin(angle) * 0.15);
+            const angle = (i / 5) * Math.PI * 2;
+            spot.position.set(
+                Math.cos(angle) * 0.2,
+                0.2,
+                Math.sin(angle) * 0.2
+            );
             mushroomGroup.add(spot);
         }
 
-        // Stem
-        const stemGeometry = new THREE.CylinderGeometry(0.12, 0.1, 0.3, 12);
+        // White stem - connects to cap
+        const stemGeometry = new THREE.CylinderGeometry(0.1, 0.12, 0.25, 12);
         const stemMaterial = new THREE.MeshStandardMaterial({
             color: 0xFFFAF0,
             flatShading: true,
         });
         const stem = new THREE.Mesh(stemGeometry, stemMaterial);
-        stem.position.y = -0.05;
+        stem.position.y = -0.025; // Connects to cap at y=0.1
         mushroomGroup.add(stem);
 
         this.mesh = mushroomGroup;

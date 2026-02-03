@@ -702,7 +702,9 @@ class Game {
     }
 
     createShieldVisual() {
-        const shieldGeometry = new THREE.SphereGeometry(1.0, 16, 16);
+        // Hello Kitty dimensions: body y=0.45, head y=1.2, ears top y~1.8
+        // Shield needs to fully enclose character from feet to ears
+        const shieldGeometry = new THREE.SphereGeometry(1.2, 16, 16);
         const shieldMaterial = new THREE.MeshBasicMaterial({
             color: 0x00FFFF,
             transparent: true,
@@ -710,8 +712,9 @@ class Game {
             side: THREE.DoubleSide
         });
         this.shieldMesh = new THREE.Mesh(shieldGeometry, shieldMaterial);
-        // Center the bubble on the character (body at 0.45, head at 1.2)
-        this.shieldMesh.position.y = 0.8;
+        // Center between feet (0) and ear tips (1.8) = 0.9
+        // With radius 1.2: covers y=-0.3 to y=2.1 (fully enclosing character)
+        this.shieldMesh.position.y = 0.9;
         this.player.character.add(this.shieldMesh);
     }
 

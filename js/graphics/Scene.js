@@ -17,7 +17,7 @@ export class GameScene {
         this.streetLamps = []; // Track street lamps for cleanup/respawn
         this.trees = []; // Track trees for cleanup/respawn
         this.nextBuildingZ = -50;
-        this.buildingSpacing = 20; // Space between buildings
+        this.buildingSpacing = 25; // Space between buildings (accounts for long buildings)
         this.nextCharacterSpawnZ = -30;
         this.characterSpawnChance = 0.15; // OPTIMIZED: Reduced spawn rate for better FPS
         this.nextGroundSegmentZ = 200; // FIXED: Start much further ahead
@@ -403,6 +403,8 @@ export class GameScene {
             // Wide shops
             { width: 8, height: 5, depth: 4, color: 0xFFC0CB, roofType: 'flat', style: 'shop' },
             { width: 7, height: 4, depth: 3.5, color: 0xFFE4B5, roofType: 'flat', style: 'shop' },
+            // Long buildings (deep)
+            { width: 5, height: 5, depth: 8, color: 0xF0E68C, roofType: 'flat', style: 'garage' },
         ];
 
         // TIER 2: Mixed neighborhood (medium progression)
@@ -413,6 +415,9 @@ export class GameScene {
             { width: 10, height: 6, depth: 4, color: 0xB0E0E6, roofType: 'flat', style: 'warehouse' },
             { width: 9, height: 7, depth: 4, color: 0xDDA0DD, roofType: 'flat', style: 'mall' },
             { width: 12, height: 5, depth: 5, color: 0x98FB98, roofType: 'flat', style: 'supermarket' },
+            // Long buildings (deep)
+            { width: 6, height: 6, depth: 10, color: 0xD2B48C, roofType: 'flat', style: 'depot' },
+            { width: 8, height: 7, depth: 12, color: 0xC0C0C0, roofType: 'flat', style: 'factory' },
         ];
 
         // TIER 3: Downtown/city center (high progression)
@@ -423,6 +428,9 @@ export class GameScene {
             // Wide modern buildings
             { width: 14, height: 8, depth: 5, color: 0x87CEEB, roofType: 'flat', style: 'office' },
             { width: 12, height: 10, depth: 5, color: 0xE6E6FA, roofType: 'flat', style: 'hotel' },
+            // Long buildings (deep)
+            { width: 8, height: 8, depth: 14, color: 0xFFB6C1, roofType: 'flat', style: 'station' },
+            { width: 10, height: 6, depth: 16, color: 0x98FB98, roofType: 'dome', style: 'hangar' },
         ];
 
         // TIER 4: Futuristic/special landmarks (very high progression)
@@ -430,6 +438,8 @@ export class GameScene {
             { width: 8, height: 18, depth: 5, color: 0xFFD700, roofType: 'pyramid', style: 'landmark' },
             { width: 16, height: 12, depth: 6, color: 0xFF69B4, roofType: 'dome', style: 'stadium' },
             { width: 6, height: 20, depth: 4, color: 0xC0C0C0, roofType: 'spire', style: 'spire' },
+            // Long epic buildings
+            { width: 12, height: 10, depth: 18, color: 0xE6E6FA, roofType: 'dome', style: 'convention' },
         ];
 
         // Select building pool based on progression
@@ -456,8 +466,10 @@ export class GameScene {
         }
         const adjustedHeight = Math.min(type.height * heightVariation, 22);
 
-        // Create building on left side
-        const leftBuilding = this.createBuilding(-15, adjustedHeight / 2, z, type.width, adjustedHeight, type.depth, type.color, type.roofType, type.style);
+        // Create building on left side - position based on width to prevent overlap
+        // Buildings edge should be at least 8 units from center (sidewalk edge)
+        const leftX = -(8 + type.width / 2 + 1); // 1 unit buffer from sidewalk
+        const leftBuilding = this.createBuilding(leftX, adjustedHeight / 2, z, type.width, adjustedHeight, type.depth, type.color, type.roofType, type.style);
         leftBuilding.userData.side = 'left';
         leftBuilding.userData.zPos = z;
         this.buildings.push(leftBuilding);
@@ -469,7 +481,9 @@ export class GameScene {
             rightHeightVar = 1 + (Math.random() * 0.2 * progression);
         }
         const rightAdjustedHeight = Math.min(rightType.height * rightHeightVar, 22);
-        const rightBuilding = this.createBuilding(15, rightAdjustedHeight / 2, z, rightType.width, rightAdjustedHeight, rightType.depth, rightType.color, rightType.roofType, rightType.style);
+        // Position based on width to prevent overlap
+        const rightX = 8 + rightType.width / 2 + 1; // 1 unit buffer from sidewalk
+        const rightBuilding = this.createBuilding(rightX, rightAdjustedHeight / 2, z, rightType.width, rightAdjustedHeight, rightType.depth, rightType.color, rightType.roofType, rightType.style);
         rightBuilding.userData.side = 'right';
         rightBuilding.userData.zPos = z;
         this.buildings.push(rightBuilding);
@@ -571,7 +585,7 @@ export class GameScene {
 
         // Style-specific decorations
         if (style === 'shop' || style === 'supermarket') {
-            // Awning over front
+            // Awning over front - positioned at first floor level (fixed height above building bottom)
             const awningGeo = new THREE.BoxGeometry(width * 0.95, 0.15, 1.5);
             const awningColors = [0xFF69B4, 0xFFB347, 0x98FB98, 0x87CEEB];
             const awningMat = new THREE.MeshStandardMaterial({
@@ -579,15 +593,19 @@ export class GameScene {
                 flatShading: true
             });
             const awning = new THREE.Mesh(awningGeo, awningMat);
-            awning.position.set(0, -height * 0.35, depth / 2 + 0.7);
+            // Position at first floor level: 1.2 units above building bottom (-height/2)
+            const awningY = -height / 2 + 1.2;
+            awning.position.set(0, awningY, depth / 2 + 0.7);
             awning.rotation.x = -0.2;
             group.add(awning);
         } else if (style === 'mall' || style === 'hotel') {
-            // Entrance canopy
+            // Entrance canopy - positioned at first floor level (fixed height above building bottom)
             const canopyGeo = new THREE.BoxGeometry(width * 0.4, 0.2, 2);
             const canopyMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, flatShading: true });
             const canopy = new THREE.Mesh(canopyGeo, canopyMat);
-            canopy.position.set(0, -height * 0.4, depth / 2 + 1);
+            // Position at entrance level: 1 unit above building bottom
+            const canopyY = -height / 2 + 1.0;
+            canopy.position.set(0, canopyY, depth / 2 + 1);
             group.add(canopy);
         } else if (style === 'skyscraper' || style === 'tower') {
             // Antenna on top
@@ -608,6 +626,97 @@ export class GameScene {
             const ornament = new THREE.Mesh(ornamentGeo, ornamentMat);
             ornament.position.y = height / 2 + height * 0.3;
             group.add(ornament);
+        } else if (style === 'warehouse' || style === 'depot' || style === 'factory') {
+            // Loading dock doors at ground level
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x444444, flatShading: true });
+            const numDoors = Math.min(3, Math.floor(width / 3));
+            const doorWidth = width * 0.2;
+            const doorHeight = 2;
+            const doorGeo = new THREE.BoxGeometry(doorWidth, doorHeight, 0.1);
+            for (let i = 0; i < numDoors; i++) {
+                const door = new THREE.Mesh(doorGeo, doorMat);
+                const xOffset = (i - (numDoors - 1) / 2) * (width / numDoors);
+                door.position.set(xOffset, -height / 2 + doorHeight / 2, depth / 2 + 0.05);
+                group.add(door);
+            }
+        } else if (style === 'apartment') {
+            // Balconies on front
+            const balconyMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, flatShading: true });
+            const balconyGeo = new THREE.BoxGeometry(1.2, 0.1, 0.8);
+            const railGeo = new THREE.BoxGeometry(1.2, 0.4, 0.05);
+            const numBalconies = Math.min(4, Math.floor(height / 3));
+            for (let i = 0; i < numBalconies; i++) {
+                const yPos = -height / 2 + 2 + i * 2.5;
+                if (yPos < height / 2 - 1) {
+                    const balcony = new THREE.Mesh(balconyGeo, balconyMat);
+                    balcony.position.set(0, yPos, depth / 2 + 0.4);
+                    group.add(balcony);
+                    const rail = new THREE.Mesh(railGeo, balconyMat);
+                    rail.position.set(0, yPos + 0.25, depth / 2 + 0.75);
+                    group.add(rail);
+                }
+            }
+        } else if (style === 'office') {
+            // Entrance columns
+            const columnMat = new THREE.MeshStandardMaterial({ color: 0xD4AF37, flatShading: true });
+            const columnGeo = new THREE.CylinderGeometry(0.3, 0.3, 3, 8);
+            const leftCol = new THREE.Mesh(columnGeo, columnMat);
+            leftCol.position.set(-width / 4, -height / 2 + 1.5, depth / 2 + 0.5);
+            group.add(leftCol);
+            const rightCol = new THREE.Mesh(columnGeo, columnMat);
+            rightCol.position.set(width / 4, -height / 2 + 1.5, depth / 2 + 0.5);
+            group.add(rightCol);
+        } else if (style === 'garage') {
+            // Large garage door
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, flatShading: true });
+            const doorGeo = new THREE.BoxGeometry(width * 0.6, 2.5, 0.1);
+            const door = new THREE.Mesh(doorGeo, doorMat);
+            door.position.set(0, -height / 2 + 1.25, depth / 2 + 0.05);
+            group.add(door);
+        } else if (style === 'station' || style === 'convention') {
+            // Clock tower on top
+            const clockBaseMat = new THREE.MeshStandardMaterial({ color: 0x8B0000, flatShading: true });
+            const clockBaseGeo = new THREE.BoxGeometry(2, 3, 2);
+            const clockBase = new THREE.Mesh(clockBaseGeo, clockBaseMat);
+            clockBase.position.y = height / 2 + 1.5;
+            group.add(clockBase);
+            // Clock face
+            const clockFaceMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, emissive: 0xFFFFFF, emissiveIntensity: 0.3 });
+            const clockFaceGeo = new THREE.CircleGeometry(0.8, 16);
+            const clockFace = new THREE.Mesh(clockFaceGeo, clockFaceMat);
+            clockFace.position.set(0, height / 2 + 2, 1.05);
+            group.add(clockFace);
+        } else if (style === 'hangar') {
+            // Hangar door (large sliding door)
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.5 });
+            const doorGeo = new THREE.BoxGeometry(width * 0.8, height * 0.7, 0.2);
+            const door = new THREE.Mesh(doorGeo, doorMat);
+            door.position.set(0, -height / 2 + (height * 0.35), depth / 2 + 0.1);
+            group.add(door);
+        } else if (style === 'stadium') {
+            // Flags on stadium
+            const flagPoleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2, 6);
+            const flagPoleMat = new THREE.MeshStandardMaterial({ color: 0xC0C0C0 });
+            const flagGeo = new THREE.BoxGeometry(0.8, 0.5, 0.02);
+            const flagColors = [0xFF69B4, 0x87CEEB, 0xFFD700, 0x98FB98];
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI * 2;
+                const flagPole = new THREE.Mesh(flagPoleGeo, flagPoleMat);
+                flagPole.position.set(
+                    Math.cos(angle) * (width / 2 - 1),
+                    height / 2 + 1,
+                    Math.sin(angle) * (depth / 2 - 1)
+                );
+                group.add(flagPole);
+                const flagMat = new THREE.MeshStandardMaterial({ color: flagColors[i], side: THREE.DoubleSide });
+                const flag = new THREE.Mesh(flagGeo, flagMat);
+                flag.position.set(
+                    Math.cos(angle) * (width / 2 - 1) + 0.4,
+                    height / 2 + 1.7,
+                    Math.sin(angle) * (depth / 2 - 1)
+                );
+                group.add(flag);
+            }
         }
 
         group.position.set(x, y, z);

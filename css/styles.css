@@ -571,6 +571,201 @@ input:checked + .toggle-slider:before {
     }
 }
 
+/* Character Selection Screen */
+.character-btn {
+    background: linear-gradient(135deg, #FFB347 0%, #FFCC80 100%);
+    font-size: 18px;
+    padding: 10px 25px;
+}
+
+#character-screen {
+    overflow-y: auto;
+}
+
+#character-coin-display {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 25px;
+    border-radius: 20px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #FFB347;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#character-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    max-width: 600px;
+    margin: 10px auto;
+}
+
+.character-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 15px;
+    width: 150px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.character-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.character-card.selected {
+    border: 3px solid #FF69B4;
+    box-shadow: 0 0 15px rgba(255, 105, 180, 0.5);
+}
+
+.character-card.locked {
+    opacity: 0.7;
+}
+
+.character-card.locked .character-preview {
+    filter: grayscale(80%);
+}
+
+.character-preview {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FFB7C5, #87CEEB);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+}
+
+.character-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: #FF69B4;
+    margin-bottom: 5px;
+}
+
+.character-price {
+    font-size: 14px;
+    color: #FFB347;
+    font-weight: bold;
+}
+
+.character-owned {
+    font-size: 14px;
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+/* Skin Section */
+#skin-section {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    padding: 15px;
+    margin: 15px auto;
+    max-width: 550px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#skin-section h3 {
+    color: #FF69B4;
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+#skin-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.skin-card {
+    background: rgba(255, 183, 197, 0.3);
+    border-radius: 12px;
+    padding: 10px;
+    width: 100px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-align: center;
+}
+
+.skin-card:hover {
+    transform: scale(1.05);
+}
+
+.skin-card.selected {
+    border: 2px solid #FF69B4;
+    background: rgba(255, 105, 180, 0.2);
+}
+
+.skin-card.locked {
+    opacity: 0.6;
+}
+
+.skin-preview {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.skin-name {
+    font-size: 12px;
+    font-weight: bold;
+    color: #FF69B4;
+}
+
+.skin-price {
+    font-size: 11px;
+    color: #FFB347;
+    font-weight: bold;
+}
+
+.skin-owned {
+    font-size: 11px;
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+/* Mobile responsive for character screen */
+@media (max-width: 600px) and (orientation: portrait) {
+    #character-screen {
+        max-height: 85%;
+    }
+
+    .character-card {
+        width: 120px;
+        padding: 10px;
+    }
+
+    .character-preview {
+        width: 60px;
+        height: 60px;
+        font-size: 30px;
+    }
+
+    .character-name {
+        font-size: 14px;
+    }
+
+    .skin-card {
+        width: 80px;
+        padding: 8px;
+    }
+
+    .skin-preview {
+        width: 40px;
+        height: 40px;
+    }
+}
+
 /* Coin collection animation */
 @keyframes coinCollectShake {
     0%, 100% {

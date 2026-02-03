@@ -458,6 +458,36 @@ export class Player {
         return this.position;
     }
 
+    // Update blinking animation (can be called even when game is paused)
+    updateBlink(deltaTime) {
+        if (!this.leftEye || !this.rightEye) return;
+
+        this.blinkTimer += deltaTime;
+        if (!this.isBlinking && this.blinkTimer >= this.blinkInterval) {
+            this.isBlinking = true;
+            this.blinkTimer = 0;
+            this.blinkInterval = 2 + Math.random() * 2;
+        }
+
+        if (this.isBlinking) {
+            const blinkProgress = this.blinkTimer / this.blinkDuration;
+            if (blinkProgress < 0.5) {
+                const scaleY = this.eyeOpenScale * (1 - blinkProgress * 2 * 0.9);
+                this.leftEye.scale.y = scaleY;
+                this.rightEye.scale.y = scaleY;
+            } else if (blinkProgress < 1) {
+                const scaleY = this.eyeOpenScale * (0.1 + (blinkProgress - 0.5) * 2 * 0.9);
+                this.leftEye.scale.y = scaleY;
+                this.rightEye.scale.y = scaleY;
+            } else {
+                this.isBlinking = false;
+                this.blinkTimer = 0;
+                this.leftEye.scale.y = this.eyeOpenScale;
+                this.rightEye.scale.y = this.eyeOpenScale;
+            }
+        }
+    }
+
     playDeathAnimation(callback, options = {}) {
         // Epic kid-friendly death animation with multiple effects
         const startTime = performance.now();
@@ -580,6 +610,26 @@ export class Player {
                     }
                 });
             });
+
+            // Continue blinking during death animation
+            if (this.leftEye && this.rightEye) {
+                const blinkCycle = (elapsed / 1000) % (this.blinkDuration + 0.5); // Blink every 0.5s + duration
+                if (blinkCycle < this.blinkDuration) {
+                    const blinkProgress = blinkCycle / this.blinkDuration;
+                    if (blinkProgress < 0.5) {
+                        const scaleY = this.eyeOpenScale * (1 - blinkProgress * 2 * 0.9);
+                        this.leftEye.scale.y = scaleY;
+                        this.rightEye.scale.y = scaleY;
+                    } else {
+                        const scaleY = this.eyeOpenScale * (0.1 + (blinkProgress - 0.5) * 2 * 0.9);
+                        this.leftEye.scale.y = scaleY;
+                        this.rightEye.scale.y = scaleY;
+                    }
+                } else {
+                    this.leftEye.scale.y = this.eyeOpenScale;
+                    this.rightEye.scale.y = this.eyeOpenScale;
+                }
+            }
 
             if (progress < 1) {
                 requestAnimationFrame(animate);

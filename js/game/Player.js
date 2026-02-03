@@ -2,9 +2,8 @@ import * as THREE from 'three';
 import { GAME_CONFIG, HELLO_KITTY_COLORS, COLORS } from '../utils/Constants.js';
 
 export class Player {
-    constructor(scene, characterManager = null) {
+    constructor(scene) {
         this.scene = scene;
-        this.characterManager = characterManager;
 
         // Position and movement
         this.currentLane = 1; // 0 = left, 1 = center, 2 = right
@@ -31,15 +30,6 @@ export class Player {
     createCharacter() {
         this.character = new THREE.Group();
 
-        // Get bow color from character manager (skin), or use default
-        let bowColor = HELLO_KITTY_COLORS.BOW;
-        if (this.characterManager) {
-            const skin = this.characterManager.getSelectedSkin();
-            if (skin && skin.bowColor) {
-                bowColor = skin.bowColor;
-            }
-        }
-
         // Materials with better appearance
         const bodyMaterial = new THREE.MeshStandardMaterial({
             color: HELLO_KITTY_COLORS.BODY,
@@ -49,12 +39,11 @@ export class Player {
         });
 
         const bowMaterial = new THREE.MeshStandardMaterial({
-            color: bowColor,
+            color: HELLO_KITTY_COLORS.BOW,
             flatShading: false,
             roughness: 0.5,
             metalness: 0.1,
         });
-        this.bowMaterial = bowMaterial; // Store reference for skin changes
 
         const eyeMaterial = new THREE.MeshStandardMaterial({
             color: HELLO_KITTY_COLORS.EYES,
@@ -618,16 +607,6 @@ export class Player {
         ghost.add(ghostMesh);
 
         return ghost;
-    }
-
-    // Update bow color based on selected skin
-    updateSkin() {
-        if (this.characterManager && this.bowMaterial) {
-            const skin = this.characterManager.getSelectedSkin();
-            if (skin && skin.bowColor) {
-                this.bowMaterial.color.setHex(skin.bowColor);
-            }
-        }
     }
 
     reset() {

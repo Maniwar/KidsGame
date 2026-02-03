@@ -8,7 +8,6 @@ import { TouchController } from './input/Touch.js';
 import { World } from './game/World.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { LeaderboardManager } from './firebase/LeaderboardManager.js';
-import { CharacterManager } from './game/CharacterManager.js';
 
 class Game {
     constructor() {
@@ -57,10 +56,6 @@ class Game {
         this.isNewHighScore = false;
         this.leaderboardInitialized = false;
 
-        // Character system - load total coins and character manager
-        this.totalCoins = this.loadTotalCoins();
-        this.characterManager = new CharacterManager();
-
         // PERFORMANCE: Cached frame time (updated once per frame, passed to all systems)
         this.frameTime = 0;
 
@@ -96,7 +91,7 @@ class Game {
         this.lighting = new GameLighting(this.gameScene.getScene());
 
         // Player
-        this.player = new Player(this.gameScene.getScene(), this.characterManager);
+        this.player = new Player(this.gameScene.getScene());
 
         // World (obstacles and collectibles)
         this.world = new World(this.gameScene.getScene());
@@ -282,19 +277,6 @@ class Game {
                 e.preventDefault();
                 this.saveHighScore();
             }
-        });
-
-        // Character screen button
-        document.getElementById('character-button').addEventListener('click', () => {
-            document.getElementById('start-screen').classList.remove('active');
-            document.getElementById('character-screen').classList.add('active');
-            this.populateCharacterScreen();
-        });
-
-        // Character screen back button
-        document.getElementById('character-back-button').addEventListener('click', () => {
-            document.getElementById('character-screen').classList.remove('active');
-            document.getElementById('start-screen').classList.add('active');
         });
     }
 
@@ -1577,12 +1559,8 @@ class Game {
                 // Apply Sugar Rush level multiplier if active
                 const sugarMultiplier = this.getSugarRushMultiplier();
                 const activeMultiplier = this.coinMultiplier * sugarMultiplier;
-                const coinsGained = value * activeMultiplier;
-                this.coins += coinsGained;
+                this.coins += value * activeMultiplier;
                 this.score += value * 10 * activeMultiplier;
-
-                // Add to persistent total coins (for character purchases)
-                this.addToTotalCoins(coinsGained);
 
                 // Play appropriate sound
                 if (collectible.type === 'coin') {
@@ -3037,150 +3015,6 @@ class Game {
                     block: 'center'
                 });
             }, 100);
-        }
-    }
-
-    // Total coins persistence (for character/skin purchases)
-    loadTotalCoins() {
-        try {
-            const saved = localStorage.getItem('helloKittyTotalCoins');
-            return saved ? parseInt(saved, 10) : 0;
-        } catch {
-            return 0;
-        }
-    }
-
-    saveTotalCoins() {
-        try {
-            localStorage.setItem('helloKittyTotalCoins', this.totalCoins.toString());
-        } catch (e) {
-            console.warn('Could not save total coins:', e);
-        }
-    }
-
-    addToTotalCoins(amount) {
-        this.totalCoins += amount;
-        this.saveTotalCoins();
-    }
-
-    // Character selection UI
-    populateCharacterScreen() {
-        // Update coin display
-        document.getElementById('character-coins').textContent = this.totalCoins.toLocaleString();
-
-        const characterGrid = document.getElementById('character-grid');
-        const skinGrid = document.getElementById('skin-grid');
-
-        // Clear existing content
-        characterGrid.innerHTML = '';
-        skinGrid.innerHTML = '';
-
-        const characters = this.characterManager.characters;
-        const selectedChar = this.characterManager.selectedCharacter;
-        const selectedSkin = this.characterManager.selectedSkin;
-
-        // Character icons/emojis for preview
-        const characterIcons = {
-            'hello-kitty': '🎀',
-            'my-melody': '🐰',
-            'cinnamoroll': '☁️',
-            'kuromi': '💀',
-            'pompompurin': '🐶',
-            'keroppi': '🐸'
-        };
-
-        // Populate character grid
-        Object.entries(characters).forEach(([id, char]) => {
-            const isOwned = this.characterManager.isCharacterUnlocked(id);
-            const isSelected = id === selectedChar;
-
-            const card = document.createElement('div');
-            card.className = 'character-card' + (isSelected ? ' selected' : '') + (!isOwned ? ' locked' : '');
-            card.innerHTML = `
-                <div class="character-preview" style="background: ${char.color}">${characterIcons[id] || '?'}</div>
-                <div class="character-name">${char.name}</div>
-                ${isOwned
-                    ? '<div class="character-owned">Owned</div>'
-                    : `<div class="character-price">${char.price} coins</div>`}
-            `;
-
-            card.addEventListener('click', () => this.handleCharacterSelect(id));
-            characterGrid.appendChild(card);
-        });
-
-        // Populate skins for selected character
-        const currentChar = characters[selectedChar];
-        if (currentChar && currentChar.skins) {
-            Object.entries(currentChar.skins).forEach(([skinId, skin]) => {
-                const isOwned = this.characterManager.isSkinUnlocked(selectedChar, skinId);
-                const isSelected = skinId === selectedSkin;
-
-                const card = document.createElement('div');
-                card.className = 'skin-card' + (isSelected ? ' selected' : '') + (!isOwned ? ' locked' : '');
-                card.innerHTML = `
-                    <div class="skin-preview" style="background: ${skin.color}"></div>
-                    <div class="skin-name">${skin.name}</div>
-                    ${isOwned
-                        ? '<div class="skin-owned">Owned</div>'
-                        : `<div class="skin-price">${skin.price} coins</div>`}
-                `;
-
-                card.addEventListener('click', () => this.handleSkinSelect(skinId));
-                skinGrid.appendChild(card);
-            });
-        }
-    }
-
-    handleCharacterSelect(characterId) {
-        const isOwned = this.characterManager.isCharacterUnlocked(characterId);
-        const character = this.characterManager.characters[characterId];
-
-        if (isOwned) {
-            // Select this character
-            this.characterManager.selectCharacter(characterId);
-            this.player.updateSkin(); // Apply new character's default skin
-            this.populateCharacterScreen();
-        } else {
-            // Try to purchase
-            if (this.totalCoins >= character.price) {
-                if (confirm(`Buy ${character.name} for ${character.price} coins?`)) {
-                    this.totalCoins -= character.price;
-                    this.saveTotalCoins();
-                    this.characterManager.unlockCharacter(characterId);
-                    this.characterManager.selectCharacter(characterId);
-                    this.player.updateSkin(); // Apply new character's skin
-                    this.populateCharacterScreen();
-                }
-            } else {
-                alert(`Not enough coins! You need ${character.price - this.totalCoins} more coins.`);
-            }
-        }
-    }
-
-    handleSkinSelect(skinId) {
-        const selectedChar = this.characterManager.selectedCharacter;
-        const isOwned = this.characterManager.isSkinUnlocked(selectedChar, skinId);
-        const skin = this.characterManager.characters[selectedChar].skins[skinId];
-
-        if (isOwned) {
-            // Select this skin
-            this.characterManager.selectSkin(skinId);
-            this.player.updateSkin(); // Apply new skin color
-            this.populateCharacterScreen();
-        } else {
-            // Try to purchase
-            if (this.totalCoins >= skin.price) {
-                if (confirm(`Buy ${skin.name} skin for ${skin.price} coins?`)) {
-                    this.totalCoins -= skin.price;
-                    this.saveTotalCoins();
-                    this.characterManager.unlockSkin(selectedChar, skinId);
-                    this.characterManager.selectSkin(skinId);
-                    this.player.updateSkin(); // Apply new skin color
-                    this.populateCharacterScreen();
-                }
-            } else {
-                alert(`Not enough coins! You need ${skin.price - this.totalCoins} more coins.`);
-            }
         }
     }
 }

@@ -581,6 +581,26 @@ export class Player {
                 });
             });
 
+            // Continue blinking during death animation
+            if (this.leftEye && this.rightEye) {
+                const blinkCycle = (elapsed / 1000) % (this.blinkDuration + 0.5); // Blink every 0.5s + duration
+                if (blinkCycle < this.blinkDuration) {
+                    const blinkProgress = blinkCycle / this.blinkDuration;
+                    if (blinkProgress < 0.5) {
+                        const scaleY = this.eyeOpenScale * (1 - blinkProgress * 2 * 0.9);
+                        this.leftEye.scale.y = scaleY;
+                        this.rightEye.scale.y = scaleY;
+                    } else {
+                        const scaleY = this.eyeOpenScale * (0.1 + (blinkProgress - 0.5) * 2 * 0.9);
+                        this.leftEye.scale.y = scaleY;
+                        this.rightEye.scale.y = scaleY;
+                    }
+                } else {
+                    this.leftEye.scale.y = this.eyeOpenScale;
+                    this.rightEye.scale.y = this.eyeOpenScale;
+                }
+            }
+
             if (progress < 1) {
                 requestAnimationFrame(animate);
             } else {

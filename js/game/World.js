@@ -115,31 +115,40 @@ export class World {
         }
 
         // Generate candies - sweet collectibles for Sugar Rush meter!
-        let lastCandyZ = chunkStartZ;
+        let lastCandyZ = chunkStartZ - 3; // Offset from coins to prevent overlap
         while (lastCandyZ > chunkEndZ) {
-            const spacing = 6 + Math.random() * 6; // Reduced spacing for more candies!
+            const spacing = 8 + Math.random() * 6; // Increased spacing to prevent overlap
             lastCandyZ -= spacing;
 
             if (lastCandyZ < chunkEndZ) break;
 
-            // 35% chance of candy at each position (increased for faster meter filling)
-            if (Math.random() < 0.35) {
+            // 30% chance of candy at each position
+            if (Math.random() < 0.30) {
                 // Determine candy type (weighted - star cookie is rare)
-                let type = 'lollipop';
                 const candyRoll = Math.random();
+                let type;
 
                 if (candyRoll < 0.03) {
                     type = 'star-cookie'; // 3% - rare, fills meter a lot!
-                } else if (candyRoll < 0.18) {
-                    type = 'cupcake'; // 15%
-                } else if (candyRoll < 0.35) {
-                    type = 'donut'; // 17%
-                } else if (candyRoll < 0.52) {
-                    type = 'ice-cream'; // 17%
-                } else if (candyRoll < 0.72) {
-                    type = 'wrapped-candy'; // 20%
+                } else if (candyRoll < 0.10) {
+                    type = 'cake'; // 7%
+                } else if (candyRoll < 0.17) {
+                    type = 'cake-slice'; // 7%
+                } else if (candyRoll < 0.27) {
+                    type = 'cupcake'; // 10%
+                } else if (candyRoll < 0.37) {
+                    type = 'donut'; // 10%
+                } else if (candyRoll < 0.47) {
+                    type = 'ice-cream'; // 10%
+                } else if (candyRoll < 0.57) {
+                    type = 'strawberry'; // 10%
+                } else if (candyRoll < 0.67) {
+                    type = 'cherry'; // 10%
+                } else if (candyRoll < 0.82) {
+                    type = 'wrapped-candy'; // 15%
+                } else {
+                    type = 'lollipop'; // 18% (most common)
                 }
-                // else lollipop - 28% (most common)
 
                 const lane = Math.floor(Math.random() * GAME_CONFIG.NUM_LANES);
                 const candy = new Candy(this.scene, lane, lastCandyZ, type);

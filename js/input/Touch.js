@@ -27,54 +27,77 @@ export class TouchController {
         this.onHoldLeft = null;
         this.onHoldRight = null;
 
+        // Store bound handlers for cleanup
+        this.boundTouchStart = this.handleTouchStart.bind(this);
+        this.boundTouchEnd = this.handleTouchEnd.bind(this);
+        this.boundTouchMove = this.handleTouchMove.bind(this);
+        this.canvas = null;
+
         this.setupEventListeners();
     }
 
-    setupEventListeners() {
-        const canvas = document.getElementById('game-canvas');
+    handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        this.touchStartX = touch.clientX;
+        this.touchStartY = touch.clientY;
 
-        // Touch start
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
+        // Initialize hold tracking
+        this.isHolding = true;
+        this.holdStartX = touch.clientX;
+        this.holdStartY = touch.clientY;
+        this.currentTouchX = touch.clientX;
+        this.currentTouchY = touch.clientY;
+        this.lastHoldMoveTime = performance.now();
+
+        // Start hold update loop
+        this.startHoldUpdate();
+    }
+
+    handleTouchEnd(e) {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        this.touchEndX = touch.clientX;
+        this.touchEndY = touch.clientY;
+
+        // Stop hold tracking
+        this.isHolding = false;
+        this.stopHoldUpdate();
+
+        this.handleSwipe();
+    }
+
+    handleTouchMove(e) {
+        e.preventDefault();
+        if (e.touches.length > 0) {
             const touch = e.touches[0];
-            this.touchStartX = touch.clientX;
-            this.touchStartY = touch.clientY;
-
-            // Initialize hold tracking
-            this.isHolding = true;
-            this.holdStartX = touch.clientX;
-            this.holdStartY = touch.clientY;
             this.currentTouchX = touch.clientX;
             this.currentTouchY = touch.clientY;
-            this.lastHoldMoveTime = performance.now();
+        }
+    }
 
-            // Start hold update loop
-            this.startHoldUpdate();
-        }, { passive: false });
+    setupEventListeners() {
+        this.canvas = document.getElementById('game-canvas');
 
-        // Touch end - detect swipe direction
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            const touch = e.changedTouches[0];
-            this.touchEndX = touch.clientX;
-            this.touchEndY = touch.clientY;
+        this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+        this.canvas.addEventListener('touchend', this.boundTouchEnd, { passive: false });
+        this.canvas.addEventListener('touchmove', this.boundTouchMove, { passive: false });
+    }
 
-            // Stop hold tracking
-            this.isHolding = false;
-            this.stopHoldUpdate();
-
-            this.handleSwipe();
-        }, { passive: false });
-
-        // Touch move - track current position for hold-to-move
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (e.touches.length > 0) {
-                const touch = e.touches[0];
-                this.currentTouchX = touch.clientX;
-                this.currentTouchY = touch.clientY;
-            }
-        }, { passive: false });
+    destroy() {
+        this.stopHoldUpdate();
+        if (this.canvas) {
+            this.canvas.removeEventListener('touchstart', this.boundTouchStart);
+            this.canvas.removeEventListener('touchend', this.boundTouchEnd);
+            this.canvas.removeEventListener('touchmove', this.boundTouchMove);
+        }
+        this.onSwipeLeft = null;
+        this.onSwipeRight = null;
+        this.onSwipeUp = null;
+        this.onSwipeDown = null;
+        this.onTap = null;
+        this.onHoldLeft = null;
+        this.onHoldRight = null;
     }
 
     startHoldUpdate() {

@@ -55,6 +55,7 @@ class Game {
         this.localScores = this.loadLocalScores();  // Personal best scores
         this.isNewHighScore = false;
         this.leaderboardInitialized = false;
+        this.leaderboardUnsubscribe = null; // Store unsubscribe function for cleanup
 
         // PERFORMANCE: Cached frame time (updated once per frame, passed to all systems)
         this.frameTime = 0;
@@ -156,8 +157,8 @@ class Game {
             this.highScores = await this.leaderboard.getTopScores(10);
             this.displayLeaderboard();
 
-            // Subscribe to real-time updates
-            this.leaderboard.subscribeToLeaderboard((scores) => {
+            // Subscribe to real-time updates (store unsubscribe for cleanup)
+            this.leaderboardUnsubscribe = this.leaderboard.subscribeToLeaderboard((scores) => {
                 this.highScores = scores;
                 // Only update display if game over screen is visible
                 const gameOverScreen = document.getElementById('game-over-screen');
@@ -3016,6 +3017,38 @@ class Game {
                 });
             }, 100);
         }
+    }
+
+    // Cleanup method to prevent memory leaks
+    destroy() {
+        // Unsubscribe from Firebase real-time updates
+        if (this.leaderboardUnsubscribe) {
+            this.leaderboardUnsubscribe();
+            this.leaderboardUnsubscribe = null;
+        }
+
+        // Destroy input controllers
+        if (this.keyboard) {
+            this.keyboard.destroy();
+        }
+        if (this.touch) {
+            this.touch.destroy();
+        }
+
+        // Clear audio
+        if (this.audio) {
+            this.audio.clearMelodyCache();
+        }
+
+        // Cancel animation frame
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+        }
+
+        // Clear particle pool
+        this.particlePool = [];
+        this.activeParticles = [];
+        this.animations = [];
     }
 }
 

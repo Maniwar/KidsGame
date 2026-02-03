@@ -414,39 +414,8 @@ export class Player {
             }
         }
 
-        // Blinking animation
-        this.blinkTimer += deltaTime;
-        if (!this.isBlinking && this.blinkTimer >= this.blinkInterval) {
-            // Start a blink
-            this.isBlinking = true;
-            this.blinkTimer = 0;
-            // Randomize next blink interval (2-4 seconds)
-            this.blinkInterval = 2 + Math.random() * 2;
-        }
-
-        if (this.isBlinking) {
-            // Blink by scaling eyes vertically
-            const blinkProgress = this.blinkTimer / this.blinkDuration;
-            if (blinkProgress < 0.5) {
-                // Closing eyes
-                const closeAmount = blinkProgress * 2; // 0 to 1
-                const scaleY = this.eyeOpenScale * (1 - closeAmount * 0.9); // Close to 10% height
-                this.leftEye.scale.y = scaleY;
-                this.rightEye.scale.y = scaleY;
-            } else if (blinkProgress < 1) {
-                // Opening eyes
-                const openAmount = (blinkProgress - 0.5) * 2; // 0 to 1
-                const scaleY = this.eyeOpenScale * (0.1 + openAmount * 0.9); // Open back up
-                this.leftEye.scale.y = scaleY;
-                this.rightEye.scale.y = scaleY;
-            } else {
-                // Blink complete
-                this.isBlinking = false;
-                this.blinkTimer = 0;
-                this.leftEye.scale.y = this.eyeOpenScale;
-                this.rightEye.scale.y = this.eyeOpenScale;
-            }
-        }
+        // Blinking animation (uses shared updateBlink method)
+        this.updateBlink(deltaTime);
 
         // Increase speed over time
         this.speed = Math.min(

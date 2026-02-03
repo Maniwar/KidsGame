@@ -2170,7 +2170,7 @@ class Game {
                         left: 50%;
                         transform: translateX(-50%);
                         width: 200px;
-                        z-index: 100;
+                        z-index: 500;
                         text-align: center;
                     }
                     #candy-meter-label {
@@ -2340,7 +2340,8 @@ class Game {
             // Show actual meter value - during Sugar Rush this drains and must be refilled
             const maxValue = this.isSugarRush ? 100 : this.candyMeterMax; // Use 100 as max during Sugar Rush
             const percent = Math.min((this.candyMeter / maxValue) * 100, 100);
-            this.domElements.candyMeterFill.style.width = `${percent}%`;
+            // Always show at least 2% so bar is visible when low
+            this.domElements.candyMeterFill.style.width = `${Math.max(percent, this.candyMeter > 0 ? 2 : 0)}%`;
 
             // Change color based on urgency during Sugar Rush
             if (this.isSugarRush) {
@@ -2353,6 +2354,19 @@ class Game {
                     // Normal rainbow gradient
                     this.domElements.candyMeterFill.style.background = 'linear-gradient(90deg, #FF69B4 0%, #FFD700 25%, #87CEEB 50%, #98FB98 75%, #FF69B4 100%)';
                 }
+            }
+        }
+
+        // Update meter label to show decay percentage during Sugar Rush
+        const meterLabel = document.getElementById('candy-meter-label');
+        if (meterLabel) {
+            if (this.isSugarRush) {
+                const percent = Math.round(this.candyMeter);
+                meterLabel.textContent = `🍭 ${percent}% 🍬`;
+            } else if (this.sugarRushCooldown > 0) {
+                meterLabel.textContent = `🍭 Cooldown ${Math.ceil(this.sugarRushCooldown)}s 🍬`;
+            } else {
+                meterLabel.textContent = '🍭 Sugar Rush 🍬';
             }
         }
 

@@ -569,9 +569,8 @@ class Game {
             // Update meter UI to show decay
             this.animateCandyMeter();
         } else if (this.sugarRushCooldown <= 0 && this.candyMeter > 0) {
-            // Level 0 decay - meter slowly drains even when building up!
-            // Slower than Sugar Rush levels so it's still achievable
-            const level0DecayRate = 5; // 5/sec - slower than level 1's 10/sec
+            // Level 0 decay - meter drains even when building up!
+            const level0DecayRate = 8; // 8/sec - need to collect candy consistently
             this.candyMeter -= level0DecayRate * deltaTime;
             if (this.candyMeter < 0) this.candyMeter = 0;
 
@@ -2279,19 +2278,19 @@ class Game {
                     }
                     #sugar-rush-timer {
                         position: fixed;
-                        bottom: 50px;
+                        bottom: 75px;
                         left: 50%;
                         transform: translateX(-50%);
                         font-family: 'Comic Sans MS', 'Arial', sans-serif;
-                        font-size: 24px;
+                        font-size: 18px;
                         font-weight: bold;
                         color: #FF69B4;
                         text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                        animation: sugarTimerPulse 0.5s ease-in-out infinite alternate;
-                    }
-                    @keyframes sugarTimerPulse {
-                        from { transform: translateX(-50%) scale(1); }
-                        to { transform: translateX(-50%) scale(1.1); }
+                        background: rgba(255,255,255,0.85);
+                        padding: 6px 15px;
+                        border-radius: 20px;
+                        border: 2px solid #FF69B4;
+                        white-space: nowrap;
                     }
                     .sugar-rush-notification {
                         position: fixed;
@@ -2344,14 +2343,15 @@ class Game {
                             bottom: 15px;
                         }
                         #candy-meter-label {
-                            font-size: 12px;
+                            font-size: 11px;
                         }
                         #candy-meter-bar {
-                            height: 16px;
+                            height: 14px;
                         }
                         #sugar-rush-timer {
-                            font-size: 14px;
-                            bottom: 40px;
+                            font-size: 12px;
+                            bottom: 60px;
+                            padding: 4px 10px;
                         }
                         .sugar-rush-notification {
                             top: auto;

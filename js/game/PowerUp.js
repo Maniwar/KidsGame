@@ -246,8 +246,10 @@ export class PowerUp {
         // Mushroom 🍄
         const mushroomGroup = new THREE.Group();
 
-        // Red cap (dome shape)
-        const capGeometry = new THREE.SphereGeometry(0.3, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        // Red cap (dome shape) - center at y=0.1, radius 0.3
+        const capRadius = 0.3;
+        const capY = 0.1;
+        const capGeometry = new THREE.SphereGeometry(capRadius, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
         const capMaterial = new THREE.MeshStandardMaterial({
             color: 0xFF0000,
             flatShading: true,
@@ -255,30 +257,35 @@ export class PowerUp {
             emissiveIntensity: 0.2,
         });
         const cap = new THREE.Mesh(capGeometry, capMaterial);
-        cap.position.y = 0.1;
+        cap.position.y = capY;
         mushroomGroup.add(cap);
 
-        // White spots on cap - more visible
-        const spotGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+        // White spots on cap surface - positioned to protrude from cap
+        const spotGeometry = new THREE.SphereGeometry(0.055, 8, 8);
         const spotMaterial = new THREE.MeshStandardMaterial({
             color: 0xFFFFFF,
             emissive: 0xFFFFFF,
-            emissiveIntensity: 0.3,
+            emissiveIntensity: 0.5,
         });
 
-        // Top spot
+        // Top spot - on top of cap
         const topSpot = new THREE.Mesh(spotGeometry, spotMaterial);
-        topSpot.position.set(0, 0.35, 0);
+        topSpot.position.set(0, capY + capRadius, 0); // y = 0.4
         mushroomGroup.add(topSpot);
 
-        // Ring of spots around the cap
+        // Ring of spots around the cap - positioned ON the sphere surface
+        // At 40 degrees from vertical
+        const spotAngleFromTop = Math.PI * 0.22; // ~40 degrees
+        const spotHeight = capRadius * Math.cos(spotAngleFromTop); // height above cap center
+        const spotRadius = capRadius * Math.sin(spotAngleFromTop); // horizontal distance from center
+
         for (let i = 0; i < 5; i++) {
             const spot = new THREE.Mesh(spotGeometry, spotMaterial);
-            const angle = (i / 5) * Math.PI * 2;
+            const angle = (i / 5) * Math.PI * 2 + 0.3; // offset so not aligned with top
             spot.position.set(
-                Math.cos(angle) * 0.2,
-                0.2,
-                Math.sin(angle) * 0.2
+                Math.cos(angle) * spotRadius,
+                capY + spotHeight,
+                Math.sin(angle) * spotRadius
             );
             mushroomGroup.add(spot);
         }

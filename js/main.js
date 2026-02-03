@@ -570,7 +570,7 @@ class Game {
             this.animateCandyMeter();
         } else if (this.sugarRushCooldown <= 0 && this.candyMeter > 0) {
             // Level 0 decay - meter drains even when building up!
-            const level0DecayRate = 8; // 8/sec - need to collect candy consistently
+            const level0DecayRate = 6; // 6/sec - balanced decay while building up
             this.candyMeter -= level0DecayRate * deltaTime;
             if (this.candyMeter < 0) this.candyMeter = 0;
 

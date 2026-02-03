@@ -540,7 +540,7 @@ class Game {
             this.invincibilityTimer -= deltaTime;
         }
 
-        // Update Sugar Rush - meter decays over time, collect candy to maintain!
+        // Update Sugar Rush - meter ALWAYS decays, collect candy to build/maintain!
         if (this.isSugarRush) {
             // Decay the meter - higher levels decay FASTER!
             const config = this.sugarRushConfigs[this.sugarRushLevel];
@@ -564,6 +564,15 @@ class Game {
                 // Sugar Rush effects - candy magnet
                 this.attractCandies(deltaTime);
             }
+
+            // Update meter UI to show decay
+            this.animateCandyMeter();
+        } else if (this.sugarRushCooldown <= 0 && this.candyMeter > 0) {
+            // Level 0 decay - meter slowly drains even when building up!
+            // Slower than Sugar Rush levels so it's still achievable
+            const level0DecayRate = 5; // 5/sec - slower than level 1's 10/sec
+            this.candyMeter -= level0DecayRate * deltaTime;
+            if (this.candyMeter < 0) this.candyMeter = 0;
 
             // Update meter UI to show decay
             this.animateCandyMeter();

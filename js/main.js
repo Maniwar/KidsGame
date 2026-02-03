@@ -8,6 +8,7 @@ import { TouchController } from './input/Touch.js';
 import { World } from './game/World.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { LeaderboardManager } from './firebase/LeaderboardManager.js';
+import { CharacterManager } from './game/CharacterManager.js';
 
 class Game {
     constructor() {
@@ -56,6 +57,10 @@ class Game {
         this.isNewHighScore = false;
         this.leaderboardInitialized = false;
 
+        // Character system - load total coins and character manager
+        this.totalCoins = this.loadTotalCoins();
+        this.characterManager = new CharacterManager();
+
         // PERFORMANCE: Cached frame time (updated once per frame, passed to all systems)
         this.frameTime = 0;
 
@@ -91,7 +96,7 @@ class Game {
         this.lighting = new GameLighting(this.gameScene.getScene());
 
         // Player
-        this.player = new Player(this.gameScene.getScene());
+        this.player = new Player(this.gameScene.getScene(), this.characterManager);
 
         // World (obstacles and collectibles)
         this.world = new World(this.gameScene.getScene());
@@ -278,6 +283,544 @@ class Game {
                 this.saveHighScore();
             }
         });
+
+        // Character screen button
+        document.getElementById('character-button').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('character-screen').classList.add('active');
+            this.populateCharacterScreen();
+            this.startCharacterPreview();
+        });
+
+        // Character screen back button
+        document.getElementById('character-back-button').addEventListener('click', () => {
+            document.getElementById('character-screen').classList.remove('active');
+            document.getElementById('start-screen').classList.add('active');
+            this.stopCharacterPreview();
+        });
+    }
+
+    // Character preview system
+    setupCharacterPreview() {
+        const canvas = document.getElementById('character-preview-canvas');
+        if (!canvas) return;
+
+        // Create preview renderer
+        this.previewRenderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            alpha: true,
+            antialias: true
+        });
+        this.previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.previewRenderer.setClearColor(0x000000, 0);
+
+        // Create preview scene
+        this.previewScene = new THREE.Scene();
+
+        // Create preview camera
+        this.previewCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+        this.previewCamera.position.set(0, 1.2, 3.5);
+        this.previewCamera.lookAt(0, 0.8, 0);
+
+        // Add lighting to preview
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        this.previewScene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(2, 3, 2);
+        this.previewScene.add(directionalLight);
+
+        const fillLight = new THREE.DirectionalLight(0xFFB7C5, 0.3);
+        fillLight.position.set(-2, 1, -1);
+        this.previewScene.add(fillLight);
+
+        this.previewCharacter = null;
+        this.previewAnimationId = null;
+    }
+
+    startCharacterPreview() {
+        if (!this.previewRenderer) {
+            this.setupCharacterPreview();
+        }
+
+        // Update canvas size
+        const container = document.getElementById('character-preview-container');
+        if (container) {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            this.previewRenderer.setSize(width, height);
+            this.previewCamera.aspect = width / height;
+            this.previewCamera.updateProjectionMatrix();
+        }
+
+        // Create the preview character
+        this.updateCharacterPreview();
+
+        // Start animation loop
+        const animate = () => {
+            this.previewAnimationId = requestAnimationFrame(animate);
+
+            // Rotate character slowly
+            if (this.previewCharacter) {
+                this.previewCharacter.rotation.y += 0.01;
+            }
+
+            this.previewRenderer.render(this.previewScene, this.previewCamera);
+        };
+        animate();
+    }
+
+    stopCharacterPreview() {
+        if (this.previewAnimationId) {
+            cancelAnimationFrame(this.previewAnimationId);
+            this.previewAnimationId = null;
+        }
+    }
+
+    updateCharacterPreview() {
+        // Remove old preview character
+        if (this.previewCharacter) {
+            this.previewScene.remove(this.previewCharacter);
+            // Dispose geometries and materials
+            this.previewCharacter.traverse((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            });
+        }
+
+        // Create new preview character using Player's creation methods
+        this.previewCharacter = new THREE.Group();
+
+        // Temporarily create a preview player to use its mesh creation
+        const tempCharManager = this.characterManager;
+        const characterId = tempCharManager.selectedCharacter;
+        const skin = tempCharManager.getSelectedSkin();
+
+        // Create character mesh based on type
+        this.createPreviewMesh(characterId, skin);
+
+        this.previewScene.add(this.previewCharacter);
+    }
+
+    createPreviewMesh(characterId, skin) {
+        // Simplified character meshes for preview (based on Player.js but simplified)
+        switch (characterId) {
+            case 'my-melody':
+                this.createPreviewMyMelody(skin);
+                break;
+            case 'cinnamoroll':
+                this.createPreviewCinnamoroll(skin);
+                break;
+            case 'kuromi':
+                this.createPreviewKuromi(skin);
+                break;
+            case 'pompompurin':
+                this.createPreviewPompompurin(skin);
+                break;
+            case 'keroppi':
+                this.createPreviewKeroppi(skin);
+                break;
+            default:
+                this.createPreviewHelloKitty(skin);
+        }
+    }
+
+    createPreviewHelloKitty(skin) {
+        const bowColor = skin?.bowColor || 0xFF0000;
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.6 });
+        const bowMat = new THREE.MeshStandardMaterial({ color: bowColor, roughness: 0.5 });
+
+        // Body
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 16), bodyMat);
+        body.position.y = 0.45;
+        body.scale.set(1, 1.05, 0.95);
+        this.previewCharacter.add(body);
+
+        // Head
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), bodyMat);
+        head.position.y = 1.2;
+        head.scale.set(1.25, 0.95, 1.1);
+        this.previewCharacter.add(head);
+
+        // Ears
+        const earGeo = new THREE.SphereGeometry(0.15, 12, 12);
+        const leftEar = new THREE.Mesh(earGeo, bodyMat);
+        leftEar.position.set(-0.38, 1.6, -0.05);
+        leftEar.scale.set(0.9, 1.3, 0.9);
+        this.previewCharacter.add(leftEar);
+        const rightEar = new THREE.Mesh(earGeo, bodyMat);
+        rightEar.position.set(0.38, 1.6, -0.05);
+        rightEar.scale.set(0.9, 1.3, 0.9);
+        this.previewCharacter.add(rightEar);
+
+        // Bow
+        const bowGroup = new THREE.Group();
+        const loopGeo = new THREE.SphereGeometry(0.28, 12, 12);
+        const leftLoop = new THREE.Mesh(loopGeo, bowMat);
+        leftLoop.position.set(-0.22, 0, 0);
+        leftLoop.scale.set(0.7, 1.1, 0.6);
+        bowGroup.add(leftLoop);
+        const rightLoop = new THREE.Mesh(loopGeo, bowMat);
+        rightLoop.position.set(0.22, 0, 0);
+        rightLoop.scale.set(0.7, 1.1, 0.6);
+        bowGroup.add(rightLoop);
+        const center = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), bowMat);
+        bowGroup.add(center);
+        bowGroup.position.set(0.35, 1.55, 0.05);
+        this.previewCharacter.add(bowGroup);
+
+        // Eyes
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        const eyeGeo = new THREE.SphereGeometry(0.08, 12, 12);
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.28, 1.22, 0.56);
+        leftEye.scale.set(0.9, 1.2, 0.5);
+        this.previewCharacter.add(leftEye);
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.28, 1.22, 0.56);
+        rightEye.scale.set(0.9, 1.2, 0.5);
+        this.previewCharacter.add(rightEye);
+
+        // Nose
+        const noseMat = new THREE.MeshStandardMaterial({ color: 0xFFD93D });
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), noseMat);
+        nose.position.set(0, 1.06, 0.5);
+        this.previewCharacter.add(nose);
+
+        // Whiskers
+        const whiskerMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        const whiskerGeo = new THREE.BoxGeometry(0.35, 0.015, 0.015);
+        for (let i = 0; i < 3; i++) {
+            const lw = new THREE.Mesh(whiskerGeo, whiskerMat);
+            lw.position.set(-0.35, 1.15 - i * 0.06, 0.42);
+            lw.rotation.z = [-0.15, 0, 0.15][i];
+            this.previewCharacter.add(lw);
+            const rw = new THREE.Mesh(whiskerGeo, whiskerMat);
+            rw.position.set(0.35, 1.15 - i * 0.06, 0.42);
+            rw.rotation.z = [0.15, 0, -0.15][i];
+            this.previewCharacter.add(rw);
+        }
+    }
+
+    createPreviewMyMelody(skin) {
+        const hoodColor = skin?.hoodColor || 0xFFB6C1;
+        const flowerColor = skin?.flowerColor || 0xFF69B4;
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.6 });
+        const hoodMat = new THREE.MeshStandardMaterial({ color: hoodColor, roughness: 0.5 });
+
+        // Body
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 16), bodyMat);
+        body.position.y = 0.45;
+        this.previewCharacter.add(body);
+
+        // Head
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 16), bodyMat);
+        head.position.y = 1.15;
+        this.previewCharacter.add(head);
+
+        // Hood
+        const hoodGeo = new THREE.SphereGeometry(0.5, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.6);
+        const hood = new THREE.Mesh(hoodGeo, hoodMat);
+        hood.position.y = 1.2;
+        hood.scale.set(1.15, 1, 1.05);
+        this.previewCharacter.add(hood);
+
+        // Ears
+        const earGeo = new THREE.CapsuleGeometry(0.12, 0.5, 8, 12);
+        const leftEar = new THREE.Mesh(earGeo, hoodMat);
+        leftEar.position.set(-0.25, 1.75, -0.05);
+        leftEar.rotation.z = 0.2;
+        this.previewCharacter.add(leftEar);
+        const rightEar = new THREE.Mesh(earGeo, hoodMat);
+        rightEar.position.set(0.25, 1.75, -0.05);
+        rightEar.rotation.z = -0.2;
+        this.previewCharacter.add(rightEar);
+
+        // Flower
+        const flowerMat = new THREE.MeshStandardMaterial({ color: flowerColor });
+        const flowerCenter = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshStandardMaterial({ color: 0xFFFF00 }));
+        flowerCenter.position.set(0.38, 1.55, 0.15);
+        this.previewCharacter.add(flowerCenter);
+        for (let i = 0; i < 5; i++) {
+            const petal = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 6), flowerMat);
+            const angle = (i / 5) * Math.PI * 2;
+            petal.position.set(0.38 + Math.cos(angle) * 0.1, 1.55 + Math.sin(angle) * 0.1, 0.12);
+            petal.scale.set(1, 1, 0.5);
+            this.previewCharacter.add(petal);
+        }
+
+        // Eyes
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        const eyeGeo = new THREE.SphereGeometry(0.06, 12, 12);
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.18, 1.15, 0.42);
+        this.previewCharacter.add(leftEye);
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.18, 1.15, 0.42);
+        this.previewCharacter.add(rightEye);
+    }
+
+    createPreviewCinnamoroll(skin) {
+        const eyeColor = skin?.eyeColor || 0x4169E1;
+        const cheekColor = skin?.cheekColor || 0xFFB6C1;
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.6 });
+
+        // Body
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), bodyMat);
+        body.position.y = 0.48;
+        this.previewCharacter.add(body);
+
+        // Head
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.48, 16, 16), bodyMat);
+        head.position.y = 1.18;
+        this.previewCharacter.add(head);
+
+        // Big floppy ears
+        const earGeo = new THREE.SphereGeometry(0.35, 12, 12);
+        const leftEar = new THREE.Mesh(earGeo, bodyMat);
+        leftEar.position.set(-0.55, 1.35, -0.1);
+        leftEar.scale.set(0.5, 1.2, 0.4);
+        leftEar.rotation.z = 0.8;
+        this.previewCharacter.add(leftEar);
+        const rightEar = new THREE.Mesh(earGeo, bodyMat);
+        rightEar.position.set(0.55, 1.35, -0.1);
+        rightEar.scale.set(0.5, 1.2, 0.4);
+        rightEar.rotation.z = -0.8;
+        this.previewCharacter.add(rightEar);
+
+        // Eyes
+        const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+        const eyeMat = new THREE.MeshStandardMaterial({ color: eyeColor });
+        const eyeGeo = new THREE.SphereGeometry(0.12, 12, 12);
+        const leftEyeW = new THREE.Mesh(eyeGeo, eyeWhiteMat);
+        leftEyeW.position.set(-0.2, 1.2, 0.42);
+        this.previewCharacter.add(leftEyeW);
+        const rightEyeW = new THREE.Mesh(eyeGeo, eyeWhiteMat);
+        rightEyeW.position.set(0.2, 1.2, 0.42);
+        this.previewCharacter.add(rightEyeW);
+        const pupilGeo = new THREE.SphereGeometry(0.07, 8, 8);
+        const leftPupil = new THREE.Mesh(pupilGeo, eyeMat);
+        leftPupil.position.set(-0.2, 1.18, 0.5);
+        this.previewCharacter.add(leftPupil);
+        const rightPupil = new THREE.Mesh(pupilGeo, eyeMat);
+        rightPupil.position.set(0.2, 1.18, 0.5);
+        this.previewCharacter.add(rightPupil);
+
+        // Cheeks
+        const cheekMat = new THREE.MeshStandardMaterial({ color: cheekColor, transparent: true, opacity: 0.7 });
+        const cheekGeo = new THREE.SphereGeometry(0.08, 8, 8);
+        const leftCheek = new THREE.Mesh(cheekGeo, cheekMat);
+        leftCheek.position.set(-0.35, 1.08, 0.35);
+        this.previewCharacter.add(leftCheek);
+        const rightCheek = new THREE.Mesh(cheekGeo, cheekMat);
+        rightCheek.position.set(0.35, 1.08, 0.35);
+        this.previewCharacter.add(rightCheek);
+
+        // Curl
+        const curlMat = new THREE.MeshStandardMaterial({ color: 0x4169E1 });
+        const curl = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 6, 12, Math.PI * 1.5), curlMat);
+        curl.position.set(0, 1.58, 0.25);
+        curl.rotation.x = Math.PI * 0.3;
+        this.previewCharacter.add(curl);
+    }
+
+    createPreviewKuromi(skin) {
+        const hoodColor = skin?.hoodColor || 0x2F2F2F;
+        const accentColor = skin?.accentColor || 0xFF69B4;
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.6 });
+        const hoodMat = new THREE.MeshStandardMaterial({ color: hoodColor, roughness: 0.4 });
+
+        // Body
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 16), bodyMat);
+        body.position.y = 0.45;
+        this.previewCharacter.add(body);
+
+        // Head
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 16), bodyMat);
+        head.position.y = 1.15;
+        this.previewCharacter.add(head);
+
+        // Hood
+        const hoodGeo = new THREE.SphereGeometry(0.5, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.55);
+        const hood = new THREE.Mesh(hoodGeo, hoodMat);
+        hood.position.y = 1.22;
+        hood.scale.set(1.18, 1.05, 1.08);
+        this.previewCharacter.add(hood);
+
+        // Ears (devil horns)
+        const earGeo = new THREE.ConeGeometry(0.12, 0.5, 8);
+        const leftEar = new THREE.Mesh(earGeo, hoodMat);
+        leftEar.position.set(-0.35, 1.65, -0.05);
+        leftEar.rotation.z = 0.4;
+        this.previewCharacter.add(leftEar);
+        const rightEar = new THREE.Mesh(earGeo, hoodMat);
+        rightEar.position.set(0.35, 1.65, -0.05);
+        rightEar.rotation.z = -0.4;
+        this.previewCharacter.add(rightEar);
+
+        // Inner ears (pink)
+        const innerMat = new THREE.MeshStandardMaterial({ color: accentColor });
+        const innerGeo = new THREE.ConeGeometry(0.06, 0.3, 8);
+        const leftInner = new THREE.Mesh(innerGeo, innerMat);
+        leftInner.position.set(-0.32, 1.6, 0.02);
+        leftInner.rotation.z = 0.4;
+        this.previewCharacter.add(leftInner);
+        const rightInner = new THREE.Mesh(innerGeo, innerMat);
+        rightInner.position.set(0.32, 1.6, 0.02);
+        rightInner.rotation.z = -0.4;
+        this.previewCharacter.add(rightInner);
+
+        // Skull
+        const skullMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+        const skull = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), skullMat);
+        skull.position.set(0, 1.55, 0.35);
+        skull.scale.set(1, 0.9, 0.5);
+        this.previewCharacter.add(skull);
+
+        // Eyes
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        const eyeGeo = new THREE.SphereGeometry(0.06, 12, 12);
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.18, 1.15, 0.42);
+        leftEye.scale.set(1, 0.8, 0.5);
+        this.previewCharacter.add(leftEye);
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.18, 1.15, 0.42);
+        rightEye.scale.set(1, 0.8, 0.5);
+        this.previewCharacter.add(rightEye);
+
+        // Tail
+        const tailMat = new THREE.MeshStandardMaterial({ color: hoodColor });
+        const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, 0.4, 6), tailMat);
+        tail.position.set(0, 0.35, -0.35);
+        tail.rotation.x = 0.5;
+        this.previewCharacter.add(tail);
+        const tipMat = new THREE.MeshStandardMaterial({ color: accentColor });
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.1, 3), tipMat);
+        tip.position.set(0, 0.15, -0.5);
+        tip.rotation.x = Math.PI / 2;
+        this.previewCharacter.add(tip);
+    }
+
+    createPreviewPompompurin(skin) {
+        const bodyColor = skin?.bodyColor || 0xFFD700;
+        const beretColor = skin?.beretColor || 0x8B4513;
+        const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.6 });
+        const beretMat = new THREE.MeshStandardMaterial({ color: beretColor, roughness: 0.5 });
+
+        // Body
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 16), bodyMat);
+        body.position.y = 0.5;
+        this.previewCharacter.add(body);
+
+        // Head
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.48, 16, 16), bodyMat);
+        head.position.y = 1.18;
+        this.previewCharacter.add(head);
+
+        // Ears
+        const earGeo = new THREE.SphereGeometry(0.2, 12, 12);
+        const leftEar = new THREE.Mesh(earGeo, bodyMat);
+        leftEar.position.set(-0.4, 1.15, -0.1);
+        leftEar.scale.set(0.6, 1.1, 0.5);
+        this.previewCharacter.add(leftEar);
+        const rightEar = new THREE.Mesh(earGeo, bodyMat);
+        rightEar.position.set(0.4, 1.15, -0.1);
+        rightEar.scale.set(0.6, 1.1, 0.5);
+        this.previewCharacter.add(rightEar);
+
+        // Beret
+        const beretGeo = new THREE.SphereGeometry(0.25, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+        const beret = new THREE.Mesh(beretGeo, beretMat);
+        beret.position.set(0, 1.58, 0.1);
+        beret.scale.set(1.3, 0.6, 1.2);
+        this.previewCharacter.add(beret);
+        const stem = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), beretMat);
+        stem.position.set(0, 1.65, 0.1);
+        this.previewCharacter.add(stem);
+
+        // Eyes
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        const eyeGeo = new THREE.SphereGeometry(0.04, 8, 8);
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.15, 1.18, 0.45);
+        this.previewCharacter.add(leftEye);
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.15, 1.18, 0.45);
+        this.previewCharacter.add(rightEye);
+
+        // Nose
+        const noseMat = new THREE.MeshStandardMaterial({ color: 0x4A3728 });
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), noseMat);
+        nose.position.set(0, 1.08, 0.46);
+        this.previewCharacter.add(nose);
+    }
+
+    createPreviewKeroppi(skin) {
+        const bodyColor = skin?.bodyColor || 0x32CD32;
+        const cheekColor = skin?.cheekColor || 0xFF6347;
+        const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.6 });
+
+        // Body
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), bodyMat);
+        body.position.y = 0.48;
+        body.scale.set(1, 0.9, 0.95);
+        this.previewCharacter.add(body);
+
+        // Belly
+        const bellyMat = new THREE.MeshStandardMaterial({ color: 0x90EE90 });
+        const belly = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), bellyMat);
+        belly.position.set(0, 0.45, 0.15);
+        belly.scale.set(0.9, 0.85, 0.5);
+        this.previewCharacter.add(belly);
+
+        // Head
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 16), bodyMat);
+        head.position.y = 1.1;
+        head.scale.set(1.2, 0.9, 1);
+        this.previewCharacter.add(head);
+
+        // Big eyes
+        const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+        const eyeGeo = new THREE.SphereGeometry(0.18, 12, 12);
+        const leftEyeBall = new THREE.Mesh(eyeGeo, eyeWhiteMat);
+        leftEyeBall.position.set(-0.25, 1.4, 0.2);
+        this.previewCharacter.add(leftEyeBall);
+        const rightEyeBall = new THREE.Mesh(eyeGeo, eyeWhiteMat);
+        rightEyeBall.position.set(0.25, 1.4, 0.2);
+        this.previewCharacter.add(rightEyeBall);
+
+        const pupilMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        const pupilGeo = new THREE.SphereGeometry(0.08, 8, 8);
+        const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
+        leftPupil.position.set(-0.25, 1.38, 0.35);
+        this.previewCharacter.add(leftPupil);
+        const rightPupil = new THREE.Mesh(pupilGeo, pupilMat);
+        rightPupil.position.set(0.25, 1.38, 0.35);
+        this.previewCharacter.add(rightPupil);
+
+        // Cheeks
+        const cheekMat = new THREE.MeshStandardMaterial({ color: cheekColor });
+        const cheekGeo = new THREE.SphereGeometry(0.08, 8, 8);
+        const leftCheek = new THREE.Mesh(cheekGeo, cheekMat);
+        leftCheek.position.set(-0.38, 1.05, 0.3);
+        this.previewCharacter.add(leftCheek);
+        const rightCheek = new THREE.Mesh(cheekGeo, cheekMat);
+        rightCheek.position.set(0.38, 1.05, 0.3);
+        this.previewCharacter.add(rightCheek);
+
+        // Smile
+        const smileMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        const smile = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.015, 6, 12, Math.PI), smileMat);
+        smile.position.set(0, 1.0, 0.42);
+        smile.rotation.x = Math.PI;
+        this.previewCharacter.add(smile);
     }
 
     setupTouchControls() {
@@ -1559,8 +2102,12 @@ class Game {
                 // Apply Sugar Rush level multiplier if active
                 const sugarMultiplier = this.getSugarRushMultiplier();
                 const activeMultiplier = this.coinMultiplier * sugarMultiplier;
-                this.coins += value * activeMultiplier;
+                const coinsGained = value * activeMultiplier;
+                this.coins += coinsGained;
                 this.score += value * 10 * activeMultiplier;
+
+                // Add to persistent total coins (for character purchases)
+                this.addToTotalCoins(coinsGained);
 
                 // Play appropriate sound
                 if (collectible.type === 'coin') {
@@ -3015,6 +3562,154 @@ class Game {
                     block: 'center'
                 });
             }, 100);
+        }
+    }
+
+    // Total coins persistence (for character/skin purchases)
+    loadTotalCoins() {
+        try {
+            const saved = localStorage.getItem('helloKittyTotalCoins');
+            return saved ? parseInt(saved, 10) : 0;
+        } catch {
+            return 0;
+        }
+    }
+
+    saveTotalCoins() {
+        try {
+            localStorage.setItem('helloKittyTotalCoins', this.totalCoins.toString());
+        } catch (e) {
+            console.warn('Could not save total coins:', e);
+        }
+    }
+
+    addToTotalCoins(amount) {
+        this.totalCoins += amount;
+        this.saveTotalCoins();
+    }
+
+    // Character selection UI
+    populateCharacterScreen() {
+        // Update coin display
+        document.getElementById('character-coins').textContent = this.totalCoins.toLocaleString();
+
+        const characterGrid = document.getElementById('character-grid');
+        const skinGrid = document.getElementById('skin-grid');
+
+        // Clear existing content
+        characterGrid.innerHTML = '';
+        skinGrid.innerHTML = '';
+
+        const characters = this.characterManager.characters;
+        const selectedChar = this.characterManager.selectedCharacter;
+        const selectedSkin = this.characterManager.selectedSkin;
+
+        // Character icons/emojis for preview
+        const characterIcons = {
+            'hello-kitty': '🎀',
+            'my-melody': '🐰',
+            'cinnamoroll': '☁️',
+            'kuromi': '💀',
+            'pompompurin': '🐶',
+            'keroppi': '🐸'
+        };
+
+        // Populate character grid
+        Object.entries(characters).forEach(([id, char]) => {
+            const isOwned = this.characterManager.isCharacterUnlocked(id);
+            const isSelected = id === selectedChar;
+
+            const card = document.createElement('div');
+            card.className = 'character-card' + (isSelected ? ' selected' : '') + (!isOwned ? ' locked' : '');
+            card.innerHTML = `
+                <div class="character-preview" style="background: ${char.color}">${characterIcons[id] || '?'}</div>
+                <div class="character-name">${char.name}</div>
+                ${isOwned
+                    ? '<div class="character-owned">Owned</div>'
+                    : `<div class="character-price">${char.price} coins</div>`}
+            `;
+
+            card.addEventListener('click', () => this.handleCharacterSelect(id));
+            characterGrid.appendChild(card);
+        });
+
+        // Populate skins for selected character
+        const currentChar = characters[selectedChar];
+        if (currentChar && currentChar.skins) {
+            Object.entries(currentChar.skins).forEach(([skinId, skin]) => {
+                const isOwned = this.characterManager.isSkinUnlocked(selectedChar, skinId);
+                const isSelected = skinId === selectedSkin;
+
+                const card = document.createElement('div');
+                card.className = 'skin-card' + (isSelected ? ' selected' : '') + (!isOwned ? ' locked' : '');
+                card.innerHTML = `
+                    <div class="skin-preview" style="background: ${skin.color}"></div>
+                    <div class="skin-name">${skin.name}</div>
+                    ${isOwned
+                        ? '<div class="skin-owned">Owned</div>'
+                        : `<div class="skin-price">${skin.price} coins</div>`}
+                `;
+
+                card.addEventListener('click', () => this.handleSkinSelect(skinId));
+                skinGrid.appendChild(card);
+            });
+        }
+    }
+
+    handleCharacterSelect(characterId) {
+        const isOwned = this.characterManager.isCharacterUnlocked(characterId);
+        const character = this.characterManager.characters[characterId];
+
+        if (isOwned) {
+            // Select this character
+            this.characterManager.selectCharacter(characterId);
+            this.player.updateSkin(); // Apply new character's default skin
+            this.populateCharacterScreen();
+            this.updateCharacterPreview();
+        } else {
+            // Try to purchase
+            if (this.totalCoins >= character.price) {
+                if (confirm(`Buy ${character.name} for ${character.price} coins?`)) {
+                    this.totalCoins -= character.price;
+                    this.saveTotalCoins();
+                    this.characterManager.unlockCharacter(characterId);
+                    this.characterManager.selectCharacter(characterId);
+                    this.player.updateSkin(); // Apply new character's skin
+                    this.populateCharacterScreen();
+                    this.updateCharacterPreview();
+                }
+            } else {
+                alert(`Not enough coins! You need ${character.price - this.totalCoins} more coins.`);
+            }
+        }
+    }
+
+    handleSkinSelect(skinId) {
+        const selectedChar = this.characterManager.selectedCharacter;
+        const isOwned = this.characterManager.isSkinUnlocked(selectedChar, skinId);
+        const skin = this.characterManager.characters[selectedChar].skins[skinId];
+
+        if (isOwned) {
+            // Select this skin
+            this.characterManager.selectSkin(skinId);
+            this.player.updateSkin(); // Apply new skin color
+            this.populateCharacterScreen();
+            this.updateCharacterPreview();
+        } else {
+            // Try to purchase
+            if (this.totalCoins >= skin.price) {
+                if (confirm(`Buy ${skin.name} skin for ${skin.price} coins?`)) {
+                    this.totalCoins -= skin.price;
+                    this.saveTotalCoins();
+                    this.characterManager.unlockSkin(selectedChar, skinId);
+                    this.characterManager.selectSkin(skinId);
+                    this.player.updateSkin(); // Apply new skin color
+                    this.populateCharacterScreen();
+                    this.updateCharacterPreview();
+                }
+            } else {
+                alert(`Not enough coins! You need ${skin.price - this.totalCoins} more coins.`);
+            }
         }
     }
 }

@@ -30,11 +30,11 @@ class Game {
         this.hasShield = false;
         this.invincibilityTimer = 0; // Brief invincibility after shield breaks
 
-        // Candy & Sugar Rush system
+        // Candy & Sugar Rush system - tuned for maximum fun!
         this.candyMeter = 0;
-        this.candyMeterMax = 75; // Reduced from 100 - faster gratification for kids!
+        this.candyMeterMax = 50; // Reduced from 75 - trigger Sugar Rush faster!
         this.isSugarRush = false;
-        this.sugarRushDuration = 6; // Increased from 5 - more fun time!
+        this.sugarRushDuration = 8; // Increased from 6 - more time to enjoy!
         this.sugarRushTimer = 0;
 
         // Leaderboard (Firebase-backed with local fallback)
@@ -617,7 +617,7 @@ class Game {
     }
 
     activatePowerUp(type) {
-        const duration = 8; // 8 seconds
+        const duration = 12; // Increased from 8 - more time to enjoy power-ups!
 
         // Check if power-up is already active
         const wasActive = this.activePowerUps.has(type);

@@ -58,29 +58,30 @@ export class Candy {
     }
 
     getMeterValueForType(type) {
+        // Increased values (+50%) for faster Sugar Rush activation = more fun!
         switch (type) {
             case 'lollipop':
-                return 10;
-            case 'wrapped-candy':
-                return 8;
-            case 'cupcake':
                 return 15;
+            case 'wrapped-candy':
+                return 12;
+            case 'cupcake':
+                return 22;
             case 'donut':
-                return 12;
-            case 'ice-cream':
-                return 12;
-            case 'strawberry':
-                return 10;
-            case 'cherry':
-                return 12;
-            case 'cake':
                 return 18;
+            case 'ice-cream':
+                return 18;
+            case 'strawberry':
+                return 15;
+            case 'cherry':
+                return 18;
+            case 'cake':
+                return 28;
             case 'cake-slice':
-                return 14;
+                return 22;
             case 'star-cookie':
-                return 25; // Rare, fills meter more!
+                return 40; // Rare jackpot - nearly fills half the meter!
             default:
-                return 10;
+                return 15;
         }
     }
 

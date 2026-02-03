@@ -30,10 +30,10 @@ export const GAME_CONFIG = {
     COIN_SPAWN_CHANCE: 0.4, // Fewer but bigger coins
     GEM_SPAWN_CHANCE: 0.1,
 
-    // Scoring
+    // Scoring - Increased values for more rewarding feeling
     DISTANCE_POINT_MULTIPLIER: 1,
-    COIN_VALUE: 1,
-    NEAR_MISS_BONUS: 10,
+    COIN_VALUE: 5, // Increased from 1 - each coin feels meaningful
+    NEAR_MISS_BONUS: 15, // Increased from 10
     FLOWER_POINTS: 5,
 
     // Player Health

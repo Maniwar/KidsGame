@@ -66,17 +66,18 @@ export class World {
             // Chance for collectible
             if (Math.random() < GAME_CONFIG.COIN_SPAWN_CHANCE) {
                 // Determine type (mostly coins, occasional gems)
+                // Increased gem rates for more exciting finds!
                 let type = 'coin';
                 const gemRoll = Math.random();
 
-                if (gemRoll < 0.05) {
-                    type = 'pink-gem'; // 5% pink gem
-                } else if (gemRoll < 0.1) {
-                    type = 'blue-gem'; // 5% blue gem
-                } else if (gemRoll < 0.12) {
-                    type = 'star-gem'; // 2% star gem
-                } else if (gemRoll < 0.13) {
-                    type = 'rainbow-gem'; // 1% rainbow gem
+                if (gemRoll < 0.03) {
+                    type = 'rainbow-gem'; // 3% rainbow gem (increased from 1%)
+                } else if (gemRoll < 0.08) {
+                    type = 'star-gem'; // 5% star gem (increased from 2%)
+                } else if (gemRoll < 0.15) {
+                    type = 'pink-gem'; // 7% pink gem (increased from 5%)
+                } else if (gemRoll < 0.22) {
+                    type = 'blue-gem'; // 7% blue gem (increased from 5%)
                 }
 
                 // Sometimes create patterns (line of coins across lanes)
@@ -104,8 +105,8 @@ export class World {
             }
         }
 
-        // Generate power-ups (rare, ~1 per chunk)
-        if (Math.random() < 0.3) { // 30% chance of power-up in chunk
+        // Generate power-ups - more frequent for exciting power fantasy moments!
+        if (Math.random() < 0.45) { // 45% chance of power-up in chunk (increased from 30%)
             const powerUpZ = chunkStartZ - Math.random() * this.chunkLength;
             const lane = Math.floor(Math.random() * GAME_CONFIG.NUM_LANES);
             const type = this.powerUpTypes[Math.floor(Math.random() * this.powerUpTypes.length)];
@@ -122,32 +123,32 @@ export class World {
 
             if (lastCandyZ < chunkEndZ) break;
 
-            // 30% chance of candy at each position
-            if (Math.random() < 0.30) {
-                // Determine candy type (weighted - star cookie is rare)
+            // 38% chance of candy at each position (increased from 30%)
+            if (Math.random() < 0.38) {
+                // Determine candy type - increased rare item rates for excitement!
                 const candyRoll = Math.random();
                 let type;
 
-                if (candyRoll < 0.03) {
-                    type = 'star-cookie'; // 3% - rare, fills meter a lot!
-                } else if (candyRoll < 0.10) {
-                    type = 'cake'; // 7%
-                } else if (candyRoll < 0.17) {
-                    type = 'cake-slice'; // 7%
-                } else if (candyRoll < 0.27) {
+                if (candyRoll < 0.06) {
+                    type = 'star-cookie'; // 6% - jackpot candy! (doubled from 3%)
+                } else if (candyRoll < 0.14) {
+                    type = 'cake'; // 8% (increased from 7%)
+                } else if (candyRoll < 0.22) {
+                    type = 'cake-slice'; // 8% (increased from 7%)
+                } else if (candyRoll < 0.32) {
                     type = 'cupcake'; // 10%
-                } else if (candyRoll < 0.37) {
+                } else if (candyRoll < 0.42) {
                     type = 'donut'; // 10%
-                } else if (candyRoll < 0.47) {
+                } else if (candyRoll < 0.52) {
                     type = 'ice-cream'; // 10%
-                } else if (candyRoll < 0.57) {
+                } else if (candyRoll < 0.62) {
                     type = 'strawberry'; // 10%
-                } else if (candyRoll < 0.67) {
+                } else if (candyRoll < 0.72) {
                     type = 'cherry'; // 10%
-                } else if (candyRoll < 0.82) {
-                    type = 'wrapped-candy'; // 15%
+                } else if (candyRoll < 0.86) {
+                    type = 'wrapped-candy'; // 14%
                 } else {
-                    type = 'lollipop'; // 18% (most common)
+                    type = 'lollipop'; // 14% (most common)
                 }
 
                 const lane = Math.floor(Math.random() * GAME_CONFIG.NUM_LANES);

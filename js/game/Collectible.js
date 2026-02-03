@@ -87,19 +87,20 @@ export class Collectible {
     }
 
     getValueForType(type) {
+        // Values tuned for maximum rewarding feeling
         switch (type) {
             case 'coin':
-                return GAME_CONFIG.COIN_VALUE;
+                return GAME_CONFIG.COIN_VALUE; // 5 points
             case 'blue-gem':
-                return 10;
+                return 15; // Common gem
             case 'pink-gem':
-                return 25;
+                return 30; // Uncommon gem
             case 'star-gem':
-                return 50;
+                return 75; // Rare gem
             case 'rainbow-gem':
-                return 100;
+                return 150; // Ultra rare - jackpot feeling!
             default:
-                return 1;
+                return 5;
         }
     }
 

@@ -22,7 +22,7 @@ export class GameScene {
         this.characterSpawnChance = 0.15; // OPTIMIZED: Reduced spawn rate for better FPS
         this.nextGroundSegmentZ = 200; // FIXED: Start much further ahead
         this.groundSegmentLength = 150; // FIXED: Longer segments to reduce gaps
-        this.movingObjectSpawnChance = 0.08; // OPTIMIZED: Reduced spawn rate for better FPS
+        this.movingObjectSpawnChance = 0.12; // Increased from 0.08 for more action
 
         // Street lamp and tree spawning - OPTIMIZED spacing
         this.nextLampZ = -100;
@@ -489,23 +489,33 @@ export class GameScene {
         roof.castShadow = true;
         group.add(roof);
 
-        // OPTIMIZED: Simplified windows - only 1 row instead of 2 for better FPS
-        const windowGeometry = new THREE.BoxGeometry(width * 0.15, height * 0.12, 0.1);
+        // Windows - scaled to building height for proper look
         const windowMaterial = new THREE.MeshStandardMaterial({
             color: 0x87CEEB,
             emissive: 0x87CEEB,
             emissiveIntensity: 0.3
         });
 
-        // OPTIMIZED: Only 1 row of windows to reduce draw calls by 50%
-        for (let col = 0; col < 2; col++) {
-            const window = new THREE.Mesh(windowGeometry, windowMaterial);
-            window.position.set(
-                -width * 0.2 + col * width * 0.4,
-                0, // Center vertically
-                depth / 2 + 0.05
-            );
-            group.add(window);
+        // Calculate window rows based on building height (more realistic)
+        const windowHeight = 0.8;
+        const windowSpacing = 1.5;
+        const numRows = Math.max(2, Math.min(5, Math.floor(height / windowSpacing)));
+        const numCols = Math.max(2, Math.min(4, Math.floor(width / 2)));
+
+        const windowGeometry = new THREE.BoxGeometry(width * 0.12, windowHeight * 0.6, 0.1);
+
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                const window = new THREE.Mesh(windowGeometry, windowMaterial);
+                const rowOffset = ((row - (numRows - 1) / 2) * windowSpacing);
+                const colOffset = ((col - (numCols - 1) / 2) * (width * 0.25));
+                window.position.set(
+                    colOffset,
+                    rowOffset,
+                    depth / 2 + 0.05
+                );
+                group.add(window);
+            }
         }
 
         group.position.set(x, y, z);
@@ -1133,20 +1143,29 @@ export class GameScene {
     }
 
     createMovingObject(playerZ) {
+        // Weighted spawn system - cars more common than buses for balanced difficulty
         const objectTypes = [
-            { type: 'bird', size: 0.8, speed: 8, height: 3 + Math.random() * 4 }, // BIGGER - was 0.4
-            { type: 'butterfly', size: 0.6, speed: 5, height: 1.5 + Math.random() * 2 }, // BIGGER - was 0.3
-            { type: 'balloon', size: 1.2, speed: 3, height: 4 + Math.random() * 3 }, // BIGGER - was 0.6
-            { type: 'leaf', size: 0.4, speed: 6, height: 2 + Math.random() * 3 }, // BIGGER - was 0.2
-            // Car: size 1.0, wheel radius = 0.35, wheel Y = 0.15
-            // For wheels to touch ground: height = wheel_radius - wheel_y = 0.35 - 0.15 = 0.20
-            { type: 'car', size: 1.0, speed: 20, height: 0.20 },
-            // Bus: size 1.2 (reduced to fit lanes), wheel radius = 0.48, wheel Y = 0.24
-            // For wheels to touch ground: height = 0.48 - 0.24 = 0.24
-            { type: 'bus', size: 1.2, speed: 15, height: 0.24 },
+            { type: 'bird', size: 0.8, speed: 8, height: 3 + Math.random() * 4, weight: 15 },
+            { type: 'butterfly', size: 0.6, speed: 5, height: 1.5 + Math.random() * 2, weight: 15 },
+            { type: 'balloon', size: 1.2, speed: 3, height: 4 + Math.random() * 3, weight: 10 },
+            { type: 'leaf', size: 0.4, speed: 6, height: 2 + Math.random() * 3, weight: 15 },
+            // Cars: Common obstacle, jumpable - speed reduced for fairer reactions
+            { type: 'car', size: 1.0, speed: 18, height: 0.20, weight: 30 },
+            // Buses: Less common, must dodge - slower for fairness
+            { type: 'bus', size: 1.2, speed: 14, height: 0.24, weight: 15 },
         ];
 
-        const type = objectTypes[Math.floor(Math.random() * objectTypes.length)];
+        // Weighted random selection for better balance
+        const totalWeight = objectTypes.reduce((sum, t) => sum + t.weight, 0);
+        let roll = Math.random() * totalWeight;
+        let type = objectTypes[0];
+        for (const t of objectTypes) {
+            roll -= t.weight;
+            if (roll <= 0) {
+                type = t;
+                break;
+            }
+        }
         const group = new THREE.Group();
         const spawnZ = playerZ - 200; // Spawn far ahead
         const lane = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1

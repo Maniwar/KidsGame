@@ -40,12 +40,12 @@ class Game {
         this.sugarRushDecayRate = 12; // Meter drains this much per second during Sugar Rush
 
         // Sugar Rush level configs - only level 3 grants invincibility!
-        // Each level requires more candy to reach, making MEGA a real achievement
-        // meterMax = candy needed to maintain this level (meter drains to this, level down if below)
+        // Each level requires more candy to reach and decays FASTER, making MEGA hard to maintain
+        // decayRate = higher levels drain faster, requiring constant candy collection
         this.sugarRushConfigs = {
-            1: { name: 'Sugar Rush!', multiplier: 3, magnetRadius: 8, auraSize: 1.2, auraColor: 0xFF69B4, speedBoost: 1.0, invincible: false, levelUpCost: 85, meterThreshold: 0 },
-            2: { name: 'SUPER Sugar Rush!', multiplier: 5, magnetRadius: 12, auraSize: 1.5, auraColor: 0xFFD700, speedBoost: 1.15, invincible: false, levelUpCost: 100, meterThreshold: 40 },
-            3: { name: 'MEGA SUGAR RUSH!!!', multiplier: 10, magnetRadius: 18, auraSize: 2.0, auraColor: 0xFF0000, speedBoost: 1.3, invincible: true, levelUpCost: 999, meterThreshold: 70 }
+            1: { name: 'Sugar Rush!', multiplier: 3, magnetRadius: 8, auraSize: 1.2, auraColor: 0xFF69B4, speedBoost: 1.0, invincible: false, levelUpCost: 85, meterThreshold: 0, decayRate: 10 },
+            2: { name: 'SUPER Sugar Rush!', multiplier: 5, magnetRadius: 12, auraSize: 1.5, auraColor: 0xFFD700, speedBoost: 1.15, invincible: false, levelUpCost: 100, meterThreshold: 40, decayRate: 18 },
+            3: { name: 'MEGA SUGAR RUSH!!!', multiplier: 10, magnetRadius: 18, auraSize: 2.0, auraColor: 0xFF0000, speedBoost: 1.3, invincible: true, levelUpCost: 999, meterThreshold: 70, decayRate: 28 }
         };
 
         // Leaderboard (Firebase-backed with local fallback)
@@ -542,8 +542,10 @@ class Game {
 
         // Update Sugar Rush - meter decays over time, collect candy to maintain!
         if (this.isSugarRush) {
-            // Decay the meter
-            this.candyMeter -= this.sugarRushDecayRate * deltaTime;
+            // Decay the meter - higher levels decay FASTER!
+            const config = this.sugarRushConfigs[this.sugarRushLevel];
+            const decayRate = config ? config.decayRate : this.sugarRushDecayRate;
+            this.candyMeter -= decayRate * deltaTime;
 
             // Check for level down or end
             if (this.candyMeter <= 0) {
@@ -2333,10 +2335,25 @@ class Game {
             this.domElements.candyMeterFill = document.getElementById('candy-meter-fill');
         }
 
-        // Update meter fill
+        // Update meter fill - shows actual decay during Sugar Rush!
         if (this.domElements.candyMeterFill) {
-            const percent = this.isSugarRush ? 100 : Math.min((this.candyMeter / this.candyMeterMax) * 100, 100);
+            // Show actual meter value - during Sugar Rush this drains and must be refilled
+            const maxValue = this.isSugarRush ? 100 : this.candyMeterMax; // Use 100 as max during Sugar Rush
+            const percent = Math.min((this.candyMeter / maxValue) * 100, 100);
             this.domElements.candyMeterFill.style.width = `${percent}%`;
+
+            // Change color based on urgency during Sugar Rush
+            if (this.isSugarRush) {
+                const config = this.sugarRushConfigs[this.sugarRushLevel];
+                const threshold = config ? config.meterThreshold : 0;
+                if (this.candyMeter < threshold + 15) {
+                    // Warning - close to level down!
+                    this.domElements.candyMeterFill.style.background = 'linear-gradient(90deg, #FF4444 0%, #FF6B6B 50%, #FF4444 100%)';
+                } else {
+                    // Normal rainbow gradient
+                    this.domElements.candyMeterFill.style.background = 'linear-gradient(90deg, #FF69B4 0%, #FFD700 25%, #87CEEB 50%, #98FB98 75%, #FF69B4 100%)';
+                }
+            }
         }
 
         // Show/hide Sugar Rush timer
@@ -2349,23 +2366,25 @@ class Game {
             }
             const config = this.sugarRushConfigs[this.sugarRushLevel];
             const levelIndicator = '⭐'.repeat(this.sugarRushLevel);
-            this.domElements.sugarRushTimer.textContent = `${levelIndicator} ${config.name} ${Math.ceil(this.sugarRushTimer)}s ${levelIndicator}`;
+            this.domElements.sugarRushTimer.textContent = `${levelIndicator} ${config.name} ${levelIndicator}`;
             this.domElements.sugarRushTimer.style.display = 'block';
 
-            // Show candy meter during Sugar Rush to fill for level up!
-            if (this.domElements.candyMeter && this.sugarRushLevel < 3) {
+            // Always show candy meter during Sugar Rush so player sees the decay!
+            if (this.domElements.candyMeter) {
                 this.domElements.candyMeter.style.display = 'block';
-            } else if (this.domElements.candyMeter) {
-                this.domElements.candyMeter.style.display = 'none'; // Max level
             }
         } else {
             // Hide timer when not in Sugar Rush
             if (this.domElements.sugarRushTimer) {
                 this.domElements.sugarRushTimer.style.display = 'none';
             }
-            // Show candy meter
+            // Show candy meter and reset color
             if (this.domElements.candyMeter) {
                 this.domElements.candyMeter.style.display = 'block';
+            }
+            if (this.domElements.candyMeterFill) {
+                // Reset to normal rainbow gradient
+                this.domElements.candyMeterFill.style.background = 'linear-gradient(90deg, #FF69B4 0%, #FFD700 25%, #87CEEB 50%, #98FB98 75%, #FF69B4 100%)';
             }
         }
     }

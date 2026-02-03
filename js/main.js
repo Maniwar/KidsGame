@@ -7,6 +7,7 @@ import { KeyboardController } from './input/Keyboard.js';
 import { TouchController } from './input/Touch.js';
 import { World } from './game/World.js';
 import { AudioManager } from './audio/AudioManager.js';
+import { LeaderboardManager } from './firebase/LeaderboardManager.js';
 
 class Game {
     constructor() {
@@ -36,9 +37,11 @@ class Game {
         this.sugarRushDuration = 6; // Increased from 5 - more fun time!
         this.sugarRushTimer = 0;
 
-        // Leaderboard
-        this.highScores = this.loadHighScores();
+        // Leaderboard (Firebase-backed with local fallback)
+        this.leaderboard = new LeaderboardManager();
+        this.highScores = [];
         this.isNewHighScore = false;
+        this.leaderboardInitialized = false;
 
         // PERFORMANCE: Cached frame time (updated once per frame, passed to all systems)
         this.frameTime = 0;
@@ -68,7 +71,7 @@ class Game {
         this.init();
     }
 
-    init() {
+    async init() {
         // Graphics - pass settings for antialias configuration
         this.gameScene = new GameScene(this.settings);
         this.camera = new GameCamera();
@@ -121,8 +124,37 @@ class Game {
         // Handle window resize
         window.addEventListener('resize', () => this.handleResize());
 
+        // Initialize Firebase leaderboard (async, non-blocking)
+        this.initLeaderboard();
+
         // Start render loop (menu visible initially)
         this.render();
+    }
+
+    async initLeaderboard() {
+        try {
+            await this.leaderboard.init();
+            this.leaderboardInitialized = true;
+
+            // Load initial scores
+            this.highScores = await this.leaderboard.getTopScores(10);
+            this.displayLeaderboard();
+
+            // Subscribe to real-time updates
+            this.leaderboard.subscribeToLeaderboard((scores) => {
+                this.highScores = scores;
+                // Only update display if game over screen is visible
+                const gameOverScreen = document.getElementById('game-over-screen');
+                if (gameOverScreen && gameOverScreen.classList.contains('active')) {
+                    this.displayLeaderboard();
+                }
+            });
+
+            console.log('Leaderboard connected to global server');
+        } catch (error) {
+            console.warn('Leaderboard running in offline mode:', error);
+            this.highScores = this.leaderboard.localScores;
+        }
     }
 
     loadSettings() {
@@ -2521,23 +2553,14 @@ class Game {
         setTimeout(() => impactDiv.remove(), 800);
     }
 
-    // Leaderboard methods
-    loadHighScores() {
-        const saved = localStorage.getItem('helloKittyHighScores');
-        return saved ? JSON.parse(saved) : [];
-    }
-
-    saveHighScores() {
-        localStorage.setItem('helloKittyHighScores', JSON.stringify(this.highScores));
-    }
-
+    // Leaderboard methods (Firebase-backed)
     checkHighScore(score) {
         // Check if score makes it to top 10
         if (this.highScores.length < 10) return true;
         return score > this.highScores[this.highScores.length - 1].score;
     }
 
-    saveHighScore() {
+    async saveHighScore() {
         const initials = document.getElementById('initials-input').value.trim().toUpperCase();
 
         if (initials.length !== 3) {
@@ -2546,32 +2569,43 @@ class Game {
         }
 
         const finalScore = Math.floor(this.score);
+        const finalDistance = Math.floor(this.distance);
+        const finalCoins = this.coins;
+        const finalCandies = this.candyCollected;
 
-        // Add new score
-        this.highScores.push({
-            initials: initials,
-            score: finalScore,
-            date: Date.now()
-        });
+        // Show saving indicator
+        const saveBtn = document.getElementById('save-score-button');
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = 'Saving...';
+        saveBtn.disabled = true;
 
-        // Sort by score (highest first)
-        this.highScores.sort((a, b) => b.score - a.score);
+        try {
+            // Submit to Firebase (also saves locally as backup)
+            await this.leaderboard.submitScore(initials, finalScore, finalDistance, finalCoins, finalCandies);
 
-        // Keep only top 10
-        this.highScores = this.highScores.slice(0, 10);
+            // Refresh leaderboard
+            this.highScores = await this.leaderboard.getTopScores(10);
 
-        // Save to localStorage
-        this.saveHighScores();
+            // Hide input, show leaderboard
+            document.getElementById('new-high-score').style.display = 'none';
+            this.displayLeaderboard(initials, finalScore);
 
-        // Hide input, show leaderboard
-        document.getElementById('new-high-score').style.display = 'none';
-        this.displayLeaderboard(initials);
+            // Play celebration sound
+            this.audio.playMilestoneSound();
+        } catch (error) {
+            console.error('Error saving score:', error);
+            alert('Score saved locally. Will sync when online.');
 
-        // Play celebration sound
-        this.audio.playMilestoneSound();
+            // Hide input anyway
+            document.getElementById('new-high-score').style.display = 'none';
+            this.displayLeaderboard(initials, finalScore);
+        } finally {
+            saveBtn.textContent = originalText;
+            saveBtn.disabled = false;
+        }
     }
 
-    displayLeaderboard(highlightInitials = null) {
+    displayLeaderboard(highlightInitials = null, highlightScore = null) {
         const leaderboardList = document.getElementById('leaderboard-list');
         leaderboardList.innerHTML = '';
 
@@ -2581,15 +2615,16 @@ class Game {
         }
 
         let highlightedEntry = null;
+        const scoreToHighlight = highlightScore || Math.floor(this.score);
 
         this.highScores.forEach((entry, index) => {
             const div = document.createElement('div');
             div.className = 'leaderboard-entry';
 
             // Highlight the newly added score
-            if (entry.initials === highlightInitials && entry.score === Math.floor(this.score)) {
+            if (highlightInitials && entry.initials === highlightInitials && entry.score === scoreToHighlight) {
                 div.classList.add('highlight');
-                highlightedEntry = div; // Save reference to scroll to it
+                highlightedEntry = div;
             }
 
             div.innerHTML = `

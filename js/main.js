@@ -859,8 +859,8 @@ class Game {
     }
 
     createSugarRushVisuals() {
-        // Rainbow aura around player
-        const auraGeometry = new THREE.SphereGeometry(1.0, 16, 16);
+        // Rainbow aura around player - centered on character body (y=0.9 covers from feet to ears)
+        const auraGeometry = new THREE.SphereGeometry(1.2, 16, 16);
         const auraMaterial = new THREE.MeshBasicMaterial({
             color: 0xFF69B4,
             transparent: true,
@@ -868,6 +868,7 @@ class Game {
             side: THREE.DoubleSide
         });
         this.sugarRushAura = new THREE.Mesh(auraGeometry, auraMaterial);
+        this.sugarRushAura.position.y = 0.9; // Center on character (same as shield bubble)
         this.player.character.add(this.sugarRushAura);
 
         // Rainbow trail particles array

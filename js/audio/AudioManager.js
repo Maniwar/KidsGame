@@ -869,4 +869,16 @@ export class AudioManager {
             this.sfxGain.gain.value = this.sfxVolume;
         }
     }
+
+    // Dynamically adjust music tempo based on game speed
+    setTempo(newTempo) {
+        // Clamp tempo between 100 and 180 BPM for playability
+        this.tempo = Math.max(100, Math.min(180, newTempo));
+        this.beatDuration = 60 / this.tempo;
+    }
+
+    // Get current tempo for external reference
+    getTempo() {
+        return this.tempo;
+    }
 }

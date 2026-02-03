@@ -564,6 +564,12 @@ class Game {
         this.distance += this.player.speed * deltaTime;
         this.score = this.distance;
 
+        // Update music tempo based on game speed
+        // Scale from 128 BPM at start speed to 180 BPM at max speed
+        const speedProgress = (this.player.speed - 25) / (40 - 25); // 0 to 1
+        const newTempo = 128 + (speedProgress * 52); // 128 to 180 BPM
+        this.audio.setTempo(newTempo);
+
         // Update HUD
         this.updateHUD();
 

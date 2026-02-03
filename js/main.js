@@ -434,6 +434,9 @@ class Game {
         // Hide game over screen
         document.getElementById('game-over-screen').classList.remove('active');
 
+        // Stop knocked out animation and reset pose
+        this.player.stopKnockedOutAnimation();
+
         // Reset death camera back to normal gameplay camera
         this.camera.resetDeathCamera();
 
@@ -455,6 +458,9 @@ class Game {
 
     gameOver() {
         this.isRunning = false;
+
+        // Start knocked out animation (rubbing head, shaking head)
+        this.player.startKnockedOutAnimation();
 
         // Play game over sound
         this.audio.playGameOverSound();
@@ -2498,6 +2504,8 @@ class Game {
             this.updateDizzyStars();
             // Keep Hello Kitty blinking on game over screen
             this.player.updateBlink(deltaTime);
+            // Knocked out animation (rubbing head, shaking head)
+            this.player.updateKnockedOutAnimation(deltaTime);
         }
 
         // Render scene

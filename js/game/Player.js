@@ -23,6 +23,12 @@ export class Player {
         this.laneSwitchStart = 0;
         this.bobOffset = 0;
 
+        // Blinking animation
+        this.blinkTimer = 0;
+        this.blinkInterval = 3; // Blink every 3 seconds on average
+        this.isBlinking = false;
+        this.blinkDuration = 0.15; // How long a blink takes
+
         // Create character
         this.createCharacter();
     }
@@ -148,15 +154,18 @@ export class Player {
         // Eyes (simple round black dots - Hello Kitty style, wider spacing!)
         // POSITIVE Z - with 180° rotation, local +Z faces world -Z (forward/away from camera)
         const eyeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
-        const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        leftEye.position.set(-0.28, 1.22, 0.56); // Positive Z - face forward, slightly lower
-        leftEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
-        this.character.add(leftEye);
+        this.leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        this.leftEye.position.set(-0.28, 1.22, 0.56); // Positive Z - face forward, slightly lower
+        this.leftEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
+        this.character.add(this.leftEye);
 
-        const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        rightEye.position.set(0.28, 1.22, 0.56); // Positive Z - face forward, slightly lower
-        rightEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
-        this.character.add(rightEye);
+        this.rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        this.rightEye.position.set(0.28, 1.22, 0.56); // Positive Z - face forward, slightly lower
+        this.rightEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
+        this.character.add(this.rightEye);
+
+        // Store default eye scale for blinking
+        this.eyeOpenScale = 1.2;
 
         // Nose (small oval)
         const noseGeometry = new THREE.SphereGeometry(0.055, 12, 12);
@@ -401,6 +410,40 @@ export class Player {
                 this.head.rotation.z = Math.sign(this.targetX - this.position.x) * 0.2;
             } else if (Math.abs(this.head.rotation.z) > 0.01) {
                 this.head.rotation.z *= 0.9;
+            }
+        }
+
+        // Blinking animation
+        this.blinkTimer += deltaTime;
+        if (!this.isBlinking && this.blinkTimer >= this.blinkInterval) {
+            // Start a blink
+            this.isBlinking = true;
+            this.blinkTimer = 0;
+            // Randomize next blink interval (2-4 seconds)
+            this.blinkInterval = 2 + Math.random() * 2;
+        }
+
+        if (this.isBlinking) {
+            // Blink by scaling eyes vertically
+            const blinkProgress = this.blinkTimer / this.blinkDuration;
+            if (blinkProgress < 0.5) {
+                // Closing eyes
+                const closeAmount = blinkProgress * 2; // 0 to 1
+                const scaleY = this.eyeOpenScale * (1 - closeAmount * 0.9); // Close to 10% height
+                this.leftEye.scale.y = scaleY;
+                this.rightEye.scale.y = scaleY;
+            } else if (blinkProgress < 1) {
+                // Opening eyes
+                const openAmount = (blinkProgress - 0.5) * 2; // 0 to 1
+                const scaleY = this.eyeOpenScale * (0.1 + openAmount * 0.9); // Open back up
+                this.leftEye.scale.y = scaleY;
+                this.rightEye.scale.y = scaleY;
+            } else {
+                // Blink complete
+                this.isBlinking = false;
+                this.blinkTimer = 0;
+                this.leftEye.scale.y = this.eyeOpenScale;
+                this.rightEye.scale.y = this.eyeOpenScale;
             }
         }
 

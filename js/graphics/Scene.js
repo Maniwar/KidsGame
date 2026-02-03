@@ -1050,11 +1050,22 @@ export class GameScene {
             this.nextBuildingZ -= this.buildingSpacing;
         }
 
-        // PERFORMANCE: In-place removal for buildings
+        // PERFORMANCE: In-place removal for buildings with proper disposal
         for (let i = this.buildings.length - 1; i >= 0; i--) {
             const building = this.buildings[i];
             if (building.userData.zPos > playerZ + 50) {
                 this.scene.remove(building);
+                // MEMORY FIX: Dispose building geometries and materials
+                building.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
                 this.buildings[i] = this.buildings[this.buildings.length - 1];
                 this.buildings.pop();
             }
@@ -1078,6 +1089,17 @@ export class GameScene {
             // Cleanup if too far behind
             if (decoration.zPos > playerZ + 50) {
                 this.scene.remove(decoration.mesh);
+                // MEMORY FIX: Dispose decoration geometries and materials
+                decoration.mesh.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
                 this.decorations[i] = this.decorations[this.decorations.length - 1];
                 this.decorations.pop();
             }

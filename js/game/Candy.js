@@ -865,71 +865,35 @@ export class Candy {
     }
 
     createCollectionEffect() {
-        // Sweet sparkle burst!
-        const particles = [];
-        const particleCount = 10;
-        const colors = [0xFF69B4, 0xFFD700, 0xFF6B9D, 0x87CEEB, 0xFFB6C1];
-
-        for (let i = 0; i < particleCount; i++) {
-            const particleGeo = new THREE.SphereGeometry(0.06, 6, 6);
-            const particleMat = new THREE.MeshBasicMaterial({
-                color: colors[i % colors.length],
-                transparent: true,
-                opacity: 1,
-            });
-
-            const particle = new THREE.Mesh(particleGeo, particleMat);
-            particle.position.copy(this.position);
-            particle.position.y += 0.5;
-
-            const angle = (i / particleCount) * Math.PI * 2;
-            const speed = 2 + Math.random() * 2;
-            particle.userData.velocity = {
-                x: Math.cos(angle) * speed,
-                y: 3 + Math.random() * 2,
-                z: Math.sin(angle) * speed
-            };
-
-            this.scene.add(particle);
-            particles.push(particle);
-        }
-
-        // Animate particles
-        const duration = 500;
+        // PERFORMANCE FIX: Removed particle burst that created new geometries
+        // Just animate the candy flying up and fading - no memory allocation
+        const duration = 400;
         const startTime = performance.now();
-        const scene = this.scene;
+        const startY = this.position.y;
+        const group = this.group;
 
         const animate = () => {
             const elapsed = performance.now() - startTime;
             const progress = elapsed / duration;
 
             if (progress >= 1) {
-                particles.forEach(p => {
-                    scene.remove(p);
-                    p.geometry.dispose();
-                    p.material.dispose();
-                });
-                return;
+                return; // Animation complete, dispose() will be called by setTimeout
             }
 
-            particles.forEach((particle) => {
-                particle.position.x += particle.userData.velocity.x * 0.016;
-                particle.position.y += particle.userData.velocity.y * 0.016;
-                particle.position.z += particle.userData.velocity.z * 0.016;
-                particle.userData.velocity.y -= 0.15; // Gravity
-                particle.material.opacity = 1 - progress;
-                const scale = 1 - progress * 0.5;
-                particle.scale.set(scale, scale, scale);
-            });
+            // Candy flies up with easing
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            group.position.y = startY + (easeOut * 5);
 
-            // Candy flies up
-            this.group.position.y = this.position.y + (progress * 8);
-            this.group.traverse((child) => {
+            // Fade out and scale down
+            group.traverse((child) => {
                 if (child.material) {
                     child.material.opacity = 1 - progress;
                     child.material.transparent = true;
                 }
             });
+
+            // Spin as it flies up
+            group.rotation.y += 0.3;
 
             requestAnimationFrame(animate);
         };

@@ -128,9 +128,6 @@ export class Candy {
         this.mesh.scale.set(candyScale, candyScale, candyScale);
         this.collisionRadius *= candyScale; // Scale collision radius too
 
-        // Add sparkle ring around candy
-        this.createSparkleRing();
-
         this.group.position.copy(this.position);
         this.scene.add(this.group);
     }
@@ -783,32 +780,6 @@ export class Candy {
         this.collisionRadius = 0.3;
     }
 
-    createSparkleRing() {
-        // Sweet sparkle effect around candy - scaled up to match larger candy
-        const ringGeometry = new THREE.TorusGeometry(0.6, 0.03, 8, 16);
-        const ringMaterial = new THREE.MeshBasicMaterial({
-            color: 0xFF69B4,
-            transparent: true,
-            opacity: 0.5,
-        });
-        this.ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        this.ring.rotation.x = Math.PI / 2;
-        this.group.add(this.ring);
-
-        // Add ground glow - larger for bigger candy
-        const glowGeometry = new THREE.CircleGeometry(0.8, 16);
-        const glowMaterial = new THREE.MeshBasicMaterial({
-            color: 0xFF69B4,
-            transparent: true,
-            opacity: 0.4,
-            side: THREE.DoubleSide,
-        });
-        this.groundGlow = new THREE.Mesh(glowGeometry, glowMaterial);
-        this.groundGlow.rotation.x = -Math.PI / 2;
-        this.groundGlow.position.y = -1.75; // Lower to match higher floating candy
-        this.group.add(this.groundGlow);
-    }
-
     update(deltaTime, playerZ) {
         if (this.isCollected) return;
 
@@ -822,28 +793,6 @@ export class Candy {
         // Bob up and down
         const bobY = Math.sin(this.animTime * this.bobSpeed + this.bobOffset) * this.bobAmount;
         this.group.position.y = this.position.y + bobY;
-
-        // Pulse ring
-        if (this.ring) {
-            const pulse = (Math.sin(this.animTime * 3) + 1) * 0.5;
-            this.ring.material.opacity = 0.2 + pulse * 0.4;
-            this.ring.rotation.z += deltaTime * 0.5;
-        }
-
-        // Pulse ground glow
-        if (this.groundGlow) {
-            const glowPulse = 0.2 + Math.sin(this.animTime * 2.5) * 0.15;
-            this.groundGlow.material.opacity = glowPulse;
-        }
-
-        // Rainbow color cycle for star cookie (rare)
-        if (this.isRare) {
-            const hue = (this.animTime * 0.3) % 1;
-            this.ring.material.color.setHSL(hue, 1, 0.6);
-            if (this.groundGlow) {
-                this.groundGlow.material.color.setHSL(hue, 1, 0.5);
-            }
-        }
 
         // Check if far behind player
         if (this.position.z > playerZ + 20) {

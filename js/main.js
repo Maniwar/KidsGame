@@ -570,7 +570,9 @@ class Game {
             this.animateCandyMeter();
         } else if (this.sugarRushCooldown <= 0 && this.candyMeter > 0) {
             // Level 0 decay - meter drains even when building up!
-            const level0DecayRate = 6; // 6/sec - balanced decay while building up
+            // Candy spawns ~0.4/sec collectible, avg value ~18 = ~7/sec max gain
+            // 4/sec decay allows net +3/sec with good play, ~23sec to fill meter
+            const level0DecayRate = 4;
             this.candyMeter -= level0DecayRate * deltaTime;
             if (this.candyMeter < 0) this.candyMeter = 0;
 

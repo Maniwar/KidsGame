@@ -94,8 +94,6 @@ export class PowerUp {
         this.mesh.scale.set(1.8, 1.8, 1.8);
         this.group.add(this.mesh);
 
-        // Sparkle effect
-        this.createSparkleRing(0x00FFFF);
         this.collisionRadius = 0.5;
     }
 
@@ -128,7 +126,6 @@ export class PowerUp {
         this.mesh.scale.set(1.8, 1.8, 1.8);
         this.group.add(this.mesh);
 
-        this.createSparkleRing(0x00FFFF);
         this.collisionRadius = 0.5;
     }
 
@@ -169,7 +166,6 @@ export class PowerUp {
         this.mesh.scale.set(1.8, 1.8, 1.8);
         this.group.add(this.mesh);
 
-        this.createSparkleRing(0xFFFF00);
         this.collisionRadius = 0.5;
     }
 
@@ -207,7 +203,6 @@ export class PowerUp {
         this.mesh.scale.set(1.8, 1.8, 1.8);
         this.group.add(this.mesh);
 
-        this.createSparkleRing(0xFFD700);
         this.collisionRadius = 0.5;
     }
 
@@ -244,7 +239,6 @@ export class PowerUp {
         // Scale up for better visibility
         this.mesh.scale.set(1.8, 1.8, 1.8);
 
-        this.createSparkleRing(COLORS.SECONDARY_PINK);
         this.collisionRadius = 0.5;
     }
 
@@ -291,21 +285,7 @@ export class PowerUp {
         this.mesh.scale.set(1.8, 1.8, 1.8);
         this.group.add(this.mesh);
 
-        this.createSparkleRing(0xFF0000);
         this.collisionRadius = 0.5; // Larger collision for bigger mushroom
-    }
-
-    createSparkleRing(color) {
-        const ringGeometry = new THREE.TorusGeometry(0.4, 0.03, 8, 16);
-        const ringMaterial = new THREE.MeshBasicMaterial({
-            color: color,
-            transparent: true,
-            opacity: 0.5,
-        });
-
-        this.ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        this.ring.rotation.x = Math.PI / 2;
-        this.group.add(this.ring);
     }
 
     update(deltaTime, playerZ) {
@@ -321,14 +301,6 @@ export class PowerUp {
         const bobTime = this.animTime * this.bobSpeed + this.bobOffset;
         const bobY = Math.sin(bobTime) * this.bobAmount;
         this.group.position.y = this.position.y + bobY;
-
-        // Pulse ring
-        if (this.ring) {
-            this.pulseTime += deltaTime * 3;
-            const pulse = (Math.sin(this.pulseTime) + 1) * 0.5;
-            this.ring.material.opacity = 0.3 + pulse * 0.4;
-            this.ring.rotation.z += deltaTime;
-        }
 
         // Check if far behind player (cleanup)
         if (this.position.z > playerZ + 20) {

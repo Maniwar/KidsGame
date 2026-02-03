@@ -62,15 +62,19 @@ class Game {
 
         // PERFORMANCE: Pre-allocated vectors to avoid GC pressure
         this._tempVec3 = new THREE.Vector3();
+        this._tempColor = new THREE.Color(); // Reusable color object
 
         // PERFORMANCE: Particle pool for explosions and effects
         this.particlePool = [];
         this.activeParticles = [];
-        this.maxPoolSize = 100;
+        this.maxPoolSize = 200; // Increased for Sugar Rush particle bursts
 
         // PERFORMANCE: Shared geometries and materials for particles
         this.sharedParticleGeo = null;
         this.sharedSpeedTrailGeo = null;
+
+        // PERFORMANCE: Cached floating text textures (avoids canvas creation per collection)
+        this.floatingTextCache = {};
 
         // PERFORMANCE: Animation queue (replaces separate RAF callbacks)
         this.animations = [];
@@ -1333,30 +1337,39 @@ class Game {
     }
 
     createFloatingText(text, position, color = 0xFFFFFF) {
-        // Create canvas texture with high visibility
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 512;
-        canvas.height = 256;
+        // PERFORMANCE: Use cached texture for common text+color combinations
+        const cacheKey = `${text}_${color}`;
+        let texture = this.floatingTextCache[cacheKey];
 
-        // Draw black outline for contrast
-        context.font = 'Bold 100px Arial';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.strokeStyle = '#000000';
-        context.lineWidth = 8;
-        context.strokeText(text, 256, 128);
+        if (!texture) {
+            // Create canvas texture with high visibility
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 256;
 
-        // Draw colored fill
-        context.fillStyle = '#' + color.toString(16).padStart(6, '0');
-        context.fillText(text, 256, 128);
+            // Draw black outline for contrast
+            context.font = 'Bold 100px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.strokeStyle = '#000000';
+            context.lineWidth = 8;
+            context.strokeText(text, 256, 128);
 
-        // Add glow effect
-        context.shadowColor = '#' + color.toString(16).padStart(6, '0');
-        context.shadowBlur = 20;
-        context.fillText(text, 256, 128);
+            // Draw colored fill
+            context.fillStyle = '#' + color.toString(16).padStart(6, '0');
+            context.fillText(text, 256, 128);
 
-        const texture = new THREE.CanvasTexture(canvas);
+            // Add glow effect
+            context.shadowColor = '#' + color.toString(16).padStart(6, '0');
+            context.shadowBlur = 20;
+            context.fillText(text, 256, 128);
+
+            texture = new THREE.CanvasTexture(canvas);
+            this.floatingTextCache[cacheKey] = texture;
+        }
+
+        // Create new material that references cached texture (materials are cheap, textures expensive)
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
         const sprite = new THREE.Sprite(spriteMaterial);
 
@@ -1377,7 +1390,7 @@ class Game {
             update: (progress) => {
                 if (progress >= 1) {
                     scene.remove(sprite);
-                    texture.dispose();
+                    // Only dispose material, keep texture cached
                     spriteMaterial.dispose();
                     return true; // Animation complete
                 }
@@ -1434,8 +1447,8 @@ class Game {
             if (Math.random() < 0.3) {
                 const playerPos = this.player.getPosition();
                 const hue = (time % 1000) / 1000;
-                const color = new THREE.Color().setHSL(hue, 1, 0.5);
-                const particle = this.getParticleFromPool(color.getHex());
+                this._tempColor.setHSL(hue, 1, 0.5);
+                const particle = this.getParticleFromPool(this._tempColor.getHex());
 
                 if (particle) {
                     particle.position.copy(playerPos);
@@ -1480,8 +1493,8 @@ class Game {
             for (let i = 0; i < particlesToSpawn; i++) {
                 // Rainbow colors cycling through spectrum
                 const trailHue = ((time * 0.003) + (i * 0.15)) % 1;
-                const trailColor = new THREE.Color().setHSL(trailHue, 1, 0.6);
-                const particle = this.getParticleFromPool(trailColor.getHex());
+                this._tempColor.setHSL(trailHue, 1, 0.6);
+                const particle = this.getParticleFromPool(this._tempColor.getHex());
 
                 if (particle) {
                     // Spread particles in a wider area behind player for ribbon effect
@@ -1513,8 +1526,8 @@ class Game {
             // Also spawn some sparkle stars in the trail
             if (Math.random() < 0.3) {
                 const sparkleHue = Math.random();
-                const sparkleColor = new THREE.Color().setHSL(sparkleHue, 1, 0.8);
-                const sparkle = this.getParticleFromPool(sparkleColor.getHex());
+                this._tempColor.setHSL(sparkleHue, 1, 0.8);
+                const sparkle = this.getParticleFromPool(this._tempColor.getHex());
 
                 if (sparkle) {
                     sparkle.position.set(
@@ -1536,12 +1549,21 @@ class Game {
 
     checkCollisions() {
         const playerPos = this.player.getPosition();
+        const playerZ = playerPos.z;
+
+        // PERFORMANCE: Quick Z-distance threshold for early culling
+        // Objects more than 3 units away in Z don't need full collision check
+        const zThreshold = 3;
 
         // IMPORTANT: Check power-ups FIRST before obstacles
         // This ensures shields/power-ups collected in the same frame can protect you
         const powerUps = this.world.getPowerUps();
         for (const powerUp of powerUps) {
-            if (!powerUp.isCollected && this.checkCollision(playerPos, powerUp.getBoundingBox())) {
+            if (powerUp.isCollected) continue;
+            // PERFORMANCE: Early Z-distance culling
+            const objZ = powerUp.position.z;
+            if (Math.abs(objZ - playerZ) > zThreshold) continue;
+            if (this.checkCollision(playerPos, powerUp.getBoundingBox())) {
                 // Collect the power-up
                 const type = powerUp.collect();
                 this.activatePowerUp(type);
@@ -1554,7 +1576,11 @@ class Game {
         // Check collectible collisions (coins, gems)
         const collectibles = this.world.getCollectibles();
         for (const collectible of collectibles) {
-            if (!collectible.isCollected && this.checkCollision(playerPos, collectible.getBoundingBox())) {
+            if (collectible.isCollected) continue;
+            // PERFORMANCE: Early Z-distance culling
+            const objZ = collectible.position.z;
+            if (Math.abs(objZ - playerZ) > zThreshold) continue;
+            if (this.checkCollision(playerPos, collectible.getBoundingBox())) {
                 // Collect the item
                 const value = collectible.collect();
                 // Apply Sugar Rush level multiplier if active
@@ -1575,7 +1601,11 @@ class Game {
         // Check candy collisions - fill Sugar Rush meter!
         const candies = this.world.getCandies();
         for (const candy of candies) {
-            if (!candy.isCollected && this.checkCollision(playerPos, candy.getBoundingBox())) {
+            if (candy.isCollected) continue;
+            // PERFORMANCE: Early Z-distance culling
+            const objZ = candy.position.z;
+            if (Math.abs(objZ - playerZ) > zThreshold) continue;
+            if (this.checkCollision(playerPos, candy.getBoundingBox())) {
                 // Collect the candy
                 const meterValue = candy.collect();
                 this.addToSugarMeter(meterValue);
@@ -1608,6 +1638,9 @@ class Game {
         for (const obstacle of obstacles) {
             // Skip obstacles already being destroyed
             if (obstacle.isBeingDestroyed) continue;
+            // PERFORMANCE: Early Z-distance culling
+            const obstaclePos = obstacle.getPosition();
+            if (Math.abs(obstaclePos.z - playerZ) > zThreshold) continue;
 
             if (this.checkCollision(playerPos, obstacle.getBoundingBox())) {
                 // Giant mode: smash through obstacles with bouncy animation!
@@ -1674,6 +1707,8 @@ class Game {
         for (const movingObj of movingObstacles) {
             // Skip if already destroyed
             if (movingObj.userData.isDestroyed) continue;
+            // PERFORMANCE: Early Z-distance culling
+            if (Math.abs(movingObj.position.z - playerZ) > zThreshold) continue;
 
             const boundingBox = {
                 center: movingObj.position,

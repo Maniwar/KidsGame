@@ -33,26 +33,76 @@ export class World {
         const chunkStartZ = this.nextChunkZ;
         const chunkEndZ = chunkStartZ - this.chunkLength;
 
-        // Increase difficulty over time
-        const difficultyMultiplier = 1 + (this.chunksGenerated * 0.05);
+        // Progressive difficulty - spacing decreases over time
+        const progression = Math.min(this.chunksGenerated / 20, 1); // 0 to 1 over 20 chunks
+        const minSpacing = Math.max(8, GAME_CONFIG.MIN_OBSTACLE_DISTANCE - progression * 4);
+        const maxExtraSpacing = Math.max(8, 15 - progression * 5);
 
-        // Generate obstacles
+        // Generate obstacles with game design principles
         let lastObstacleZ = chunkStartZ;
+        let lastLane = -1; // Track last lane to create variety
+
         while (lastObstacleZ > chunkEndZ) {
-            // Random spacing between obstacles - more space for reaction time
-            const spacing = GAME_CONFIG.MIN_OBSTACLE_DISTANCE + Math.random() * 15;
+            // Spacing decreases as game progresses for more challenge
+            const spacing = minSpacing + Math.random() * maxExtraSpacing;
             lastObstacleZ -= spacing;
 
             if (lastObstacleZ < chunkEndZ) break;
 
-            // Random lane
-            const lane = Math.floor(Math.random() * GAME_CONFIG.NUM_LANES);
+            // Obstacle patterns for interesting gameplay
+            const patternRoll = Math.random();
 
-            // Random obstacle type
-            const type = this.obstacleTypes[Math.floor(Math.random() * this.obstacleTypes.length)];
+            if (patternRoll < 0.15 && progression > 0.3) {
+                // PATTERN: Double obstacle (2 lanes blocked) - always leave escape route
+                const blockedLanes = [];
+                const firstLane = Math.floor(Math.random() * 3);
+                blockedLanes.push(firstLane);
 
-            const obstacle = new Obstacle(this.scene, lane, lastObstacleZ, type);
-            this.obstacles.push(obstacle);
+                // Add second obstacle in adjacent lane (never all 3)
+                if (firstLane === 0) blockedLanes.push(1);
+                else if (firstLane === 2) blockedLanes.push(1);
+                else blockedLanes.push(Math.random() < 0.5 ? 0 : 2);
+
+                // Same type for both (either jump both or slide both)
+                const type = this.obstacleTypes[Math.floor(Math.random() * this.obstacleTypes.length)];
+
+                for (const lane of blockedLanes) {
+                    const obstacle = new Obstacle(this.scene, lane, lastObstacleZ, type);
+                    this.obstacles.push(obstacle);
+                }
+                lastLane = -1; // Reset
+
+            } else if (patternRoll < 0.25 && progression > 0.5) {
+                // PATTERN: Staggered pair (forces lane change then action)
+                const lane1 = Math.floor(Math.random() * 3);
+                let lane2 = (lane1 + (Math.random() < 0.5 ? 1 : 2)) % 3;
+
+                const type1 = this.obstacleTypes[Math.floor(Math.random() * 2)];
+                const type2 = this.obstacleTypes[Math.floor(Math.random() * 2)];
+
+                const obstacle1 = new Obstacle(this.scene, lane1, lastObstacleZ, type1);
+                const obstacle2 = new Obstacle(this.scene, lane2, lastObstacleZ - 4, type2);
+                this.obstacles.push(obstacle1, obstacle2);
+
+                lastObstacleZ -= 4; // Account for second obstacle
+                lastLane = lane2;
+
+            } else {
+                // PATTERN: Single obstacle - avoid repeating same lane too often
+                let lane;
+                if (lastLane >= 0 && Math.random() < 0.7) {
+                    // 70% chance to use different lane for variety
+                    const otherLanes = [0, 1, 2].filter(l => l !== lastLane);
+                    lane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
+                } else {
+                    lane = Math.floor(Math.random() * 3);
+                }
+
+                const type = this.obstacleTypes[Math.floor(Math.random() * this.obstacleTypes.length)];
+                const obstacle = new Obstacle(this.scene, lane, lastObstacleZ, type);
+                this.obstacles.push(obstacle);
+                lastLane = lane;
+            }
         }
 
         // Generate collectibles (coins and gems) - spaced further apart

@@ -489,23 +489,33 @@ export class GameScene {
         roof.castShadow = true;
         group.add(roof);
 
-        // OPTIMIZED: Simplified windows - only 1 row instead of 2 for better FPS
-        const windowGeometry = new THREE.BoxGeometry(width * 0.15, height * 0.12, 0.1);
+        // Windows - scaled to building height for proper look
         const windowMaterial = new THREE.MeshStandardMaterial({
             color: 0x87CEEB,
             emissive: 0x87CEEB,
             emissiveIntensity: 0.3
         });
 
-        // OPTIMIZED: Only 1 row of windows to reduce draw calls by 50%
-        for (let col = 0; col < 2; col++) {
-            const window = new THREE.Mesh(windowGeometry, windowMaterial);
-            window.position.set(
-                -width * 0.2 + col * width * 0.4,
-                0, // Center vertically
-                depth / 2 + 0.05
-            );
-            group.add(window);
+        // Calculate window rows based on building height (more realistic)
+        const windowHeight = 0.8;
+        const windowSpacing = 1.5;
+        const numRows = Math.max(2, Math.min(5, Math.floor(height / windowSpacing)));
+        const numCols = Math.max(2, Math.min(4, Math.floor(width / 2)));
+
+        const windowGeometry = new THREE.BoxGeometry(width * 0.12, windowHeight * 0.6, 0.1);
+
+        for (let row = 0; row < numRows; row++) {
+            for (let col = 0; col < numCols; col++) {
+                const window = new THREE.Mesh(windowGeometry, windowMaterial);
+                const rowOffset = ((row - (numRows - 1) / 2) * windowSpacing);
+                const colOffset = ((col - (numCols - 1) / 2) * (width * 0.25));
+                window.position.set(
+                    colOffset,
+                    rowOffset,
+                    depth / 2 + 0.05
+                );
+                group.add(window);
+            }
         }
 
         group.position.set(x, y, z);

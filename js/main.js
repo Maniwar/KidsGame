@@ -30,12 +30,20 @@ class Game {
         this.hasShield = false;
         this.invincibilityTimer = 0; // Brief invincibility after shield breaks
 
-        // Candy & Sugar Rush system - tuned for maximum fun!
+        // Candy & Sugar Rush system - multi-level for maximum fun!
         this.candyMeter = 0;
-        this.candyMeterMax = 50; // Reduced from 75 - trigger Sugar Rush faster!
+        this.candyMeterMax = 50; // Meter to trigger Sugar Rush
         this.isSugarRush = false;
-        this.sugarRushDuration = 8; // Increased from 6 - more time to enjoy!
+        this.sugarRushLevel = 0; // 0=off, 1=Sugar Rush, 2=Super Sugar Rush, 3=MEGA Sugar Rush
+        this.sugarRushDuration = 8; // Base duration
         this.sugarRushTimer = 0;
+
+        // Sugar Rush level configs
+        this.sugarRushConfigs = {
+            1: { name: 'Sugar Rush!', multiplier: 3, magnetRadius: 8, auraSize: 1.2, auraColor: 0xFF69B4, speedBoost: 1.0 },
+            2: { name: 'SUPER Sugar Rush!', multiplier: 5, magnetRadius: 12, auraSize: 1.5, auraColor: 0xFFD700, speedBoost: 1.15 },
+            3: { name: 'MEGA SUGAR RUSH!!!', multiplier: 10, magnetRadius: 18, auraSize: 2.0, auraColor: 0xFF0000, speedBoost: 1.3 }
+        };
 
         // Leaderboard (Firebase-backed with local fallback)
         this.leaderboard = new LeaderboardManager();
@@ -401,6 +409,7 @@ class Game {
         // Reset candy meter and Sugar Rush
         this.candyMeter = 0;
         this.isSugarRush = false;
+        this.sugarRushLevel = 0;
         this.sugarRushTimer = 0;
         this.removeSugarRushEffects();
 
@@ -813,8 +822,13 @@ class Game {
 
     addToSugarMeter(value) {
         if (this.isSugarRush) {
-            // Already in Sugar Rush - extend duration slightly
-            this.sugarRushTimer = Math.min(this.sugarRushTimer + 0.5, this.sugarRushDuration + 2);
+            // Already in Sugar Rush - fill meter to level up!
+            this.candyMeter += value;
+
+            // Check for level up
+            if (this.candyMeter >= this.candyMeterMax && this.sugarRushLevel < 3) {
+                this.levelUpSugarRush();
+            }
             return;
         }
 
@@ -825,12 +839,13 @@ class Game {
 
         // Check if meter is full
         if (this.candyMeter >= this.candyMeterMax) {
-            this.activateSugarRush();
+            this.activateSugarRush(1);
         }
     }
 
-    activateSugarRush() {
+    activateSugarRush(level) {
         this.isSugarRush = true;
+        this.sugarRushLevel = level;
         this.sugarRushTimer = this.sugarRushDuration;
         this.candyMeter = 0; // Reset meter
 
@@ -844,8 +859,25 @@ class Game {
         this.audio.playSugarRushSound();
     }
 
+    levelUpSugarRush() {
+        // Level up!
+        this.sugarRushLevel = Math.min(this.sugarRushLevel + 1, 3);
+        this.candyMeter = 0; // Reset meter
+        this.sugarRushTimer = this.sugarRushDuration; // Refresh timer
+
+        // Update visuals for new level
+        this.updateSugarRushVisuals();
+
+        // Show level up notification
+        this.showSugarRushLevelUpNotification();
+
+        // Play level up sound
+        this.audio.playSugarRushSound();
+    }
+
     endSugarRush() {
         this.isSugarRush = false;
+        this.sugarRushLevel = 0;
         this.sugarRushTimer = 0;
 
         // Remove visual effects
@@ -858,17 +890,30 @@ class Game {
         this.audio.playSugarRushEndSound();
     }
 
+    getSugarRushMultiplier() {
+        if (!this.isSugarRush || this.sugarRushLevel === 0) return 1;
+        return this.sugarRushConfigs[this.sugarRushLevel].multiplier;
+    }
+
+    getSugarRushMagnetRadius() {
+        if (!this.isSugarRush || this.sugarRushLevel === 0) return 0;
+        return this.sugarRushConfigs[this.sugarRushLevel].magnetRadius;
+    }
+
     createSugarRushVisuals() {
-        // Rainbow aura around player - centered on character body (y=0.9 covers from feet to ears)
-        const auraGeometry = new THREE.SphereGeometry(1.2, 16, 16);
+        // Get level config
+        const config = this.sugarRushConfigs[this.sugarRushLevel] || this.sugarRushConfigs[1];
+
+        // Rainbow aura around player - size based on level
+        const auraGeometry = new THREE.SphereGeometry(config.auraSize, 16, 16);
         const auraMaterial = new THREE.MeshBasicMaterial({
-            color: 0xFF69B4,
+            color: config.auraColor,
             transparent: true,
             opacity: 0.3,
             side: THREE.DoubleSide
         });
         this.sugarRushAura = new THREE.Mesh(auraGeometry, auraMaterial);
-        this.sugarRushAura.position.y = 0.9; // Center on character (same as shield bubble)
+        this.sugarRushAura.position.y = 0.9; // Center on character
         this.player.character.add(this.sugarRushAura);
 
         // Rainbow trail particles array
@@ -906,6 +951,57 @@ class Game {
         }
     }
 
+    updateSugarRushVisuals() {
+        // Update aura for new level
+        if (this.sugarRushAura) {
+            const config = this.sugarRushConfigs[this.sugarRushLevel];
+
+            // Recreate aura with new size
+            this.player.character.remove(this.sugarRushAura);
+            this.sugarRushAura.geometry.dispose();
+            this.sugarRushAura.material.dispose();
+
+            const auraGeometry = new THREE.SphereGeometry(config.auraSize, 16, 16);
+            const auraMaterial = new THREE.MeshBasicMaterial({
+                color: config.auraColor,
+                transparent: true,
+                opacity: 0.35 + this.sugarRushLevel * 0.05, // More opaque at higher levels
+                side: THREE.DoubleSide
+            });
+            this.sugarRushAura = new THREE.Mesh(auraGeometry, auraMaterial);
+            this.sugarRushAura.position.y = 0.9;
+            this.player.character.add(this.sugarRushAura);
+        }
+
+        // Update overlay intensity
+        const overlay = document.getElementById('sugar-rush-overlay');
+        if (overlay) {
+            const intensity = 0.1 + this.sugarRushLevel * 0.05;
+            if (this.sugarRushLevel === 3) {
+                overlay.style.background = `radial-gradient(circle, rgba(255,0,0,${intensity}) 0%, rgba(255,215,0,${intensity + 0.05}) 100%)`;
+            } else if (this.sugarRushLevel === 2) {
+                overlay.style.background = `radial-gradient(circle, rgba(255,215,0,${intensity}) 0%, rgba(255,182,193,${intensity + 0.05}) 100%)`;
+            }
+        }
+    }
+
+    showSugarRushLevelUpNotification() {
+        const config = this.sugarRushConfigs[this.sugarRushLevel];
+        const notification = document.createElement('div');
+        notification.className = 'sugar-rush-notification level-up';
+        notification.innerHTML = `
+            <div class="icon">${this.sugarRushLevel === 3 ? '🌟' : '⬆️'}</div>
+            <div class="title">${config.name}</div>
+            <div class="description">${config.multiplier}x Points! Magnet ${config.magnetRadius}m!</div>
+        `;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'sugarRushFadeOut 0.3s ease-out forwards';
+            setTimeout(() => notification.remove(), 300);
+        }, 1500);
+    }
+
     removeSugarRushEffects() {
         // Remove aura
         if (this.sugarRushAura) {
@@ -934,9 +1030,9 @@ class Game {
 
     attractCandies(deltaTime) {
         const playerPos = this.player.getPosition();
-        const magnetRadius = 8; // Larger radius during Sugar Rush
+        const magnetRadius = this.getSugarRushMagnetRadius(); // Dynamic radius based on level
         const magnetRadiusSq = magnetRadius * magnetRadius;
-        const attractSpeed = 20; // Fast attraction
+        const attractSpeed = 20 + this.sugarRushLevel * 5; // Faster at higher levels
 
         const candies = this.world.getCandies();
         for (let i = 0, len = candies.length; i < len; i++) {
@@ -960,7 +1056,7 @@ class Game {
             }
         }
 
-        // Also attract coins during Sugar Rush
+        // Also attract coins during Sugar Rush (level 2+)
         const collectibles = this.world.getCollectibles();
         for (let i = 0, len = collectibles.length; i < len; i++) {
             const collectible = collectibles[i];
@@ -1030,11 +1126,13 @@ class Game {
     }
 
     showSugarRushNotification() {
+        const config = this.sugarRushConfigs[this.sugarRushLevel] || this.sugarRushConfigs[1];
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-notification';
         notification.innerHTML = `
             <span class="icon">🍭</span>
-            <div class="title">SUGAR RUSH!</div>
+            <div class="title">${config.name}</div>
+            <div class="description">${config.multiplier}x Points!</div>
         `;
 
         document.body.appendChild(notification);
@@ -1339,8 +1437,9 @@ class Game {
             if (!collectible.isCollected && this.checkCollision(playerPos, collectible.getBoundingBox())) {
                 // Collect the item
                 const value = collectible.collect();
-                // Apply Sugar Rush 3x multiplier if active
-                const activeMultiplier = this.isSugarRush ? this.coinMultiplier * 3 : this.coinMultiplier;
+                // Apply Sugar Rush level multiplier if active
+                const sugarMultiplier = this.getSugarRushMultiplier();
+                const activeMultiplier = this.coinMultiplier * sugarMultiplier;
                 this.coins += value * activeMultiplier;
                 this.score += value * 10 * activeMultiplier;
 
@@ -1365,8 +1464,9 @@ class Game {
                 // Play sweet candy pop sound!
                 this.audio.playCandySound();
 
-                // Bonus score for candy
-                const candyScoreBonus = this.isSugarRush ? meterValue * 5 : meterValue * 2;
+                // Bonus score for candy - scales with Sugar Rush level
+                const sugarMultiplier = this.getSugarRushMultiplier();
+                const candyScoreBonus = meterValue * 2 * sugarMultiplier;
                 this.score += candyScoreBonus;
             }
         }
@@ -2101,12 +2201,16 @@ class Game {
                 document.body.appendChild(timer);
                 this.domElements.sugarRushTimer = timer;
             }
-            this.domElements.sugarRushTimer.textContent = `🍭 ${Math.ceil(this.sugarRushTimer)}s 🍬`;
+            const config = this.sugarRushConfigs[this.sugarRushLevel];
+            const levelIndicator = '⭐'.repeat(this.sugarRushLevel);
+            this.domElements.sugarRushTimer.textContent = `${levelIndicator} ${config.name} ${Math.ceil(this.sugarRushTimer)}s ${levelIndicator}`;
             this.domElements.sugarRushTimer.style.display = 'block';
 
-            // Hide candy meter during Sugar Rush
-            if (this.domElements.candyMeter) {
-                this.domElements.candyMeter.style.display = 'none';
+            // Show candy meter during Sugar Rush to fill for level up!
+            if (this.domElements.candyMeter && this.sugarRushLevel < 3) {
+                this.domElements.candyMeter.style.display = 'block';
+            } else if (this.domElements.candyMeter) {
+                this.domElements.candyMeter.style.display = 'none'; // Max level
             }
         } else {
             // Hide timer when not in Sugar Rush
@@ -2334,6 +2438,7 @@ class Game {
         if (this.isSugarRush) {
             this.removeSugarRushEffects();
             this.isSugarRush = false;
+            this.sugarRushLevel = 0;
         }
 
         // Screen flash

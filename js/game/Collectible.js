@@ -32,8 +32,8 @@ function getSharedCoinMaterial() {
 
 function getSharedCoinRimGeometry() {
     if (!sharedCoinRimGeometry) {
-        // Torus around the edge of the coin for a raised rim effect
-        sharedCoinRimGeometry = new THREE.TorusGeometry(0.6, 0.06, 8, 16);
+        // Torus around the edge of the coin for a raised rim effect (thinner tube)
+        sharedCoinRimGeometry = new THREE.TorusGeometry(0.6, 0.03, 8, 16);
     }
     return sharedCoinRimGeometry;
 }

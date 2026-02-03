@@ -73,6 +73,10 @@ export class Candy {
                 return 10;
             case 'cherry':
                 return 12;
+            case 'cake':
+                return 18;
+            case 'cake-slice':
+                return 14;
             case 'star-cookie':
                 return 25; // Rare, fills meter more!
             default:
@@ -104,6 +108,12 @@ export class Candy {
                 break;
             case 'cherry':
                 this.createCherry();
+                break;
+            case 'cake':
+                this.createCake();
+                break;
+            case 'cake-slice':
+                this.createCakeSlice();
                 break;
             case 'star-cookie':
                 this.createStarCookie();
@@ -636,6 +646,154 @@ export class Candy {
         this.mesh = cherryGroup;
         this.group.add(this.mesh);
         this.collisionRadius = 0.25;
+    }
+
+    createCake() {
+        const cakeGroup = new THREE.Group();
+
+        // Cake base layer (bottom tier)
+        const baseGeometry = new THREE.CylinderGeometry(0.22, 0.24, 0.15, 16);
+        const cakeMaterial = new THREE.MeshStandardMaterial({
+            color: 0xF5DEB3, // Wheat color for sponge
+            flatShading: true,
+        });
+        const base = new THREE.Mesh(baseGeometry, cakeMaterial);
+        base.position.y = -0.08;
+        cakeGroup.add(base);
+
+        // Middle frosting layer
+        const frostingGeometry = new THREE.CylinderGeometry(0.23, 0.23, 0.03, 16);
+        const frostingMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFB6C1, // Light pink frosting
+            emissive: 0xFFB6C1,
+            emissiveIntensity: 0.2,
+        });
+        const middleFrosting = new THREE.Mesh(frostingGeometry, frostingMaterial);
+        middleFrosting.position.y = 0.02;
+        cakeGroup.add(middleFrosting);
+
+        // Top cake layer
+        const topGeometry = new THREE.CylinderGeometry(0.2, 0.22, 0.12, 16);
+        const topCake = new THREE.Mesh(topGeometry, cakeMaterial);
+        topCake.position.y = 0.1;
+        cakeGroup.add(topCake);
+
+        // Top frosting swirl
+        const topFrostingGeo = new THREE.SphereGeometry(0.18, 12, 12);
+        const topFrosting = new THREE.Mesh(topFrostingGeo, frostingMaterial);
+        topFrosting.scale.set(1, 0.4, 1);
+        topFrosting.position.y = 0.2;
+        cakeGroup.add(topFrosting);
+
+        // Cherry on top
+        const cherryGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+        const cherryMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFF0000,
+            emissive: 0xFF0000,
+            emissiveIntensity: 0.3,
+        });
+        const cherry = new THREE.Mesh(cherryGeometry, cherryMaterial);
+        cherry.position.y = 0.28;
+        cakeGroup.add(cherry);
+
+        // Decorative dots around the cake
+        const dotGeometry = new THREE.SphereGeometry(0.025, 6, 6);
+        const dotMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFFFFF,
+            emissive: 0xFFFFFF,
+            emissiveIntensity: 0.3,
+        });
+        for (let i = 0; i < 8; i++) {
+            const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+            const angle = (i / 8) * Math.PI * 2;
+            dot.position.set(
+                Math.cos(angle) * 0.2,
+                0.2,
+                Math.sin(angle) * 0.2
+            );
+            cakeGroup.add(dot);
+        }
+
+        this.mesh = cakeGroup;
+        this.group.add(this.mesh);
+        this.collisionRadius = 0.35;
+    }
+
+    createCakeSlice() {
+        const sliceGroup = new THREE.Group();
+
+        // Create a triangular cake slice using a custom shape
+        // Bottom sponge layer
+        const sliceShape = new THREE.Shape();
+        sliceShape.moveTo(0, 0);
+        sliceShape.lineTo(0.25, -0.12);
+        sliceShape.lineTo(0.25, 0.12);
+        sliceShape.lineTo(0, 0);
+
+        const extrudeSettings = {
+            depth: 0.18,
+            bevelEnabled: false,
+        };
+
+        const sliceGeometry = new THREE.ExtrudeGeometry(sliceShape, extrudeSettings);
+        const spongeMaterial = new THREE.MeshStandardMaterial({
+            color: 0xF5DEB3, // Wheat/sponge color
+            flatShading: true,
+        });
+        const sponge = new THREE.Mesh(sliceGeometry, spongeMaterial);
+        sponge.rotation.y = Math.PI / 2;
+        sponge.position.set(0.09, -0.05, 0);
+        sliceGroup.add(sponge);
+
+        // Frosting layer on top
+        const frostingShape = new THREE.Shape();
+        frostingShape.moveTo(0, 0);
+        frostingShape.lineTo(0.26, -0.13);
+        frostingShape.lineTo(0.26, 0.13);
+        frostingShape.lineTo(0, 0);
+
+        const frostingExtrudeSettings = {
+            depth: 0.04,
+            bevelEnabled: false,
+        };
+
+        const frostingGeometry = new THREE.ExtrudeGeometry(frostingShape, frostingExtrudeSettings);
+        const frostingMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFB6C1, // Light pink
+            emissive: 0xFFB6C1,
+            emissiveIntensity: 0.2,
+        });
+        const frosting = new THREE.Mesh(frostingGeometry, frostingMaterial);
+        frosting.rotation.y = Math.PI / 2;
+        frosting.position.set(0.09, 0.08, 0);
+        sliceGroup.add(frosting);
+
+        // Strawberry filling stripe (middle layer visible on cut side)
+        const fillingGeometry = new THREE.BoxGeometry(0.22, 0.03, 0.16);
+        const fillingMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFF6B6B, // Strawberry red
+            emissive: 0xFF6B6B,
+            emissiveIntensity: 0.2,
+        });
+        const filling = new THREE.Mesh(fillingGeometry, fillingMaterial);
+        filling.position.set(0.12, 0.02, 0);
+        sliceGroup.add(filling);
+
+        // Small strawberry piece on top
+        const strawberryGeo = new THREE.SphereGeometry(0.04, 6, 6);
+        const strawberryMat = new THREE.MeshStandardMaterial({
+            color: 0xFF2D2D,
+            emissive: 0xFF2D2D,
+            emissiveIntensity: 0.2,
+        });
+        const strawberry = new THREE.Mesh(strawberryGeo, strawberryMat);
+        strawberry.scale.set(1, 0.7, 1);
+        strawberry.position.set(0.15, 0.14, 0);
+        sliceGroup.add(strawberry);
+
+        this.mesh = sliceGroup;
+        this.group.add(this.mesh);
+        this.collisionRadius = 0.3;
     }
 
     createSparkleRing() {

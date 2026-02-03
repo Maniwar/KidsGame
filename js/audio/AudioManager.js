@@ -856,115 +856,56 @@ export class AudioManager {
         });
     }
 
-    // Sugar Rush level UP - FF-inspired victory fanfare
+    // Sugar Rush level UP - cute kawaii chime
     playSugarRushLevelUpSound(level) {
         if (!this.isInitialized) return;
 
+        // Prevent sound spam - 0.5 second cooldown
         const now = this.context.currentTime;
+        if (this.lastLevelUpSound && now - this.lastLevelUpSound < 0.5) return;
+        this.lastLevelUpSound = now;
 
-        // FF-style fanfare: Bb-Bb-Bb-Bb-Gb-Ab-Bb (simplified for levels 1-2)
-        // Full triumphant for level 3
-        if (level === 3) {
-            // MEGA level - Full FF Victory Fanfare style
-            const fanfare = [
-                { freq: 466.16, time: 0, duration: 0.12 },     // Bb4
-                { freq: 466.16, time: 0.12, duration: 0.12 },  // Bb4
-                { freq: 466.16, time: 0.24, duration: 0.12 },  // Bb4
-                { freq: 466.16, time: 0.36, duration: 0.25 },  // Bb4 (held)
-                { freq: 369.99, time: 0.65, duration: 0.15 },  // Gb4
-                { freq: 415.30, time: 0.82, duration: 0.15 },  // Ab4
-                { freq: 466.16, time: 1.0, duration: 0.5 },    // Bb4 (triumphant hold!)
-            ];
+        // Simple ascending chime - kawaii and not overwhelming
+        const notes = level === 3
+            ? [{ freq: 880, time: 0 }, { freq: 1047, time: 0.08 }, { freq: 1319, time: 0.16 }] // A5-C6-E6
+            : [{ freq: 784, time: 0 }, { freq: 988, time: 0.08 }]; // G5-B5
 
-            fanfare.forEach(note => {
-                const osc = this.context.createOscillator();
-                const gain = this.context.createGain();
-                osc.frequency.value = note.freq;
-                osc.type = 'square';
-                const startTime = now + note.time;
-                gain.gain.setValueAtTime(0.2, startTime);
-                gain.gain.setValueAtTime(0.2, startTime + note.duration * 0.7);
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + note.duration);
-                osc.connect(gain);
-                gain.connect(this.sfxGain);
-                osc.start(startTime);
-                osc.stop(startTime + note.duration);
-            });
-
-            // Add bass for power
-            const bass = this.context.createOscillator();
-            const bassGain = this.context.createGain();
-            bass.frequency.value = 116.54; // Bb2
-            bass.type = 'sawtooth';
-            bassGain.gain.setValueAtTime(0.12, now + 1.0);
-            bassGain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
-            bass.connect(bassGain);
-            bassGain.connect(this.sfxGain);
-            bass.start(now + 1.0);
-            bass.stop(now + 1.5);
-        } else {
-            // Level 2 - shorter fanfare
-            const fanfare = [
-                { freq: 523.25, time: 0, duration: 0.1 },      // C5
-                { freq: 659.25, time: 0.1, duration: 0.1 },    // E5
-                { freq: 783.99, time: 0.2, duration: 0.25 },   // G5
-                { freq: 1046.50, time: 0.5, duration: 0.3 },   // C6 (bright finish)
-            ];
-
-            fanfare.forEach(note => {
-                const osc = this.context.createOscillator();
-                const gain = this.context.createGain();
-                osc.frequency.value = note.freq;
-                osc.type = 'triangle';
-                const startTime = now + note.time;
-                gain.gain.setValueAtTime(0.18, startTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + note.duration);
-                osc.connect(gain);
-                gain.connect(this.sfxGain);
-                osc.start(startTime);
-                osc.stop(startTime + note.duration);
-            });
-        }
-    }
-
-    // Sugar Rush level DOWN - FF-inspired danger/warning sound
-    playSugarRushLevelDownSound() {
-        if (!this.isInitialized) return;
-
-        const now = this.context.currentTime;
-
-        // Descending diminished - like FF danger warning
-        const warningNotes = [
-            { freq: 622.25, time: 0, duration: 0.12 },     // Eb5
-            { freq: 466.16, time: 0.1, duration: 0.12 },   // Bb4
-            { freq: 369.99, time: 0.2, duration: 0.2 },    // Gb4 (ominous)
-        ];
-
-        warningNotes.forEach(note => {
+        notes.forEach(note => {
             const osc = this.context.createOscillator();
             const gain = this.context.createGain();
             osc.frequency.value = note.freq;
-            osc.type = 'triangle';
+            osc.type = 'sine';
             const startTime = now + note.time;
             gain.gain.setValueAtTime(0.15, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, startTime + note.duration);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
             osc.connect(gain);
             gain.connect(this.sfxGain);
             osc.start(startTime);
-            osc.stop(startTime + note.duration);
+            osc.stop(startTime + 0.15);
         });
+    }
 
-        // Add low rumble for emphasis
-        const rumble = this.context.createOscillator();
-        const rumbleGain = this.context.createGain();
-        rumble.frequency.value = 80;
-        rumble.type = 'sine';
-        rumbleGain.gain.setValueAtTime(0.1, now);
-        rumbleGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-        rumble.connect(rumbleGain);
-        rumbleGain.connect(this.sfxGain);
-        rumble.start(now);
-        rumble.stop(now + 0.3);
+    // Sugar Rush level DOWN - soft descending tone
+    playSugarRushLevelDownSound() {
+        if (!this.isInitialized) return;
+
+        // Prevent sound spam
+        const now = this.context.currentTime;
+        if (this.lastLevelDownSound && now - this.lastLevelDownSound < 0.5) return;
+        this.lastLevelDownSound = now;
+
+        // Simple descending tone
+        const osc = this.context.createOscillator();
+        const gain = this.context.createGain();
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.2);
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+        osc.start(now);
+        osc.stop(now + 0.2);
     }
 
     setMusicVolume(volume) {

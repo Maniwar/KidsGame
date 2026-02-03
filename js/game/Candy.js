@@ -598,26 +598,27 @@ export class Candy {
         rightHighlight.position.set(0.14, -0.01, 0.08);
         cherryGroup.add(rightHighlight);
 
-        // Stems
+        // Stems - positioned so bottom connects to cherry tops
         const stemMaterial = new THREE.MeshStandardMaterial({
             color: 0x228B22,
         });
 
-        // Left stem (curved using a bent cylinder approximation)
+        // Left cherry top is at (-0.1, 0.07, 0) - stem angles outward (rotation.z negative)
+        // For cylinder bottom to touch cherry top with rotation, calculate center position
         const leftStemGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.18, 6);
         const leftStem = new THREE.Mesh(leftStemGeo, stemMaterial);
-        leftStem.position.set(-0.08, 0.1, 0);
-        leftStem.rotation.z = 0.3;
+        leftStem.position.set(-0.07, 0.16, 0);
+        leftStem.rotation.z = -0.3; // Tilt outward so bottom reaches left cherry
         cherryGroup.add(leftStem);
 
-        // Right stem
+        // Right cherry top is at (0.1, 0.04, 0) - stem angles outward (rotation.z positive)
         const rightStemGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.2, 6);
         const rightStem = new THREE.Mesh(rightStemGeo, stemMaterial);
-        rightStem.position.set(0.08, 0.12, 0);
-        rightStem.rotation.z = -0.3;
+        rightStem.position.set(0.07, 0.14, 0);
+        rightStem.rotation.z = 0.3; // Tilt outward so bottom reaches right cherry
         cherryGroup.add(rightStem);
 
-        // Small leaf at top where stems meet
+        // Small leaf at top where stems meet (stems converge around y=0.24)
         const leafGeometry = new THREE.SphereGeometry(0.05, 6, 6);
         const leafMaterial = new THREE.MeshStandardMaterial({
             color: 0x2E7D32,
@@ -626,7 +627,7 @@ export class Candy {
         });
         const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
         leaf.scale.set(1.5, 0.5, 1);
-        leaf.position.set(0, 0.22, 0);
+        leaf.position.set(0, 0.24, 0);
         cherryGroup.add(leaf);
 
         this.mesh = cherryGroup;

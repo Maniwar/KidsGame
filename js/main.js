@@ -38,6 +38,7 @@ class Game {
         this.sugarRushCooldown = 0; // Cooldown after Sugar Rush ends
         this.sugarRushCooldownDuration = 4; // Seconds before meter can fill again
         this.sugarRushDecayRate = 12; // Meter drains this much per second during Sugar Rush
+        this.sugarRushLevelChangeCooldown = 0; // Cooldown between level changes to prevent oscillation
 
         // Sugar Rush level configs - only level 3 grants invincibility!
         // Each level requires more candy to reach and decays FASTER, making MEGA hard to maintain
@@ -540,7 +541,7 @@ class Game {
             this.invincibilityTimer -= deltaTime;
         }
 
-        // Update Sugar Rush - meter decays over time, collect candy to maintain!
+        // Update Sugar Rush - meter ALWAYS decays, collect candy to build/maintain!
         if (this.isSugarRush) {
             // Decay the meter - higher levels decay FASTER!
             const config = this.sugarRushConfigs[this.sugarRushLevel];
@@ -567,11 +568,25 @@ class Game {
 
             // Update meter UI to show decay
             this.animateCandyMeter();
+        } else if (this.sugarRushCooldown <= 0 && this.candyMeter > 0) {
+            // Level 0 decay - meter slowly drains even when building up!
+            // Slower than Sugar Rush levels so it's still achievable
+            const level0DecayRate = 5; // 5/sec - slower than level 1's 10/sec
+            this.candyMeter -= level0DecayRate * deltaTime;
+            if (this.candyMeter < 0) this.candyMeter = 0;
+
+            // Update meter UI to show decay
+            this.animateCandyMeter();
         }
 
         // Update Sugar Rush cooldown
         if (this.sugarRushCooldown > 0) {
             this.sugarRushCooldown -= deltaTime;
+        }
+
+        // Update level change cooldown (prevents rapid oscillation)
+        if (this.sugarRushLevelChangeCooldown > 0) {
+            this.sugarRushLevelChangeCooldown -= deltaTime;
         }
 
         // Update power-up visual effects
@@ -894,12 +909,18 @@ class Game {
     }
 
     levelUpSugarRush() {
+        // Prevent rapid level oscillation
+        if (this.sugarRushLevelChangeCooldown > 0) return;
+
         // Level up!
         this.sugarRushLevel = Math.min(this.sugarRushLevel + 1, 3);
 
-        // Set meter to the new level's threshold (gives buffer time at new level)
+        // Set meter to the new level's threshold + buffer
         const newConfig = this.sugarRushConfigs[this.sugarRushLevel];
-        this.candyMeter = newConfig.meterThreshold + 20; // Small buffer above threshold
+        this.candyMeter = newConfig.meterThreshold + 25; // Buffer above threshold
+
+        // Cooldown before next level change (1.5 seconds)
+        this.sugarRushLevelChangeCooldown = 1.5;
 
         // Update visuals for new level
         this.updateSugarRushVisuals();
@@ -907,13 +928,19 @@ class Game {
         // Show level up notification
         this.showSugarRushLevelUpNotification();
 
-        // Play FF-inspired level up fanfare!
+        // Play level up sound
         this.audio.playSugarRushLevelUpSound(this.sugarRushLevel);
     }
 
     levelDownSugarRush() {
+        // Prevent rapid level oscillation
+        if (this.sugarRushLevelChangeCooldown > 0) return;
+
         // Level down!
         this.sugarRushLevel = Math.max(this.sugarRushLevel - 1, 1);
+
+        // Cooldown before next level change (1 second)
+        this.sugarRushLevelChangeCooldown = 1.0;
 
         // Update visuals for lower level
         this.updateSugarRushVisuals();
@@ -1138,6 +1165,9 @@ class Game {
     }
 
     showSugarRushLevelUpNotification() {
+        // Skip notification on mobile - benefits panel is enough
+        if (window.innerWidth < 768) return;
+
         this.clearSugarRushNotifications();
 
         const config = this.sugarRushConfigs[this.sugarRushLevel];
@@ -1145,35 +1175,39 @@ class Game {
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-notification level-up';
         notification.innerHTML = `
-            <div class="icon">${this.sugarRushLevel === 3 ? '🌟' : '⬆️'}</div>
-            <div class="title">${config.name}</div>
-            <div class="description">${config.multiplier}x Points! ${invincibleText}</div>
+            <span class="icon">${this.sugarRushLevel === 3 ? '🌟' : '⬆️'}</span>
+            <span class="title">${config.name}</span>
+            <span class="description">${config.multiplier}x ${invincibleText}</span>
         `;
         document.body.appendChild(notification);
 
         setTimeout(() => {
-            notification.style.animation = 'sugarRushFadeOut 0.3s ease-out forwards';
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s';
             setTimeout(() => notification.remove(), 300);
-        }, 1500);
+        }, 1000);
     }
 
     showSugarRushLevelDownNotification() {
+        // Skip notification on mobile - benefits panel is enough
+        if (window.innerWidth < 768) return;
+
         this.clearSugarRushNotifications();
 
         const config = this.sugarRushConfigs[this.sugarRushLevel];
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-notification level-down';
         notification.innerHTML = `
-            <div class="icon">⬇️</div>
-            <div class="title">${config.name}</div>
-            <div class="description">Collect candy to power up!</div>
+            <span class="icon">⬇️</span>
+            <span class="title">${config.name}</span>
         `;
         document.body.appendChild(notification);
 
         setTimeout(() => {
-            notification.style.animation = 'sugarRushFadeOut 0.3s ease-out forwards';
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s';
             setTimeout(() => notification.remove(), 300);
-        }, 1200);
+        }, 800);
     }
 
     removeSugarRushEffects() {
@@ -1303,6 +1337,9 @@ class Game {
     }
 
     showSugarRushNotification() {
+        // Skip on mobile - benefits panel shows the info
+        if (window.innerWidth < 768) return;
+
         this.clearSugarRushNotifications();
 
         const config = this.sugarRushConfigs[this.sugarRushLevel] || this.sugarRushConfigs[1];
@@ -1310,32 +1347,23 @@ class Game {
         notification.className = 'sugar-rush-notification';
         notification.innerHTML = `
             <span class="icon">🍭</span>
-            <div class="title">${config.name}</div>
-            <div class="description">${config.multiplier}x Points! Keep collecting!</div>
+            <span class="title">${config.name}</span>
+            <span class="description">${config.multiplier}x Points!</span>
         `;
 
         document.body.appendChild(notification);
 
-        // Shorter display time - 1.2 seconds then fade out
+        // Short display - 1 second then fade
         setTimeout(() => {
-            notification.style.animation = 'sugarRushFadeOut 0.3s ease-out forwards';
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s';
             setTimeout(() => notification.remove(), 300);
-        }, 1200);
+        }, 1000);
     }
 
     showSugarRushEndNotification() {
-        this.clearSugarRushNotifications();
-
-        const notification = document.createElement('div');
-        notification.className = 'sugar-rush-end-notification';
-        notification.textContent = 'Sugar Rush ended!';
-
-        document.body.appendChild(notification);
-
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => notification.remove(), 300);
-        }, 1500);
+        // Skip notification - meter going to 0 and benefits panel disappearing is enough
+        // Having a popup in gameplay is too intrusive
     }
 
     createObstacleExplosion(position) {
@@ -2267,62 +2295,48 @@ class Game {
                     }
                     .sugar-rush-notification {
                         position: fixed;
-                        top: 80px;
+                        top: 120px;
                         left: 50%;
-                        transform: translateX(-50%) scale(0);
+                        transform: translateX(-50%);
                         background: linear-gradient(135deg, #FF69B4 0%, #FFD700 50%, #87CEEB 100%);
                         color: white;
-                        padding: 12px 25px;
+                        padding: 15px 30px;
                         border-radius: 15px;
                         font-weight: bold;
-                        font-size: 16px;
+                        font-size: 18px;
                         box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-                        z-index: 1000;
-                        animation: sugarRushPop 0.4s ease-out forwards;
+                        z-index: 999;
+                        animation: notificationSlideIn 0.3s ease-out;
                         text-align: center;
-                        display: flex;
-                        align-items: center;
-                        gap: 10px;
                     }
                     .sugar-rush-notification .icon {
-                        font-size: 28px;
-                        display: inline;
-                        margin-bottom: 0;
+                        font-size: 32px;
+                        display: block;
+                        margin-bottom: 5px;
                     }
                     .sugar-rush-notification .title {
-                        font-size: 20px;
+                        font-size: 22px;
                         text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                        margin-bottom: 0;
+                        margin-bottom: 3px;
                     }
                     .sugar-rush-notification .description {
-                        font-size: 12px;
+                        font-size: 14px;
                         opacity: 0.9;
-                    }
-                    @keyframes sugarRushPop {
-                        0% { transform: translateX(-50%) scale(0); }
-                        60% { transform: translateX(-50%) scale(1.1); }
-                        100% { transform: translateX(-50%) scale(1); }
-                    }
-                    @keyframes sugarRushFadeOut {
-                        to {
-                            transform: translateX(-50%) scale(0.8);
-                            opacity: 0;
-                        }
                     }
                     .sugar-rush-end-notification {
                         position: fixed;
-                        top: 30%;
+                        top: 120px;
                         left: 50%;
                         transform: translateX(-50%);
-                        background: rgba(255, 105, 180, 0.9);
+                        background: rgba(100, 100, 100, 0.9);
                         color: white;
-                        padding: 15px 30px;
+                        padding: 12px 25px;
                         border-radius: 10px;
                         font-family: 'Comic Sans MS', 'Arial', sans-serif;
-                        font-size: 20px;
+                        font-size: 16px;
                         font-weight: bold;
-                        z-index: 1000;
-                        transition: opacity 0.3s ease-out;
+                        z-index: 999;
+                        animation: notificationSlideIn 0.3s ease-out;
                     }
                     @media (max-width: 600px) {
                         #candy-meter-container {
@@ -2336,18 +2350,43 @@ class Game {
                             height: 16px;
                         }
                         #sugar-rush-timer {
-                            font-size: 18px;
+                            font-size: 14px;
                             bottom: 40px;
                         }
                         .sugar-rush-notification {
-                            padding: 10px 20px;
-                            top: 60px;
+                            top: auto;
+                            bottom: 70px;
+                            left: auto;
+                            right: 10px;
+                            transform: none;
+                            padding: 8px 12px;
+                            border-radius: 8px;
+                            font-size: 12px;
+                            animation: mobileSlideIn 0.3s ease-out;
                         }
                         .sugar-rush-notification .icon {
-                            font-size: 22px;
+                            font-size: 18px;
+                            display: inline;
+                            margin-bottom: 0;
+                            margin-right: 5px;
                         }
                         .sugar-rush-notification .title {
-                            font-size: 16px;
+                            font-size: 13px;
+                            display: inline;
+                            margin-bottom: 0;
+                        }
+                        .sugar-rush-notification .description {
+                            display: none;
+                        }
+                        .sugar-rush-end-notification {
+                            top: auto;
+                            bottom: 70px;
+                            left: auto;
+                            right: 10px;
+                            transform: none;
+                            padding: 8px 12px;
+                            font-size: 12px;
+                            animation: mobileSlideIn 0.3s ease-out;
                         }
                     }
                 `;

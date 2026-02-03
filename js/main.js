@@ -985,7 +985,14 @@ class Game {
         }
     }
 
+    clearSugarRushNotifications() {
+        // Remove any existing Sugar Rush notifications to prevent overlap
+        document.querySelectorAll('.sugar-rush-notification, .sugar-rush-end-notification').forEach(n => n.remove());
+    }
+
     showSugarRushLevelUpNotification() {
+        this.clearSugarRushNotifications();
+
         const config = this.sugarRushConfigs[this.sugarRushLevel];
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-notification level-up';
@@ -1126,6 +1133,8 @@ class Game {
     }
 
     showSugarRushNotification() {
+        this.clearSugarRushNotifications();
+
         const config = this.sugarRushConfigs[this.sugarRushLevel] || this.sugarRushConfigs[1];
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-notification';
@@ -1145,6 +1154,8 @@ class Game {
     }
 
     showSugarRushEndNotification() {
+        this.clearSugarRushNotifications();
+
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-end-notification';
         notification.textContent = 'Sugar Rush ended!';

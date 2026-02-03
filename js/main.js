@@ -702,7 +702,7 @@ class Game {
     }
 
     createShieldVisual() {
-        const shieldGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+        const shieldGeometry = new THREE.SphereGeometry(1.0, 16, 16);
         const shieldMaterial = new THREE.MeshBasicMaterial({
             color: 0x00FFFF,
             transparent: true,
@@ -710,6 +710,8 @@ class Game {
             side: THREE.DoubleSide
         });
         this.shieldMesh = new THREE.Mesh(shieldGeometry, shieldMaterial);
+        // Center the bubble on the character (body at 0.45, head at 1.2)
+        this.shieldMesh.position.y = 0.8;
         this.player.character.add(this.shieldMesh);
     }
 

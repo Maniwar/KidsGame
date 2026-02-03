@@ -353,59 +353,29 @@ export class PowerUp {
     }
 
     createCollectionEffect() {
-        // Sparkle burst
-        const particles = [];
-        const particleCount = 8;
-
-        for (let i = 0; i < particleCount; i++) {
-            const particleGeo = new THREE.SphereGeometry(0.08, 6, 6);
-            const particleMat = new THREE.MeshBasicMaterial({
-                color: this.ring ? this.ring.material.color : 0xFFFFFF,
-                transparent: true,
-                opacity: 1,
-            });
-
-            const particle = new THREE.Mesh(particleGeo, particleMat);
-            particle.position.copy(this.position);
-
-            const angle = (i / particleCount) * Math.PI * 2;
-            particle.userData.velocity = {
-                x: Math.cos(angle) * 3,
-                y: 2,
-                z: Math.sin(angle) * 3
-            };
-
-            this.scene.add(particle);
-            particles.push(particle);
-        }
-
-        // Animate particles
-        const duration = 400;
-        const startTime = Date.now();
+        // PERFORMANCE FIX: Removed particle burst that created new geometries
+        // Just animate the power-up flying up and fading
+        const duration = 300;
+        const startTime = performance.now();
+        const startY = this.position.y;
+        const group = this.group;
 
         const animate = () => {
-            const elapsed = Date.now() - startTime;
+            const elapsed = performance.now() - startTime;
             const progress = elapsed / duration;
 
             if (progress >= 1) {
-                particles.forEach(p => {
-                    this.scene.remove(p);
-                    p.geometry.dispose();
-                    p.material.dispose();
-                });
-                return;
+                return; // Animation complete, dispose() will be called by setTimeout
             }
 
-            particles.forEach((particle) => {
-                particle.position.x += particle.userData.velocity.x * 0.02;
-                particle.position.y += particle.userData.velocity.y * 0.02;
-                particle.position.z += particle.userData.velocity.z * 0.02;
-                particle.material.opacity = Math.max(0, 1 - progress);
-            });
+            // Power-up flies up with easing
+            const easeOut = 1 - Math.pow(1 - progress, 2);
+            group.position.y = startY + (easeOut * 6);
 
-            // Power-up flies up
-            this.group.position.y = this.position.y + (progress * 10);
-            this.group.traverse((child) => {
+            // Fade out and scale up slightly
+            const scale = 1 + progress * 0.3;
+            group.scale.set(scale, scale, scale);
+            group.traverse((child) => {
                 if (child.material) {
                     child.material.opacity = 1 - progress;
                     child.material.transparent = true;

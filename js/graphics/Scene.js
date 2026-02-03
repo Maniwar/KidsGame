@@ -901,7 +901,9 @@ export class GameScene {
         spout.position.y = 1.5;
         group.add(spout);
 
-        group.position.set(0, 0, z);
+        // Position fountain on sidewalk (side of road, not in play area)
+        const side = Math.random() < 0.5 ? -1 : 1;
+        group.position.set(side * 8, 0, z);
         this.scene.add(group);
         this.decorations.push({ mesh: group, zPos: z, type: 'fountain' });
     }

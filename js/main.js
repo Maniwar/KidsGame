@@ -1362,22 +1362,8 @@ class Game {
     }
 
     showSugarRushEndNotification() {
-        // Skip on mobile - cleaner experience
-        if (window.innerWidth < 768) return;
-
-        this.clearSugarRushNotifications();
-
-        const notification = document.createElement('div');
-        notification.className = 'sugar-rush-end-notification';
-        notification.textContent = 'Sugar Rush ended!';
-
-        document.body.appendChild(notification);
-
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transition = 'opacity 0.3s';
-            setTimeout(() => notification.remove(), 300);
-        }, 1000);
+        // Skip notification - meter going to 0 and benefits panel disappearing is enough
+        // Having a popup in gameplay is too intrusive
     }
 
     createObstacleExplosion(position) {

@@ -41,12 +41,12 @@ class Game {
         this.sugarRushLevelChangeCooldown = 0; // Cooldown between level changes to prevent oscillation
 
         // Sugar Rush level configs - only level 3 grants invincibility!
-        // Each level requires more candy to reach and decays FASTER, making MEGA hard to maintain
-        // decayRate = higher levels drain faster, requiring constant candy collection
+        // Magnet only attracts COINS, not candy - must collect candy manually
+        // decayRate balanced for manual candy collection (~7/sec max gain)
         this.sugarRushConfigs = {
-            1: { name: 'Sugar Rush!', multiplier: 3, magnetRadius: 8, auraSize: 1.2, auraColor: 0xFF69B4, speedBoost: 1.0, invincible: false, levelUpCost: 85, meterThreshold: 0, decayRate: 10 },
-            2: { name: 'SUPER Sugar Rush!', multiplier: 5, magnetRadius: 12, auraSize: 1.5, auraColor: 0xFFD700, speedBoost: 1.15, invincible: false, levelUpCost: 100, meterThreshold: 40, decayRate: 18 },
-            3: { name: 'MEGA SUGAR RUSH!!!', multiplier: 10, magnetRadius: 18, auraSize: 2.0, auraColor: 0xFF0000, speedBoost: 1.3, invincible: true, levelUpCost: 999, meterThreshold: 70, decayRate: 28 }
+            1: { name: 'Sugar Rush!', multiplier: 3, magnetRadius: 8, auraSize: 1.2, auraColor: 0xFF69B4, speedBoost: 1.0, invincible: false, levelUpCost: 90, meterThreshold: 0, decayRate: 12 },
+            2: { name: 'SUPER Sugar Rush!', multiplier: 5, magnetRadius: 12, auraSize: 1.5, auraColor: 0xFFD700, speedBoost: 1.15, invincible: false, levelUpCost: 110, meterThreshold: 40, decayRate: 18 },
+            3: { name: 'MEGA SUGAR RUSH!!!', multiplier: 10, magnetRadius: 18, auraSize: 2.0, auraColor: 0xFF0000, speedBoost: 1.3, invincible: true, levelUpCost: 999, meterThreshold: 70, decayRate: 25 }
         };
 
         // Leaderboard (Firebase-backed with local fallback)
@@ -570,7 +570,9 @@ class Game {
             this.animateCandyMeter();
         } else if (this.sugarRushCooldown <= 0 && this.candyMeter > 0) {
             // Level 0 decay - meter drains even when building up!
-            const level0DecayRate = 6; // 6/sec - balanced decay while building up
+            // Candy spawns ~0.4/sec collectible, avg value ~18 = ~7/sec max gain
+            // 4/sec decay allows net +3/sec with good play, ~23sec to fill meter
+            const level0DecayRate = 4;
             this.candyMeter -= level0DecayRate * deltaTime;
             if (this.candyMeter < 0) this.candyMeter = 0;
 
@@ -1239,34 +1241,14 @@ class Game {
     }
 
     attractCandies(deltaTime) {
+        // NOTE: Only attracts COINS, not candy!
+        // Candy must be collected manually to maintain Sugar Rush balance
         const playerPos = this.player.getPosition();
         const magnetRadius = this.getSugarRushMagnetRadius(); // Dynamic radius based on level
         const magnetRadiusSq = magnetRadius * magnetRadius;
         const attractSpeed = 20 + this.sugarRushLevel * 5; // Faster at higher levels
 
-        const candies = this.world.getCandies();
-        for (let i = 0, len = candies.length; i < len; i++) {
-            const candy = candies[i];
-            if (candy.isCollected) continue;
-
-            const dz = playerPos.z - candy.position.z;
-            if (dz > magnetRadius || dz < -magnetRadius) continue;
-
-            const dx = playerPos.x - candy.position.x;
-            if (dx > magnetRadius || dx < -magnetRadius) continue;
-
-            const distanceSq = dx * dx + dz * dz;
-            if (distanceSq < magnetRadiusSq && distanceSq > 0.01) {
-                const distance = Math.sqrt(distanceSq);
-                const invDist = 1 / distance;
-                candy.position.x += dx * invDist * attractSpeed * deltaTime;
-                candy.position.z += dz * invDist * attractSpeed * deltaTime;
-                candy.group.position.x = candy.position.x;
-                candy.group.position.z = candy.position.z;
-            }
-        }
-
-        // Also attract coins during Sugar Rush (level 2+)
+        // Attract coins during Sugar Rush
         const collectibles = this.world.getCollectibles();
         for (let i = 0, len = collectibles.length; i < len; i++) {
             const collectible = collectibles[i];

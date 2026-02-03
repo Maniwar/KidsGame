@@ -473,6 +473,9 @@ export class Player {
         }
 
         if (this.isBlinking) {
+            // Skip animation during pause between double blinks
+            if (this.blinkTimer < 0) return;
+
             const blinkProgress = this.blinkTimer / this.blinkDuration;
             if (blinkProgress < 0.5) {
                 const scaleY = this.eyeOpenScale * (1 - blinkProgress * 2 * 0.9);

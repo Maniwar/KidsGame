@@ -28,6 +28,7 @@ export class Player {
         this.blinkInterval = 3; // Blink every 3 seconds on average
         this.isBlinking = false;
         this.blinkDuration = 0.15; // How long a blink takes
+        this.blinksRemaining = 1; // For occasional double blinks
 
         // Create character
         this.createCharacter();
@@ -467,6 +468,8 @@ export class Player {
             this.isBlinking = true;
             this.blinkTimer = 0;
             this.blinkInterval = 2 + Math.random() * 2;
+            // 25% chance of double blink
+            this.blinksRemaining = Math.random() < 0.25 ? 2 : 1;
         }
 
         if (this.isBlinking) {
@@ -480,8 +483,14 @@ export class Player {
                 this.leftEye.scale.y = scaleY;
                 this.rightEye.scale.y = scaleY;
             } else {
-                this.isBlinking = false;
-                this.blinkTimer = 0;
+                this.blinksRemaining--;
+                if (this.blinksRemaining > 0) {
+                    // Quick pause then blink again
+                    this.blinkTimer = -0.08;
+                } else {
+                    this.isBlinking = false;
+                    this.blinkTimer = 0;
+                }
                 this.leftEye.scale.y = this.eyeOpenScale;
                 this.rightEye.scale.y = this.eyeOpenScale;
             }

@@ -41,12 +41,12 @@ class Game {
         this.sugarRushLevelChangeCooldown = 0; // Cooldown between level changes to prevent oscillation
 
         // Sugar Rush level configs - only level 3 grants invincibility!
-        // Each level requires more candy to reach and decays FASTER, making MEGA hard to maintain
-        // decayRate = higher levels drain faster, requiring constant candy collection
+        // Magnet effect increases candy collection ~2-3x, so decay must be higher
+        // decayRate accounts for magnet bonus: L1=2x, L2=2.5x, L3=3x collection
         this.sugarRushConfigs = {
-            1: { name: 'Sugar Rush!', multiplier: 3, magnetRadius: 8, auraSize: 1.2, auraColor: 0xFF69B4, speedBoost: 1.0, invincible: false, levelUpCost: 85, meterThreshold: 0, decayRate: 10 },
-            2: { name: 'SUPER Sugar Rush!', multiplier: 5, magnetRadius: 12, auraSize: 1.5, auraColor: 0xFFD700, speedBoost: 1.15, invincible: false, levelUpCost: 100, meterThreshold: 40, decayRate: 18 },
-            3: { name: 'MEGA SUGAR RUSH!!!', multiplier: 10, magnetRadius: 18, auraSize: 2.0, auraColor: 0xFF0000, speedBoost: 1.3, invincible: true, levelUpCost: 999, meterThreshold: 70, decayRate: 28 }
+            1: { name: 'Sugar Rush!', multiplier: 3, magnetRadius: 8, auraSize: 1.2, auraColor: 0xFF69B4, speedBoost: 1.0, invincible: false, levelUpCost: 90, meterThreshold: 0, decayRate: 15 },
+            2: { name: 'SUPER Sugar Rush!', multiplier: 5, magnetRadius: 12, auraSize: 1.5, auraColor: 0xFFD700, speedBoost: 1.15, invincible: false, levelUpCost: 110, meterThreshold: 40, decayRate: 25 },
+            3: { name: 'MEGA SUGAR RUSH!!!', multiplier: 10, magnetRadius: 18, auraSize: 2.0, auraColor: 0xFF0000, speedBoost: 1.3, invincible: true, levelUpCost: 999, meterThreshold: 70, decayRate: 35 }
         };
 
         // Leaderboard (Firebase-backed with local fallback)

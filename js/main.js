@@ -30,19 +30,22 @@ class Game {
         this.hasShield = false;
         this.invincibilityTimer = 0; // Brief invincibility after shield breaks
 
-        // Candy & Sugar Rush system - multi-level for maximum fun!
+        // Candy & Sugar Rush system - multi-level with balanced progression
         this.candyMeter = 0;
-        this.candyMeterMax = 50; // Meter to trigger Sugar Rush
+        this.candyMeterMax = 70; // Meter to trigger Sugar Rush (balanced)
         this.isSugarRush = false;
         this.sugarRushLevel = 0; // 0=off, 1=Sugar Rush, 2=Super Sugar Rush, 3=MEGA Sugar Rush
-        this.sugarRushDuration = 8; // Base duration
-        this.sugarRushTimer = 0;
+        this.sugarRushCooldown = 0; // Cooldown after Sugar Rush ends
+        this.sugarRushCooldownDuration = 4; // Seconds before meter can fill again
+        this.sugarRushDecayRate = 12; // Meter drains this much per second during Sugar Rush
 
-        // Sugar Rush level configs
+        // Sugar Rush level configs - only level 3 grants invincibility!
+        // Each level requires more candy to reach, making MEGA a real achievement
+        // meterMax = candy needed to maintain this level (meter drains to this, level down if below)
         this.sugarRushConfigs = {
-            1: { name: 'Sugar Rush!', multiplier: 3, magnetRadius: 8, auraSize: 1.2, auraColor: 0xFF69B4, speedBoost: 1.0 },
-            2: { name: 'SUPER Sugar Rush!', multiplier: 5, magnetRadius: 12, auraSize: 1.5, auraColor: 0xFFD700, speedBoost: 1.15 },
-            3: { name: 'MEGA SUGAR RUSH!!!', multiplier: 10, magnetRadius: 18, auraSize: 2.0, auraColor: 0xFF0000, speedBoost: 1.3 }
+            1: { name: 'Sugar Rush!', multiplier: 3, magnetRadius: 8, auraSize: 1.2, auraColor: 0xFF69B4, speedBoost: 1.0, invincible: false, levelUpCost: 85, meterThreshold: 0 },
+            2: { name: 'SUPER Sugar Rush!', multiplier: 5, magnetRadius: 12, auraSize: 1.5, auraColor: 0xFFD700, speedBoost: 1.15, invincible: false, levelUpCost: 100, meterThreshold: 40 },
+            3: { name: 'MEGA SUGAR RUSH!!!', multiplier: 10, magnetRadius: 18, auraSize: 2.0, auraColor: 0xFF0000, speedBoost: 1.3, invincible: true, levelUpCost: 999, meterThreshold: 70 }
         };
 
         // Leaderboard (Firebase-backed with local fallback)
@@ -410,8 +413,9 @@ class Game {
         this.candyMeter = 0;
         this.isSugarRush = false;
         this.sugarRushLevel = 0;
-        this.sugarRushTimer = 0;
+        this.sugarRushCooldown = 0;
         this.removeSugarRushEffects();
+        this.removeSugarRushBenefitsUI();
 
         this.updateHUD();
 
@@ -536,15 +540,36 @@ class Game {
             this.invincibilityTimer -= deltaTime;
         }
 
-        // Update Sugar Rush timer
+        // Update Sugar Rush - meter decays over time, collect candy to maintain!
         if (this.isSugarRush) {
-            this.sugarRushTimer -= deltaTime;
-            if (this.sugarRushTimer <= 0) {
+            // Decay the meter
+            this.candyMeter -= this.sugarRushDecayRate * deltaTime;
+
+            // Check for level down or end
+            if (this.candyMeter <= 0) {
+                this.candyMeter = 0;
                 this.endSugarRush();
             } else {
+                // Check if we should level down
+                const currentConfig = this.sugarRushConfigs[this.sugarRushLevel];
+                if (this.sugarRushLevel > 1 && currentConfig) {
+                    const threshold = currentConfig.meterThreshold;
+                    if (this.candyMeter < threshold) {
+                        this.levelDownSugarRush();
+                    }
+                }
+
                 // Sugar Rush effects - candy magnet
                 this.attractCandies(deltaTime);
             }
+
+            // Update meter UI to show decay
+            this.animateCandyMeter();
+        }
+
+        // Update Sugar Rush cooldown
+        if (this.sugarRushCooldown > 0) {
+            this.sugarRushCooldown -= deltaTime;
         }
 
         // Update power-up visual effects
@@ -821,12 +846,19 @@ class Game {
     // ============================================
 
     addToSugarMeter(value) {
+        // Don't fill meter during cooldown
+        if (this.sugarRushCooldown > 0 && !this.isSugarRush) {
+            return;
+        }
+
         if (this.isSugarRush) {
             // Already in Sugar Rush - fill meter to level up!
             this.candyMeter += value;
 
-            // Check for level up
-            if (this.candyMeter >= this.candyMeterMax && this.sugarRushLevel < 3) {
+            // Check for level up - requires more candy at higher levels
+            const currentConfig = this.sugarRushConfigs[this.sugarRushLevel];
+            const levelUpCost = currentConfig ? currentConfig.levelUpCost : this.candyMeterMax;
+            if (this.candyMeter >= levelUpCost && this.sugarRushLevel < 3) {
                 this.levelUpSugarRush();
             }
             return;
@@ -846,8 +878,8 @@ class Game {
     activateSugarRush(level) {
         this.isSugarRush = true;
         this.sugarRushLevel = level;
-        this.sugarRushTimer = this.sugarRushDuration;
-        this.candyMeter = 0; // Reset meter
+        // Start with meter at the threshold for level 1 (gives some buffer time)
+        this.candyMeter = this.candyMeterMax;
 
         // Show notification
         this.showSugarRushNotification();
@@ -862,8 +894,10 @@ class Game {
     levelUpSugarRush() {
         // Level up!
         this.sugarRushLevel = Math.min(this.sugarRushLevel + 1, 3);
-        this.candyMeter = 0; // Reset meter
-        this.sugarRushTimer = this.sugarRushDuration; // Refresh timer
+
+        // Set meter to the new level's threshold (gives buffer time at new level)
+        const newConfig = this.sugarRushConfigs[this.sugarRushLevel];
+        this.candyMeter = newConfig.meterThreshold + 20; // Small buffer above threshold
 
         // Update visuals for new level
         this.updateSugarRushVisuals();
@@ -871,14 +905,31 @@ class Game {
         // Show level up notification
         this.showSugarRushLevelUpNotification();
 
-        // Play level up sound
-        this.audio.playSugarRushSound();
+        // Play FF-inspired level up fanfare!
+        this.audio.playSugarRushLevelUpSound(this.sugarRushLevel);
+    }
+
+    levelDownSugarRush() {
+        // Level down!
+        this.sugarRushLevel = Math.max(this.sugarRushLevel - 1, 1);
+
+        // Update visuals for lower level
+        this.updateSugarRushVisuals();
+
+        // Show level down notification
+        this.showSugarRushLevelDownNotification();
+
+        // Play warning sound
+        this.audio.playSugarRushLevelDownSound();
     }
 
     endSugarRush() {
         this.isSugarRush = false;
         this.sugarRushLevel = 0;
-        this.sugarRushTimer = 0;
+
+        // Start cooldown - meter won't fill for a few seconds
+        this.sugarRushCooldown = this.sugarRushCooldownDuration;
+        this.candyMeter = 0; // Reset meter
 
         // Remove visual effects
         this.removeSugarRushEffects();
@@ -898,6 +949,11 @@ class Game {
     getSugarRushMagnetRadius() {
         if (!this.isSugarRush || this.sugarRushLevel === 0) return 0;
         return this.sugarRushConfigs[this.sugarRushLevel].magnetRadius;
+    }
+
+    isSugarRushInvincible() {
+        if (!this.isSugarRush || this.sugarRushLevel === 0) return false;
+        return this.sugarRushConfigs[this.sugarRushLevel].invincible;
     }
 
     createSugarRushVisuals() {
@@ -949,6 +1005,54 @@ class Game {
                 document.head.appendChild(style);
             }
         }
+
+        // Create benefits panel UI
+        this.showSugarRushBenefitsUI();
+    }
+
+    showSugarRushBenefitsUI() {
+        // Remove existing panel
+        this.removeSugarRushBenefitsUI();
+
+        const config = this.sugarRushConfigs[this.sugarRushLevel] || this.sugarRushConfigs[1];
+        const panel = document.createElement('div');
+        panel.id = 'sugar-rush-benefits';
+        panel.style.cssText = `
+            position: fixed;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, rgba(255,105,180,0.9) 0%, rgba(255,182,193,0.9) 100%);
+            border: 3px solid ${config.invincible ? '#FFD700' : '#FF69B4'};
+            border-radius: 15px;
+            padding: 12px 15px;
+            color: white;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            font-size: 14px;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(255,105,180,0.5);
+            min-width: 140px;
+        `;
+
+        const levelStars = '⭐'.repeat(this.sugarRushLevel);
+        const invincibleBadge = config.invincible ? '<div style="color:#FFD700;font-weight:bold;margin-top:5px;">🛡️ INVINCIBLE!</div>' : '';
+
+        panel.innerHTML = `
+            <div style="font-weight:bold;font-size:16px;text-align:center;margin-bottom:8px;">${config.name}</div>
+            <div style="text-align:center;margin-bottom:8px;">${levelStars}</div>
+            <div>🎯 ${config.multiplier}x Points</div>
+            <div>🧲 ${config.magnetRadius}m Magnet</div>
+            ${config.speedBoost > 1 ? `<div>💨 +${Math.round((config.speedBoost - 1) * 100)}% Speed</div>` : ''}
+            ${invincibleBadge}
+            <div style="font-size:11px;margin-top:8px;text-align:center;opacity:0.9;">Collect candy to maintain!</div>
+        `;
+
+        document.body.appendChild(panel);
+    }
+
+    removeSugarRushBenefitsUI() {
+        const panel = document.getElementById('sugar-rush-benefits');
+        if (panel) panel.remove();
     }
 
     updateSugarRushVisuals() {
@@ -981,18 +1085,31 @@ class Game {
                 overlay.style.background = `radial-gradient(circle, rgba(255,0,0,${intensity}) 0%, rgba(255,215,0,${intensity + 0.05}) 100%)`;
             } else if (this.sugarRushLevel === 2) {
                 overlay.style.background = `radial-gradient(circle, rgba(255,215,0,${intensity}) 0%, rgba(255,182,193,${intensity + 0.05}) 100%)`;
+            } else {
+                overlay.style.background = `radial-gradient(circle, rgba(255,105,180,0.1) 0%, rgba(255,182,193,0.15) 100%)`;
             }
         }
+
+        // Update benefits panel
+        this.showSugarRushBenefitsUI();
+    }
+
+    clearSugarRushNotifications() {
+        // Remove any existing Sugar Rush notifications to prevent overlap
+        document.querySelectorAll('.sugar-rush-notification, .sugar-rush-end-notification').forEach(n => n.remove());
     }
 
     showSugarRushLevelUpNotification() {
+        this.clearSugarRushNotifications();
+
         const config = this.sugarRushConfigs[this.sugarRushLevel];
+        const invincibleText = config.invincible ? '🛡️ INVINCIBLE!' : '';
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-notification level-up';
         notification.innerHTML = `
             <div class="icon">${this.sugarRushLevel === 3 ? '🌟' : '⬆️'}</div>
             <div class="title">${config.name}</div>
-            <div class="description">${config.multiplier}x Points! Magnet ${config.magnetRadius}m!</div>
+            <div class="description">${config.multiplier}x Points! ${invincibleText}</div>
         `;
         document.body.appendChild(notification);
 
@@ -1000,6 +1117,25 @@ class Game {
             notification.style.animation = 'sugarRushFadeOut 0.3s ease-out forwards';
             setTimeout(() => notification.remove(), 300);
         }, 1500);
+    }
+
+    showSugarRushLevelDownNotification() {
+        this.clearSugarRushNotifications();
+
+        const config = this.sugarRushConfigs[this.sugarRushLevel];
+        const notification = document.createElement('div');
+        notification.className = 'sugar-rush-notification level-down';
+        notification.innerHTML = `
+            <div class="icon">⬇️</div>
+            <div class="title">${config.name}</div>
+            <div class="description">Collect candy to power up!</div>
+        `;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'sugarRushFadeOut 0.3s ease-out forwards';
+            setTimeout(() => notification.remove(), 300);
+        }, 1200);
     }
 
     removeSugarRushEffects() {
@@ -1026,6 +1162,9 @@ class Game {
         if (overlay) {
             overlay.remove();
         }
+
+        // Remove benefits panel
+        this.removeSugarRushBenefitsUI();
     }
 
     attractCandies(deltaTime) {
@@ -1126,13 +1265,15 @@ class Game {
     }
 
     showSugarRushNotification() {
+        this.clearSugarRushNotifications();
+
         const config = this.sugarRushConfigs[this.sugarRushLevel] || this.sugarRushConfigs[1];
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-notification';
         notification.innerHTML = `
             <span class="icon">🍭</span>
             <div class="title">${config.name}</div>
-            <div class="description">${config.multiplier}x Points!</div>
+            <div class="description">${config.multiplier}x Points! Keep collecting!</div>
         `;
 
         document.body.appendChild(notification);
@@ -1145,6 +1286,8 @@ class Game {
     }
 
     showSugarRushEndNotification() {
+        this.clearSugarRushNotifications();
+
         const notification = document.createElement('div');
         notification.className = 'sugar-rush-end-notification';
         notification.textContent = 'Sugar Rush ended!';
@@ -1471,9 +1614,9 @@ class Game {
             }
         }
 
-        // Skip obstacle collisions if flying, giant, or Sugar Rush (invincible!)
+        // Skip obstacle collisions if flying, giant, or Sugar Rush level 3 (MEGA only is invincible!)
         const isFlyingOrGiant = this.activePowerUps.has('flight') || this.activePowerUps.has('giant');
-        const isInvincible = isFlyingOrGiant || this.isSugarRush;
+        const isInvincible = isFlyingOrGiant || this.isSugarRushInvincible();
 
         // Track if shield was consumed this frame to prevent multiple hits
         let shieldConsumedThisFrame = false;
@@ -1502,14 +1645,14 @@ class Game {
                     continue;
                 }
 
-                // Sugar Rush mode: smash through obstacles with rainbow explosion!
-                if (this.isSugarRush) {
+                // MEGA Sugar Rush (level 3): smash through obstacles with rainbow explosion!
+                if (this.isSugarRushInvincible()) {
                     this.smashStaticObstacle(obstacle, true);
-                    this.score += 75; // Extra bonus during Sugar Rush!
+                    this.score += 100; // Big bonus for MEGA Sugar Rush!
 
                     // Visual feedback
                     this.audio.playGemSound();
-                    this.createFloatingText('+75', obstacle.getPosition(), 0xFF69B4);
+                    this.createFloatingText('+100', obstacle.getPosition(), 0xFF69B4);
 
                     continue;
                 }
@@ -1571,12 +1714,12 @@ class Game {
                     continue;
                 }
 
-                // Sugar Rush mode: SMASH cars with rainbow explosion!
-                if (this.isSugarRush) {
+                // MEGA Sugar Rush (level 3): SMASH cars with rainbow explosion!
+                if (this.isSugarRushInvincible()) {
                     this.smashMovingObstacle(movingObj);
-                    this.score += 100; // Extra bonus during Sugar Rush!
+                    this.score += 125; // Big bonus for MEGA Sugar Rush!
                     this.audio.playGemSound();
-                    this.createFloatingText('+100', movingObj.position, 0xFF69B4);
+                    this.createFloatingText('+125', movingObj.position, 0xFF69B4);
                     continue;
                 }
 

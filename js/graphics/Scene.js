@@ -590,6 +590,14 @@ export class GameScene {
             }
         }
 
+        // Ground floor side windows (shared material)
+        const sideWindowMat = new THREE.MeshStandardMaterial({
+            color: 0x87CEEB,
+            emissive: 0x87CEEB,
+            emissiveIntensity: 0.4
+        });
+        const sideWindowGeo = new THREE.BoxGeometry(0.8, 1.2, 0.1);
+
         // Style-specific decorations
         if (style === 'shop' || style === 'supermarket') {
             // Shop entrance door
@@ -598,6 +606,15 @@ export class GameScene {
             const door = new THREE.Mesh(doorGeo, doorMat);
             door.position.set(0, -height / 2 + 1, depth / 2 + 0.05);
             group.add(door);
+            // Side windows next to door
+            if (width > 3) {
+                const leftWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                leftWin.position.set(-width / 4, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(leftWin);
+                const rightWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                rightWin.position.set(width / 4, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(rightWin);
+            }
             // Awning over front - positioned above door level
             const awningGeo = new THREE.BoxGeometry(width * 0.95, 0.15, 1.5);
             const awningColors = [0xFF69B4, 0xFFB347, 0x98FB98, 0x87CEEB];
@@ -621,6 +638,15 @@ export class GameScene {
             const rightDoor = new THREE.Mesh(doorGeo, doorMat);
             rightDoor.position.set(0.5, -height / 2 + 1.1, depth / 2 + 0.05);
             group.add(rightDoor);
+            // Side windows next to double doors
+            if (width > 4) {
+                const leftWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                leftWin.position.set(-width / 3, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(leftWin);
+                const rightWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                rightWin.position.set(width / 3, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(rightWin);
+            }
             // Entrance canopy - positioned above door level
             const canopyGeo = new THREE.BoxGeometry(width * 0.4, 0.2, 2);
             const canopyMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, flatShading: true });
@@ -636,6 +662,15 @@ export class GameScene {
             const door = new THREE.Mesh(doorGeo, doorMat);
             door.position.set(0, -height / 2 + 1.1, depth / 2 + 0.05);
             group.add(door);
+            // Side windows next to lobby entrance
+            if (width > 4) {
+                const leftWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                leftWin.position.set(-width / 3, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(leftWin);
+                const rightWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                rightWin.position.set(width / 3, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(rightWin);
+            }
             // Antenna on top
             const antennaGeo = new THREE.CylinderGeometry(0.1, 0.15, height * 0.15, 6);
             const antennaMat = new THREE.MeshStandardMaterial({ color: 0xC0C0C0, metalness: 0.8 });
@@ -674,6 +709,15 @@ export class GameScene {
             const door = new THREE.Mesh(doorGeo, doorMat);
             door.position.set(0, -height / 2 + 1, depth / 2 + 0.05);
             group.add(door);
+            // Side windows next to entrance
+            if (width > 3) {
+                const leftWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                leftWin.position.set(-width / 4, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(leftWin);
+                const rightWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                rightWin.position.set(width / 4, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(rightWin);
+            }
             // Balconies on front - start above ground floor
             const balconyMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, flatShading: true });
             const balconyGeo = new THREE.BoxGeometry(1.2, 0.1, 0.8);
@@ -697,6 +741,15 @@ export class GameScene {
             const door = new THREE.Mesh(doorGeo, doorMat);
             door.position.set(0, -height / 2 + 1.1, depth / 2 + 0.05);
             group.add(door);
+            // Side windows next to revolving door
+            if (width > 5) {
+                const leftWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                leftWin.position.set(-width / 3 - 0.5, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(leftWin);
+                const rightWin = new THREE.Mesh(sideWindowGeo, sideWindowMat);
+                rightWin.position.set(width / 3 + 0.5, -height / 2 + 1.1, depth / 2 + 0.05);
+                group.add(rightWin);
+            }
             // Entrance columns
             const columnMat = new THREE.MeshStandardMaterial({ color: 0xD4AF37, flatShading: true });
             const columnGeo = new THREE.CylinderGeometry(0.3, 0.3, 3, 8);
@@ -713,6 +766,18 @@ export class GameScene {
             const door = new THREE.Mesh(doorGeo, doorMat);
             door.position.set(0, -height / 2 + 1.25, depth / 2 + 0.05);
             group.add(door);
+            // Side windows next to garage door
+            const garageDoorWidth = width * 0.6;
+            const sideSpace = (width - garageDoorWidth) / 2;
+            if (sideSpace > 1) {
+                const smallWindowGeo = new THREE.BoxGeometry(0.6, 0.6, 0.1);
+                const leftWin = new THREE.Mesh(smallWindowGeo, sideWindowMat);
+                leftWin.position.set(-width / 2 + sideSpace / 2, -height / 2 + 1.5, depth / 2 + 0.05);
+                group.add(leftWin);
+                const rightWin = new THREE.Mesh(smallWindowGeo, sideWindowMat);
+                rightWin.position.set(width / 2 - sideSpace / 2, -height / 2 + 1.5, depth / 2 + 0.05);
+                group.add(rightWin);
+            }
         } else if (style === 'station' || style === 'convention') {
             // Clock tower on top
             const clockBaseMat = new THREE.MeshStandardMaterial({ color: 0x8B0000, flatShading: true });
@@ -764,6 +829,16 @@ export class GameScene {
             const door = new THREE.Mesh(doorGeo, doorMat);
             door.position.set(0, -height / 2 + 0.9, depth / 2 + 0.05);
             group.add(door);
+            // Side windows next to house door
+            if (width > 2.5) {
+                const smallWindowGeo = new THREE.BoxGeometry(0.6, 0.8, 0.1);
+                const leftWin = new THREE.Mesh(smallWindowGeo, sideWindowMat);
+                leftWin.position.set(-width / 4, -height / 2 + 1, depth / 2 + 0.05);
+                group.add(leftWin);
+                const rightWin = new THREE.Mesh(smallWindowGeo, sideWindowMat);
+                rightWin.position.set(width / 4, -height / 2 + 1, depth / 2 + 0.05);
+                group.add(rightWin);
+            }
         }
 
         group.position.set(x, y, z);

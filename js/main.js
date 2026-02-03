@@ -2496,6 +2496,8 @@ class Game {
             this.camera.update(this.player.getPosition());
             // Keep dizzy stars swirling during death screen
             this.updateDizzyStars();
+            // Keep Hello Kitty blinking on game over screen
+            this.player.updateBlink(deltaTime);
         }
 
         // Render scene

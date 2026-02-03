@@ -4,36 +4,51 @@ export class KeyboardController {
     constructor() {
         this.keys = new Set();
         this.justPressed = new Set();
+
+        // Store bound handlers for cleanup
+        this.boundKeyDown = this.handleKeyDown.bind(this);
+        this.boundKeyUp = this.handleKeyUp.bind(this);
+
         this.setupEventListeners();
     }
 
+    handleKeyDown(e) {
+        // Don't capture keys if user is typing in an input field
+        if (this.isTypingInInput()) {
+            return;
+        }
+
+        // Prevent default behavior for game keys (like space scrolling the page)
+        if (this.isGameKey(e.code)) {
+            e.preventDefault();
+        }
+
+        // Only add to justPressed if it wasn't already pressed (prevents repeat while holding)
+        if (!this.keys.has(e.code)) {
+            this.justPressed.add(e.code);
+        }
+        this.keys.add(e.code);
+    }
+
+    handleKeyUp(e) {
+        // Don't capture keys if user is typing in an input field
+        if (this.isTypingInInput()) {
+            return;
+        }
+        this.keys.delete(e.code);
+        this.justPressed.delete(e.code);
+    }
+
     setupEventListeners() {
-        window.addEventListener('keydown', (e) => {
-            // Don't capture keys if user is typing in an input field
-            if (this.isTypingInInput()) {
-                return;
-            }
+        window.addEventListener('keydown', this.boundKeyDown);
+        window.addEventListener('keyup', this.boundKeyUp);
+    }
 
-            // Prevent default behavior for game keys (like space scrolling the page)
-            if (this.isGameKey(e.code)) {
-                e.preventDefault();
-            }
-
-            // Only add to justPressed if it wasn't already pressed (prevents repeat while holding)
-            if (!this.keys.has(e.code)) {
-                this.justPressed.add(e.code);
-            }
-            this.keys.add(e.code);
-        });
-
-        window.addEventListener('keyup', (e) => {
-            // Don't capture keys if user is typing in an input field
-            if (this.isTypingInInput()) {
-                return;
-            }
-            this.keys.delete(e.code);
-            this.justPressed.delete(e.code);
-        });
+    destroy() {
+        window.removeEventListener('keydown', this.boundKeyDown);
+        window.removeEventListener('keyup', this.boundKeyUp);
+        this.keys.clear();
+        this.justPressed.clear();
     }
 
     update() {

@@ -57,6 +57,8 @@ export class AudioManager {
 
         // Procedural melody generation (replaces hard-coded patterns)
         this.melodyCache = {}; // Cache generated melodies
+        this.melodyCacheKeys = []; // Track insertion order for LRU eviction
+        this.maxMelodyCacheSize = 50; // Limit cache size to prevent memory growth
         this.lastNote = 0; // Track last note for smooth transitions
         this.sectionSeed = {}; // Seed for consistent regeneration per section
 
@@ -334,6 +336,13 @@ export class AudioManager {
         if (!this.melodyCache[cacheKey]) {
             const sectionLength = this.songStructure[section];
             this.melodyCache[cacheKey] = this.generateMelody(section, sectionLength, chordIndex);
+            this.melodyCacheKeys.push(cacheKey);
+
+            // Evict oldest entries if cache exceeds max size
+            while (this.melodyCacheKeys.length > this.maxMelodyCacheSize) {
+                const oldestKey = this.melodyCacheKeys.shift();
+                delete this.melodyCache[oldestKey];
+            }
         }
 
         // Get the procedurally generated melody
@@ -932,5 +941,12 @@ export class AudioManager {
     // Get current tempo for external reference
     getTempo() {
         return this.tempo;
+    }
+
+    // Clear melody cache to free memory
+    clearMelodyCache() {
+        this.melodyCache = {};
+        this.melodyCacheKeys = [];
+        this.sectionSeed = {};
     }
 }

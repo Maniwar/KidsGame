@@ -76,38 +76,45 @@ export class Player {
         this.body.scale.set(1, 1.05, 0.95); // Slightly taller
         this.character.add(this.body);
 
-        // === Outfit: Blue overalls with yellow collar ===
+        // === Outfit: Blue overalls with yellow shirt ===
         const overallsMaterial = new THREE.MeshStandardMaterial({
             color: 0x4169E1, // Royal blue
             flatShading: false,
         });
-        const collarMaterial = new THREE.MeshStandardMaterial({
+        const shirtMaterial = new THREE.MeshStandardMaterial({
             color: 0xFFD700, // Gold/yellow
             flatShading: false,
         });
 
-        // Overalls (covers lower body)
+        // Yellow shirt (visible above overalls)
+        const shirtGeometry = new THREE.SphereGeometry(0.37, 24, 24);
+        const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
+        shirt.position.y = 0.55;
+        shirt.scale.set(0.95, 0.6, 0.9);
+        this.character.add(shirt);
+
+        // Overalls (covers lower body, over the shirt)
         const overallsGeometry = new THREE.SphereGeometry(0.39, 24, 24);
         const overalls = new THREE.Mesh(overallsGeometry, overallsMaterial);
         overalls.position.y = 0.38;
         overalls.scale.set(1.02, 0.8, 0.97);
         this.character.add(overalls);
 
-        // Overall straps
-        const strapGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.05);
+        // Overall straps - positioned on front of body, visible
+        const strapGeometry = new THREE.BoxGeometry(0.10, 0.35, 0.08);
         const leftStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
-        leftStrap.position.set(-0.15, 0.7, 0.15);
-        leftStrap.rotation.x = 0.2;
+        leftStrap.position.set(-0.14, 0.68, 0.30); // Further forward to be visible
+        leftStrap.rotation.x = 0.3;
         this.character.add(leftStrap);
 
         const rightStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
-        rightStrap.position.set(0.15, 0.7, 0.15);
-        rightStrap.rotation.x = 0.2;
+        rightStrap.position.set(0.14, 0.68, 0.30); // Further forward to be visible
+        rightStrap.rotation.x = 0.3;
         this.character.add(rightStrap);
 
-        // Yellow collar
-        const collarGeometry = new THREE.TorusGeometry(0.22, 0.06, 8, 16);
-        const collar = new THREE.Mesh(collarGeometry, collarMaterial);
+        // Yellow collar at neckline
+        const collarGeometry = new THREE.TorusGeometry(0.20, 0.05, 8, 16);
+        const collar = new THREE.Mesh(collarGeometry, shirtMaterial);
         collar.position.y = 0.82;
         collar.rotation.x = Math.PI / 2;
         this.character.add(collar);

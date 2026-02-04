@@ -192,20 +192,20 @@ export class Player {
         // Moderate spacing, not too wide
         const whiskerYPositions = [-0.06, -0.14, -0.22]; // Centered around nose
 
-        // Left whiskers - on front cheek, extending outward
+        // Left whiskers - emerging from inside cheek, extending outward
         const leftWhiskerAngles = [-0.12, 0, 0.12]; // Subtle fan
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            whisker.position.set(-0.28, whiskerYPositions[i], 0.46); // Closer to center
+            whisker.position.set(-0.38, whiskerYPositions[i], 0.30); // Further back inside head
             whisker.rotation.z = leftWhiskerAngles[i];
             this.head.add(whisker);
         }
 
-        // Right whiskers - on front cheek, extending outward
+        // Right whiskers - emerging from inside cheek, extending outward
         const rightWhiskerAngles = [0.12, 0, -0.12]; // Subtle fan mirrored
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            whisker.position.set(0.28, whiskerYPositions[i], 0.46); // Closer to center
+            whisker.position.set(0.38, whiskerYPositions[i], 0.30); // Further back inside head
             whisker.rotation.z = rightWhiskerAngles[i];
             this.head.add(whisker);
         }

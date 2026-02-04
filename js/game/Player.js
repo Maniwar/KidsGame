@@ -196,7 +196,7 @@ export class Player {
         const leftWhiskerAngles = [-0.12, 0, 0.12]; // Subtle fan
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            whisker.position.set(-0.38, whiskerYPositions[i], 0.42); // More forward on face
+            whisker.position.set(-0.28, whiskerYPositions[i], 0.46); // Closer to center
             whisker.rotation.z = leftWhiskerAngles[i];
             this.head.add(whisker);
         }
@@ -205,7 +205,7 @@ export class Player {
         const rightWhiskerAngles = [0.12, 0, -0.12]; // Subtle fan mirrored
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            whisker.position.set(0.38, whiskerYPositions[i], 0.42); // More forward on face
+            whisker.position.set(0.28, whiskerYPositions[i], 0.46); // Closer to center
             whisker.rotation.z = rightWhiskerAngles[i];
             this.head.add(whisker);
         }

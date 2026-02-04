@@ -143,7 +143,7 @@ export class Player {
 
         // Create continuous straps from bib over shoulders to back
         [-strapX, strapX].forEach(xPos => {
-            // Full strap path from bib top, over shoulder, down the back
+            // Full strap path from bib top, over shoulder, down the back to pants
             const strapPoints = [
                 { y: 0.77, z: 0.43 },   // At bib top (button level)
                 { y: 0.82, z: 0.42 },   // Rising from bib
@@ -154,9 +154,9 @@ export class Player {
                 { y: 0.96, z: -0.02 },  // Over the top
                 { y: 0.94, z: -0.15 },  // Down the back
                 { y: 0.90, z: -0.28 },  // Upper back
-                { y: 0.84, z: -0.38 },  // Mid back
-                { y: 0.72, z: -0.42 },  // Lower back
-                { y: 0.58, z: -0.42 },  // At waist
+                { y: 0.82, z: -0.38 },  // Mid back
+                { y: 0.72, z: -0.40 },  // Lower back - connects to pants
+                { y: 0.62, z: -0.38 },  // Into the overalls waistband
             ];
 
             // Create strap segments with overlap

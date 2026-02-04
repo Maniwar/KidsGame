@@ -97,11 +97,11 @@ export class Player {
         shirt.scale.set(1.0, 0.5, 0.9);
         this.character.add(shirt);
 
-        // Overalls (covers most of body - larger to hide shirt on sides)
-        const overallsGeometry = new THREE.SphereGeometry(0.40, 24, 24);
+        // Overalls (covers entire body - no white showing)
+        const overallsGeometry = new THREE.SphereGeometry(0.41, 24, 24);
         const overalls = new THREE.Mesh(overallsGeometry, overallsMaterial);
-        overalls.position.y = 0.42;
-        overalls.scale.set(1.0, 0.95, 0.95);
+        overalls.position.y = 0.45;
+        overalls.scale.set(1.02, 1.1, 0.98);
         this.character.add(overalls);
 
         // Overalls bib (front panel) - connects to straps

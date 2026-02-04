@@ -183,30 +183,30 @@ export class Player {
         this.head.add(this.nose);
 
         // Whiskers (3 per side - like Hello Kitty reference)
-        // Long horizontal lines, WIDELY SPACED from eye level to below nose
-        const whiskerGeometry = new THREE.BoxGeometry(0.38, 0.018, 0.018);
+        // On front cheeks, centered around nose level, extending outward
+        const whiskerGeometry = new THREE.BoxGeometry(0.32, 0.016, 0.016);
         const whiskerMaterial = new THREE.MeshStandardMaterial({
             color: 0x000000,
         });
 
-        // Whisker Y positions: top at eye level, middle below eyes, bottom below nose
-        // Eyes at y=0.02, nose at y=-0.14
-        const whiskerYPositions = [0.0, -0.10, -0.20]; // Wide vertical spread
+        // Whisker Y positions: all centered around nose level (y=-0.14)
+        // Moderate spacing, not too wide
+        const whiskerYPositions = [-0.06, -0.14, -0.22]; // Centered around nose
 
-        // Left whiskers - extending outward from left side of face
-        const leftWhiskerAngles = [-0.18, 0, 0.18]; // Fan: top angles up, middle straight, bottom angles down
+        // Left whiskers - on front cheek, extending outward
+        const leftWhiskerAngles = [-0.12, 0, 0.12]; // Subtle fan
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            whisker.position.set(-0.42, whiskerYPositions[i], 0.32);
+            whisker.position.set(-0.38, whiskerYPositions[i], 0.42); // More forward on face
             whisker.rotation.z = leftWhiskerAngles[i];
             this.head.add(whisker);
         }
 
-        // Right whiskers - extending outward from right side of face
-        const rightWhiskerAngles = [0.18, 0, -0.18]; // Fan mirrored
+        // Right whiskers - on front cheek, extending outward
+        const rightWhiskerAngles = [0.12, 0, -0.12]; // Subtle fan mirrored
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            whisker.position.set(0.42, whiskerYPositions[i], 0.32);
+            whisker.position.set(0.38, whiskerYPositions[i], 0.42); // More forward on face
             whisker.rotation.z = rightWhiskerAngles[i];
             this.head.add(whisker);
         }

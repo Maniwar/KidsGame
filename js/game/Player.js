@@ -76,6 +76,42 @@ export class Player {
         this.body.scale.set(1, 1.05, 0.95); // Slightly taller
         this.character.add(this.body);
 
+        // === Outfit: Blue overalls with yellow collar ===
+        const overallsMaterial = new THREE.MeshStandardMaterial({
+            color: 0x4169E1, // Royal blue
+            flatShading: false,
+        });
+        const collarMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFD700, // Gold/yellow
+            flatShading: false,
+        });
+
+        // Overalls (covers lower body)
+        const overallsGeometry = new THREE.SphereGeometry(0.39, 24, 24);
+        const overalls = new THREE.Mesh(overallsGeometry, overallsMaterial);
+        overalls.position.y = 0.38;
+        overalls.scale.set(1.02, 0.8, 0.97);
+        this.character.add(overalls);
+
+        // Overall straps
+        const strapGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.05);
+        const leftStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
+        leftStrap.position.set(-0.15, 0.7, 0.15);
+        leftStrap.rotation.x = 0.2;
+        this.character.add(leftStrap);
+
+        const rightStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
+        rightStrap.position.set(0.15, 0.7, 0.15);
+        rightStrap.rotation.x = 0.2;
+        this.character.add(rightStrap);
+
+        // Yellow collar
+        const collarGeometry = new THREE.TorusGeometry(0.22, 0.06, 8, 16);
+        const collar = new THREE.Mesh(collarGeometry, collarMaterial);
+        collar.position.y = 0.82;
+        collar.rotation.x = Math.PI / 2;
+        this.character.add(collar);
+
         // Head (larger sphere - wider like Hello Kitty!)
         const headGeometry = new THREE.SphereGeometry(0.5, 24, 24);
         this.head = new THREE.Mesh(headGeometry, bodyMaterial);

@@ -236,47 +236,48 @@ export class Player {
         rightInnerEar.scale.set(0.8, 1.2, 0.4);
         this.head.add(rightInnerEar);
 
-        // Bow (MUCH BIGGER - Hello Kitty's signature feature!)
+        // Bow (Hello Kitty's signature feature - clean and cohesive)
         const bowGroup = new THREE.Group();
 
-        // Left bow loop (inner loop, over kitten's head)
-        const bowLoopGeometry = new THREE.SphereGeometry(0.28, 16, 16);
+        // Left bow loop - positioned to overlap with center
+        const bowLoopGeometry = new THREE.SphereGeometry(0.22, 16, 16);
         const leftBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
-        leftBowLoop.position.set(-0.22, 0, 0);
-        leftBowLoop.scale.set(0.5, 1.1, 0.8); // Z fuller so loops visible from front
+        leftBowLoop.position.set(-0.15, 0, 0);
+        leftBowLoop.scale.set(0.7, 1.0, 0.6); // Rounder, less stretched
         leftBowLoop.castShadow = true;
         bowGroup.add(leftBowLoop);
 
-        // Right bow loop (outer loop)
+        // Right bow loop - positioned to overlap with center
         const rightBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
-        rightBowLoop.position.set(0.22, 0, 0);
-        rightBowLoop.scale.set(0.5, 1.1, 0.8); // Z fuller so loops visible from front
+        rightBowLoop.position.set(0.15, 0, 0);
+        rightBowLoop.scale.set(0.7, 1.0, 0.6); // Rounder, less stretched
         rightBowLoop.castShadow = true;
         bowGroup.add(rightBowLoop);
 
-        // Bow center (bigger)
-        const bowCenterGeometry = new THREE.SphereGeometry(0.16, 12, 12);
+        // Bow center knot - larger to overlap and connect the loops
+        const bowCenterGeometry = new THREE.SphereGeometry(0.12, 12, 12);
         const bowCenter = new THREE.Mesh(bowCenterGeometry, bowMaterial);
+        bowCenter.scale.set(1.0, 0.9, 0.8);
         bowCenter.castShadow = true;
         bowGroup.add(bowCenter);
 
-        // Bow ribbons hanging down
-        const ribbonGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.06);
+        // Bow ribbons hanging down - closer together
+        const ribbonGeometry = new THREE.BoxGeometry(0.07, 0.18, 0.05);
         const leftRibbon = new THREE.Mesh(ribbonGeometry, bowMaterial);
-        leftRibbon.position.set(-0.1, -0.15, 0);
-        leftRibbon.rotation.z = -0.15;
+        leftRibbon.position.set(-0.05, -0.12, 0);
+        leftRibbon.rotation.z = -0.2;
         leftRibbon.castShadow = true;
         bowGroup.add(leftRibbon);
 
         const rightRibbon = new THREE.Mesh(ribbonGeometry, bowMaterial);
-        rightRibbon.position.set(0.1, -0.15, 0);
-        rightRibbon.rotation.z = 0.15;
+        rightRibbon.position.set(0.05, -0.12, 0);
+        rightRibbon.rotation.z = 0.2;
         rightRibbon.castShadow = true;
         bowGroup.add(rightRibbon);
 
         bowGroup.position.set(0.35, 0.35, 0.1); // Relative to head
         // Group rotation creates diagonal look: inner loop UP, outer loop DOWN
-        bowGroup.rotation.set(0.3, 0, 0.6); // X tilt forward, Z diagonal (increased from 0.4)
+        bowGroup.rotation.set(0.2, 0, 0.5); // Slight forward tilt, diagonal
         this.bow = bowGroup;
         this.head.add(bowGroup);
 

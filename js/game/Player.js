@@ -143,12 +143,12 @@ export class Player {
         const buttonGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12);
 
         const leftButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-        leftButton.position.set(-strapX, 0.72, 0.45);
+        leftButton.position.set(-strapX, 0.68, 0.45);
         leftButton.rotation.x = Math.PI / 2;
         this.character.add(leftButton);
 
         const rightButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-        rightButton.position.set(strapX, 0.72, 0.45);
+        rightButton.position.set(strapX, 0.68, 0.45);
         rightButton.rotation.x = Math.PI / 2;
         this.character.add(rightButton);
 
@@ -156,7 +156,7 @@ export class Player {
         [-strapX, strapX].forEach(xPos => {
             // Full strap path from bib top, over shoulder, down the back to pants
             const strapPoints = [
-                { y: 0.73, z: 0.43 },   // At bib top (button level)
+                { y: 0.69, z: 0.43 },   // At bib top (button level)
                 { y: 0.82, z: 0.42 },   // Rising from bib
                 { y: 0.87, z: 0.40 },   // Going up
                 { y: 0.91, z: 0.35 },   // Upper chest

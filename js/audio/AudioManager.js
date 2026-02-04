@@ -348,12 +348,70 @@ export class AudioManager {
 
     // === Music Playback ===
 
-    // Get note duration based on section and beat position
-    getNoteDuration(section, beat) {
+    // Determine note's harmonic importance relative to current chord
+    // Returns multiplier for duration (1.0 = normal, higher = hold longer)
+    getNoteImportance(noteName, chordIndex, beat) {
+        const chord = this.chordProgression[chordIndex];
+        const pitchClass = noteName[0]; // Extract pitch class (C, D, E, etc.)
+        const rootPitch = chord.root[0];
+
+        // Check if note is a chord tone
+        const isChordTone = chord.notes.some(n => n[0] === pitchClass);
+        const isRoot = pitchClass === rootPitch;
+
+        // Check beat strength (downbeat = beat 0, strong = beats 0,2)
+        const isDownbeat = beat % 4 === 0;
+        const isStrongBeat = beat % 2 === 0;
+
+        // Resolution: landing on tonic (C) when chord is I (C major)
+        const isResolution = chord.roman === 'I' && pitchClass === 'C';
+
+        // Circle of fifths important notes:
+        // - Root of each chord (A, D, G, C) should be emphasized
+        // - Fifth of chord creates stability
+        // - Resolution to C (tonic) is most important
+        let importance = 1.0;
+
+        if (isResolution && isDownbeat) {
+            // Ultimate resolution - tonic on downbeat of I chord
+            importance = 2.0;
+        } else if (isRoot && isDownbeat) {
+            // Root note on downbeat - very stable, hold longer
+            importance = 1.8;
+        } else if (isRoot && isStrongBeat) {
+            // Root on strong beat
+            importance = 1.5;
+        } else if (isChordTone && isDownbeat) {
+            // Other chord tone (3rd, 5th) on downbeat
+            importance = 1.4;
+        } else if (isChordTone && isStrongBeat) {
+            // Chord tone on strong beat
+            importance = 1.2;
+        } else if (isChordTone) {
+            // Chord tone on weak beat - slightly longer than passing tone
+            importance = 1.1;
+        } else {
+            // Passing tone (non-chord tone) - keep shorter, leads to resolution
+            importance = 0.7;
+        }
+
+        return importance;
+    }
+
+    // Get note duration based on section, beat position, AND harmonic importance
+    getNoteDuration(section, beat, noteName = null, chordIndex = 0) {
         const rhythmName = this.sectionRhythms[section] || 'standard';
         const pattern = this.rhythmDurations[rhythmName];
         const patternIndex = beat % pattern.length;
-        return pattern[patternIndex] * this.beatDuration;
+        let baseDuration = pattern[patternIndex] * this.beatDuration;
+
+        // Apply harmonic importance multiplier if note info provided
+        if (noteName) {
+            const importance = this.getNoteImportance(noteName, chordIndex, beat);
+            baseDuration *= importance;
+        }
+
+        return baseDuration;
     }
 
     playMelodyNote(section, beat, time) {
@@ -385,8 +443,9 @@ export class AudioManager {
 
         if (!freq) return;
 
-        // Get varied note duration based on section rhythm pattern
-        const noteDuration = this.getNoteDuration(section, beat);
+        // Get varied note duration based on section, rhythm, AND harmonic importance
+        // Chord tones and resolution notes are held longer per music theory
+        const noteDuration = this.getNoteDuration(section, beat, note, chordIndex);
 
         // Create oscillator for melody
         const osc = this.context.createOscillator();
@@ -399,7 +458,9 @@ export class AudioManager {
         // Shorter notes get snappier envelopes, longer notes get more sustain
         const attackTime = Math.min(0.02, noteDuration * 0.1);
         const decayTime = Math.min(0.08, noteDuration * 0.2);
-        const sustainLevel = noteDuration > this.beatDuration ? 0.07 : 0.05;
+        // Chord tones/roots get fuller sustain for warmth
+        const importance = this.getNoteImportance(note, chordIndex, beat);
+        const sustainLevel = importance > 1.3 ? 0.08 : (noteDuration > this.beatDuration ? 0.07 : 0.05);
         const sustainEnd = noteDuration * 0.75;
 
         gain.gain.setValueAtTime(0, time);

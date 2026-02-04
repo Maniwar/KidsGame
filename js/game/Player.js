@@ -275,7 +275,7 @@ export class Player {
         rightRibbon.castShadow = true;
         bowGroup.add(rightRibbon);
 
-        bowGroup.position.set(0.35, 0.35, 0.1); // Relative to head
+        bowGroup.position.set(0.35, 0.42, 0.1); // Relative to head - raised up
         // Group rotation creates diagonal look: inner loop UP, outer loop DOWN
         bowGroup.rotation.set(0.2, 0, -0.5); // Negative Z = inner loop UP, outer DOWN
         this.bow = bowGroup;

@@ -105,12 +105,12 @@ export class Player {
         this.character.add(overalls);
 
         // === SUSPENDER STRAPS ===
-        // Bib top: y = 0.66 + 0.09 = 0.75
-        // Shoulder level: y = 0.88 (top of curved body)
-        // Strap width: x = ±0.09 (aligned with bib edges)
+        // Bib is 0.32 wide, so edges at x = ±0.16
+        // Straps at x = ±0.13 (just inside bib edges)
+        const strapX = 0.13; // Distance from center for straps
 
-        // Overalls bib (front panel) - wider to accommodate straps
-        const bibGeometry = new THREE.BoxGeometry(0.26, 0.20, 0.04);
+        // Overalls bib (front panel) - wider bib
+        const bibGeometry = new THREE.BoxGeometry(0.32, 0.20, 0.04);
         const bib = new THREE.Mesh(bibGeometry, overallsMaterial);
         bib.position.set(0, 0.67, 0.42);
         this.character.add(bib);
@@ -125,64 +125,46 @@ export class Player {
         pocket.position.set(0, 0.62, 0.45);
         this.character.add(pocket);
 
-        // Suspender buckles/clips at top of bib where straps attach
-        const buckleGeometry = new THREE.BoxGeometry(0.08, 0.05, 0.03);
-        const buckleMaterial = new THREE.MeshStandardMaterial({
-            color: 0x3158B8, // Darker blue for buckles
-            flatShading: false,
-            metalness: 0.3,
-            roughness: 0.5,
-        });
-
-        const leftBuckle = new THREE.Mesh(buckleGeometry, buckleMaterial);
-        leftBuckle.position.set(-0.09, 0.76, 0.44);
-        this.character.add(leftBuckle);
-
-        const rightBuckle = new THREE.Mesh(buckleGeometry, buckleMaterial);
-        rightBuckle.position.set(0.09, 0.76, 0.44);
-        this.character.add(rightBuckle);
-
-        // Front straps - from buckles going up and slightly back to shoulders
-        // Using continuous curved path for smooth appearance
-        const strapWidth = 0.06;
+        // Front straps - vertical pieces from bib top going up
+        const strapWidth = 0.055;
         const strapThickness = 0.025;
+        const frontStrapHeight = 0.12;
+        const frontStrapGeometry = new THREE.BoxGeometry(strapWidth, frontStrapHeight, strapThickness);
 
-        // Create smooth straps using multiple segments following body curve
-        [-0.09, 0.09].forEach(xPos => {
-            // Front strap points - from bib buckle up to shoulder, following body curvature
-            const frontPoints = [
-                { y: 0.78, z: 0.43 },  // Just above buckle
-                { y: 0.82, z: 0.40 },  // Rising up, curving back with body
-                { y: 0.86, z: 0.35 },  // Upper chest area
-                { y: 0.89, z: 0.28 },  // Approaching shoulder
-            ];
+        const leftFrontStrap = new THREE.Mesh(frontStrapGeometry, overallsMaterial);
+        leftFrontStrap.position.set(-strapX, 0.81, 0.43);
+        this.character.add(leftFrontStrap);
 
-            // Create front strap segments
-            for (let i = 0; i < frontPoints.length - 1; i++) {
-                const p1 = frontPoints[i];
-                const p2 = frontPoints[i + 1];
+        const rightFrontStrap = new THREE.Mesh(frontStrapGeometry, overallsMaterial);
+        rightFrontStrap.position.set(strapX, 0.81, 0.43);
+        this.character.add(rightFrontStrap);
 
-                const dy = p2.y - p1.y;
-                const dz = p2.z - p1.z;
-                const length = Math.sqrt(dy * dy + dz * dz);
-                const angle = Math.atan2(dz, dy);
+        // Gold buttons at top of bib where straps attach
+        const buttonGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.015, 12);
 
-                const segGeom = new THREE.BoxGeometry(strapWidth, length + 0.01, strapThickness);
-                const segment = new THREE.Mesh(segGeom, overallsMaterial);
-                segment.position.set(xPos, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2);
-                segment.rotation.x = angle;
-                this.character.add(segment);
-            }
+        const leftButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
+        leftButton.position.set(-strapX, 0.75, 0.45);
+        leftButton.rotation.x = Math.PI / 2;
+        this.character.add(leftButton);
 
-            // Shoulder curve points - going over the shoulder and down the back
+        const rightButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
+        rightButton.position.set(strapX, 0.75, 0.45);
+        rightButton.rotation.x = Math.PI / 2;
+        this.character.add(rightButton);
+
+        // Shoulder curve - straps going over the shoulders
+        // Create curved shoulder straps for both sides
+        [-strapX, strapX].forEach(xPos => {
+            // Points going from top of front strap, over shoulder, down the back
             const shoulderPoints = [
-                { y: 0.89, z: 0.28 },   // Where front strap ends
-                { y: 0.90, z: 0.18 },   // Going over shoulder
-                { y: 0.90, z: 0.05 },   // Top of shoulder
-                { y: 0.89, z: -0.08 },  // Starting descent
-                { y: 0.87, z: -0.20 },  // Down the back
-                { y: 0.84, z: -0.30 },  // Lower back
-                { y: 0.80, z: -0.38 },  // Approaching belt
+                { y: 0.87, z: 0.42 },   // Top of front strap
+                { y: 0.89, z: 0.35 },   // Rising up
+                { y: 0.91, z: 0.25 },   // Going over shoulder front
+                { y: 0.92, z: 0.12 },   // Top of shoulder
+                { y: 0.91, z: -0.02 },  // Over the top
+                { y: 0.89, z: -0.15 },  // Down the back
+                { y: 0.85, z: -0.28 },  // Lower back
+                { y: 0.80, z: -0.38 },  // Approaching waist
             ];
 
             // Create shoulder curve segments
@@ -195,58 +177,20 @@ export class Player {
                 const length = Math.sqrt(dy * dy + dz * dz);
                 const angle = Math.atan2(dz, dy);
 
-                const segGeom = new THREE.BoxGeometry(strapWidth, length + 0.01, strapThickness);
+                const segGeom = new THREE.BoxGeometry(strapWidth, length + 0.015, strapThickness);
                 const segment = new THREE.Mesh(segGeom, overallsMaterial);
                 segment.position.set(xPos, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2);
                 segment.rotation.x = angle;
                 this.character.add(segment);
             }
 
-            // Back strap - from shoulder curve down to belt line
-            const backPoints = [
-                { y: 0.80, z: -0.38 },  // Where shoulder curve ends
-                { y: 0.72, z: -0.40 },  // Down the back
-                { y: 0.62, z: -0.41 },  // Lower back near belt
-            ];
-
-            for (let i = 0; i < backPoints.length - 1; i++) {
-                const p1 = backPoints[i];
-                const p2 = backPoints[i + 1];
-
-                const dy = p2.y - p1.y;
-                const dz = p2.z - p1.z;
-                const length = Math.sqrt(dy * dy + dz * dz);
-                const angle = Math.atan2(dz, dy);
-
-                const segGeom = new THREE.BoxGeometry(strapWidth, length + 0.01, strapThickness);
-                const segment = new THREE.Mesh(segGeom, overallsMaterial);
-                segment.position.set(xPos, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2);
-                segment.rotation.x = angle;
-                this.character.add(segment);
-            }
+            // Back strap - from shoulder curve down to waist
+            const backStrapHeight = 0.22;
+            const backStrapGeometry = new THREE.BoxGeometry(strapWidth, backStrapHeight, strapThickness);
+            const backStrap = new THREE.Mesh(backStrapGeometry, overallsMaterial);
+            backStrap.position.set(xPos, 0.69, -0.40);
+            this.character.add(backStrap);
         });
-
-        // Back buckles where straps attach to waistband
-        const leftBackBuckle = new THREE.Mesh(buckleGeometry, buckleMaterial);
-        leftBackBuckle.position.set(-0.09, 0.58, -0.42);
-        this.character.add(leftBackBuckle);
-
-        const rightBackBuckle = new THREE.Mesh(buckleGeometry, buckleMaterial);
-        rightBackBuckle.position.set(0.09, 0.58, -0.42);
-        this.character.add(rightBackBuckle);
-
-        // Gold buttons on front bib for decoration
-        const buttonGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.015, 12);
-
-        const leftButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-        leftButton.position.set(-0.09, 0.76, 0.46);
-        leftButton.rotation.x = Math.PI / 2;
-        this.character.add(leftButton);
-
-        const rightButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-        rightButton.position.set(0.09, 0.76, 0.46);
-        rightButton.rotation.x = Math.PI / 2;
-        this.character.add(rightButton);
 
         // Yellow collar at neckline - more visible
         const collarGeometry = new THREE.TorusGeometry(0.18, 0.05, 8, 16);

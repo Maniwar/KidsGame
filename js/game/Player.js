@@ -124,14 +124,14 @@ export class Player {
         const bowLoopGeometry = new THREE.SphereGeometry(0.28, 16, 16);
         const leftBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
         leftBowLoop.position.set(-0.22, 0, 0);
-        leftBowLoop.scale.set(0.7, 1.1, 0.6);
+        leftBowLoop.scale.set(0.5, 1.1, 0.8); // Z fuller so loops visible from front
         leftBowLoop.castShadow = true;
         bowGroup.add(leftBowLoop);
 
         // Right bow loop
         const rightBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
         rightBowLoop.position.set(0.22, 0, 0);
-        rightBowLoop.scale.set(0.7, 1.1, 0.6);
+        rightBowLoop.scale.set(0.5, 1.1, 0.8); // Z fuller so loops visible from front
         rightBowLoop.castShadow = true;
         bowGroup.add(rightBowLoop);
 
@@ -155,8 +155,8 @@ export class Player {
         rightRibbon.castShadow = true;
         bowGroup.add(rightRibbon);
 
-        bowGroup.position.set(0.35, 0.35, 0.05); // Relative to head
-        bowGroup.rotation.set(0, Math.PI / 2, -0.4); // Diagonal like reference
+        bowGroup.position.set(0.35, 0.35, 0.1); // Relative to head
+        bowGroup.rotation.set(0.3, 0, 0.4); // X tilt forward, Z diagonal like reference
         this.bow = bowGroup;
         this.head.add(bowGroup);
 

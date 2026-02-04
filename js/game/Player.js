@@ -85,48 +85,86 @@ export class Player {
             color: 0xFFD700, // Gold/yellow
             flatShading: false,
         });
+        const buttonMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFD700, // Gold buttons
+            flatShading: false,
+        });
 
-        // Yellow shirt (visible above overalls)
-        const shirtGeometry = new THREE.SphereGeometry(0.37, 24, 24);
+        // Yellow shirt - covers upper body area (visible between overalls and neck)
+        const shirtGeometry = new THREE.CylinderGeometry(0.34, 0.38, 0.45, 24);
         const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
-        shirt.position.y = 0.55;
-        shirt.scale.set(0.95, 0.6, 0.9);
+        shirt.position.y = 0.58;
         this.character.add(shirt);
 
-        // Overalls (covers lower body, over the shirt)
+        // Overalls bib (front panel)
+        const bibGeometry = new THREE.BoxGeometry(0.32, 0.30, 0.08);
+        const bib = new THREE.Mesh(bibGeometry, overallsMaterial);
+        bib.position.set(0, 0.58, 0.32);
+        this.character.add(bib);
+
+        // Overalls (covers lower body)
         const overallsGeometry = new THREE.SphereGeometry(0.39, 24, 24);
         const overalls = new THREE.Mesh(overallsGeometry, overallsMaterial);
-        overalls.position.y = 0.38;
-        overalls.scale.set(1.02, 0.8, 0.97);
+        overalls.position.y = 0.35;
+        overalls.scale.set(1.02, 0.75, 0.97);
         this.character.add(overalls);
 
-        // Overall straps - curved to follow body contour
-        // Left strap curve: from front of overalls, up and over shoulder
-        const leftStrapCurve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(-0.12, 0.50, 0.35),  // Bottom front (at overalls)
-            new THREE.Vector3(-0.14, 0.62, 0.32),  // Mid front
-            new THREE.Vector3(-0.18, 0.72, 0.22),  // Upper chest
-            new THREE.Vector3(-0.24, 0.78, 0.08),  // Over shoulder
-            new THREE.Vector3(-0.26, 0.72, -0.10), // Back of shoulder
-        ]);
-        const strapTubeGeometry = new THREE.TubeGeometry(leftStrapCurve, 12, 0.04, 8, false);
-        const leftStrap = new THREE.Mesh(strapTubeGeometry, overallsMaterial);
-        this.character.add(leftStrap);
+        // Front straps - straight boxes
+        const strapGeometry = new THREE.BoxGeometry(0.08, 0.32, 0.05);
 
-        // Right strap curve: mirror of left
-        const rightStrapCurve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(0.12, 0.50, 0.35),   // Bottom front (at overalls)
-            new THREE.Vector3(0.14, 0.62, 0.32),   // Mid front
-            new THREE.Vector3(0.18, 0.72, 0.22),   // Upper chest
-            new THREE.Vector3(0.24, 0.78, 0.08),   // Over shoulder
-            new THREE.Vector3(0.26, 0.72, -0.10),  // Back of shoulder
-        ]);
-        const rightStrapTubeGeometry = new THREE.TubeGeometry(rightStrapCurve, 12, 0.04, 8, false);
-        const rightStrap = new THREE.Mesh(rightStrapTubeGeometry, overallsMaterial);
-        this.character.add(rightStrap);
+        // Left front strap
+        const leftFrontStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
+        leftFrontStrap.position.set(-0.12, 0.72, 0.30);
+        this.character.add(leftFrontStrap);
+
+        // Right front strap
+        const rightFrontStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
+        rightFrontStrap.position.set(0.12, 0.72, 0.30);
+        this.character.add(rightFrontStrap);
+
+        // Back straps - visible from behind
+        const backStrapGeometry = new THREE.BoxGeometry(0.08, 0.35, 0.05);
+
+        // Left back strap
+        const leftBackStrap = new THREE.Mesh(backStrapGeometry, overallsMaterial);
+        leftBackStrap.position.set(-0.14, 0.68, -0.30);
+        this.character.add(leftBackStrap);
+
+        // Right back strap
+        const rightBackStrap = new THREE.Mesh(backStrapGeometry, overallsMaterial);
+        rightBackStrap.position.set(0.14, 0.68, -0.30);
+        this.character.add(rightBackStrap);
+
+        // Shoulder connectors (connect front to back straps)
+        const shoulderStrapGeometry = new THREE.BoxGeometry(0.08, 0.05, 0.25);
+
+        // Left shoulder connector
+        const leftShoulderStrap = new THREE.Mesh(shoulderStrapGeometry, overallsMaterial);
+        leftShoulderStrap.position.set(-0.24, 0.82, 0);
+        this.character.add(leftShoulderStrap);
+
+        // Right shoulder connector
+        const rightShoulderStrap = new THREE.Mesh(shoulderStrapGeometry, overallsMaterial);
+        rightShoulderStrap.position.set(0.24, 0.82, 0);
+        this.character.add(rightShoulderStrap);
+
+        // Buttons on front straps
+        const buttonGeometry = new THREE.CylinderGeometry(0.035, 0.035, 0.03, 12);
+
+        // Left button
+        const leftButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
+        leftButton.position.set(-0.12, 0.62, 0.34);
+        leftButton.rotation.x = Math.PI / 2;
+        this.character.add(leftButton);
+
+        // Right button
+        const rightButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
+        rightButton.position.set(0.12, 0.62, 0.34);
+        rightButton.rotation.x = Math.PI / 2;
+        this.character.add(rightButton);
 
         // Yellow collar at neckline
-        const collarGeometry = new THREE.TorusGeometry(0.20, 0.05, 8, 16);
+        const collarGeometry = new THREE.TorusGeometry(0.18, 0.04, 8, 16);
         const collar = new THREE.Mesh(collarGeometry, shirtMaterial);
         collar.position.y = 0.82;
         collar.rotation.x = Math.PI / 2;

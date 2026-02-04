@@ -156,18 +156,19 @@ export class Player {
         rightBackStrap.position.set(0.20, 0.715, -0.42);
         this.character.add(rightBackStrap);
 
-        // Shoulder straps - curved to follow body contour over the shoulders
-        // Body surface at y=0.85 extends to z≈0.10, so straps must arc UP and OVER
-        // Front portion pushed further forward to avoid clipping
-        // Using 6 segments per strap to create smooth curve
+        // Shoulder straps - contour the body surface as they go over
+        // Body (shirt): center y=0.45, radius=0.39, scale_y=1.06 → top at y=0.86
+        // Straps stay just above body surface (offset ~0.03), max y=0.89
         const shoulderPoints = [
             { z: 0.42, y: 0.85 },   // P0: front strap top
-            { z: 0.40, y: 0.90 },   // P1: rising, staying forward
-            { z: 0.32, y: 0.94 },   // P2: continuing up, still forward
-            { z: 0.18, y: 0.97 },   // P3: apex (well forward to clear body/collar)
-            { z: 0.00, y: 0.95 },   // P4: crossing over top
-            { z: -0.20, y: 0.90 },  // P5: descending back
-            { z: -0.42, y: 0.85 }   // P6: back strap top
+            { z: 0.35, y: 0.85 },   // P1: approaching body surface
+            { z: 0.25, y: 0.86 },   // P2: following body curve up
+            { z: 0.12, y: 0.88 },   // P3: body surface rising
+            { z: 0.00, y: 0.89 },   // P4: apex - just above body top (0.86 + 0.03)
+            { z: -0.12, y: 0.88 },  // P5: body surface descending
+            { z: -0.25, y: 0.86 },  // P6: following curve down
+            { z: -0.35, y: 0.85 },  // P7: approaching back
+            { z: -0.42, y: 0.85 }   // P8: back strap top
         ];
 
         // Create curved shoulder straps for both sides

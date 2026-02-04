@@ -160,7 +160,7 @@ export class Player {
         this.head.add(bowGroup);
 
         // Eyes (tall vertical ovals - Hello Kitty style)
-        const eyeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+        const eyeGeometry = new THREE.SphereGeometry(0.07, 16, 16); // Slightly smaller
         this.leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
         this.leftEye.position.set(-0.22, 0.0, 0.54); // Relative to head
         this.leftEye.scale.set(0.8, 1.6, 0.5); // Tall vertical oval like reference

@@ -32,14 +32,37 @@ export class AudioManager {
             'C6': 1046.50, 'D6': 1174.66, 'E6': 1318.51, 'F6': 1396.91, 'G6': 1567.98
         };
 
-        // Chord progression: I - V - vi - IV (C - G - Am - F)
-        // This is THE most popular progression in pop music - uplifting and catchy
+        // Chord progression: Circle of Fifths - vi → ii → V → I (Am → Dm → G → C)
+        // Classic circle of fifths progression - each chord root is a perfect fifth apart
+        // This creates natural harmonic movement and satisfying resolution
         this.chordProgression = [
-            { root: 'C4', notes: ['C4', 'E4', 'G4'], name: 'C', roman: 'I' },    // Tonic - home
-            { root: 'G3', notes: ['G3', 'B3', 'D4'], name: 'G', roman: 'V' },    // Dominant - tension
-            { root: 'A3', notes: ['A3', 'C4', 'E4'], name: 'Am', roman: 'vi' },  // Relative minor - emotion
-            { root: 'F3', notes: ['F3', 'A3', 'C4'], name: 'F', roman: 'IV' }    // Subdominant - movement
+            { root: 'A3', notes: ['A3', 'C4', 'E4'], name: 'Am', roman: 'vi' },   // Relative minor - start
+            { root: 'D3', notes: ['D3', 'F3', 'A3'], name: 'Dm', roman: 'ii' },   // Supertonic - fifth below Am
+            { root: 'G3', notes: ['G3', 'B3', 'D4'], name: 'G', roman: 'V' },     // Dominant - fifth below Dm
+            { root: 'C4', notes: ['C4', 'E4', 'G4'], name: 'C', roman: 'I' }      // Tonic - resolution (fifth below G)
         ];
+
+        // Note duration patterns for musical variety (in beats)
+        // Different sections use different rhythmic patterns
+        this.rhythmDurations = {
+            // Quarter notes (1 beat), half notes (2 beats), eighth notes (0.5 beats), whole notes (4 beats)
+            standard: [1, 1, 1, 1],                    // Even quarter notes
+            syncopated: [1.5, 0.5, 1, 1],              // Syncopated feel
+            longShort: [2, 1, 0.5, 0.5],               // Long-short pattern
+            shortLong: [0.5, 0.5, 1, 2],               // Build to longer note
+            waltz: [2, 1, 1],                          // Waltz-like emphasis
+            driving: [0.5, 0.5, 0.5, 0.5, 1, 1]        // Energetic eighth notes
+        };
+
+        // Map sections to rhythm patterns
+        this.sectionRhythms = {
+            intro: 'longShort',      // Gentle, spacious opening
+            verseA: 'standard',      // Steady, establishes groove
+            verseB: 'syncopated',    // More interesting rhythm
+            chorus: 'driving',       // Energetic, memorable
+            bridge: 'waltz',         // Different feel for contrast
+            outro: 'shortLong'       // Build to resolution
+        };
 
         // C Major Pentatonic scale (no semitones - perfect for melodies)
         // Removes F and B from C major scale to avoid dissonance
@@ -325,6 +348,14 @@ export class AudioManager {
 
     // === Music Playback ===
 
+    // Get note duration based on section and beat position
+    getNoteDuration(section, beat) {
+        const rhythmName = this.sectionRhythms[section] || 'standard';
+        const pattern = this.rhythmDurations[rhythmName];
+        const patternIndex = beat % pattern.length;
+        return pattern[patternIndex] * this.beatDuration;
+    }
+
     playMelodyNote(section, beat, time) {
         // Determine current chord for harmonic context
         const chordIndex = Math.floor((this.currentBeat % 16) / 4);
@@ -354,6 +385,9 @@ export class AudioManager {
 
         if (!freq) return;
 
+        // Get varied note duration based on section rhythm pattern
+        const noteDuration = this.getNoteDuration(section, beat);
+
         // Create oscillator for melody
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
@@ -361,27 +395,40 @@ export class AudioManager {
         osc.type = 'triangle'; // Soft, pleasant tone
         osc.frequency.value = freq;
 
-        // ADSR envelope for natural sound
+        // ADSR envelope with duration-aware timing
+        // Shorter notes get snappier envelopes, longer notes get more sustain
+        const attackTime = Math.min(0.02, noteDuration * 0.1);
+        const decayTime = Math.min(0.08, noteDuration * 0.2);
+        const sustainLevel = noteDuration > this.beatDuration ? 0.07 : 0.05;
+        const sustainEnd = noteDuration * 0.75;
+
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.08, time + 0.02);  // Attack
-        gain.gain.linearRampToValueAtTime(0.06, time + 0.1);   // Decay
-        gain.gain.setValueAtTime(0.06, time + this.beatDuration * 0.7); // Sustain
-        gain.gain.linearRampToValueAtTime(0, time + this.beatDuration); // Release
+        gain.gain.linearRampToValueAtTime(0.08, time + attackTime);       // Attack
+        gain.gain.linearRampToValueAtTime(sustainLevel, time + attackTime + decayTime); // Decay
+        gain.gain.setValueAtTime(sustainLevel, time + sustainEnd);        // Sustain
+        gain.gain.linearRampToValueAtTime(0, time + noteDuration);        // Release
 
         osc.connect(gain);
         gain.connect(this.musicGain);
 
         osc.start(time);
-        osc.stop(time + this.beatDuration);
+        osc.stop(time + noteDuration);
     }
 
     playChordArpeggio(chord, beat, time) {
-        // Play chord notes in sequence (arpeggio)
+        // Play chord notes in sequence (arpeggio) following circle of fifths voicing
         const noteIndex = beat % chord.notes.length;
         const note = chord.notes[noteIndex];
         const freq = this.noteFrequencies[note];
 
         if (!freq) return;
+
+        // Vary arpeggio note duration based on beat position for musicality
+        // Strong beats (1, 3) get longer notes, weak beats get shorter
+        const isStrongBeat = beat % 2 === 0;
+        const arpeggioDuration = isStrongBeat
+            ? this.beatDuration * 0.7
+            : this.beatDuration * 0.4;
 
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
@@ -389,16 +436,17 @@ export class AudioManager {
         osc.type = 'sine'; // Pure tone for harmony
         osc.frequency.value = freq;
 
+        // ADSR envelope scaled to arpeggio duration
         gain.gain.setValueAtTime(0, time);
         gain.gain.linearRampToValueAtTime(0.03, time + 0.01);
-        gain.gain.linearRampToValueAtTime(0.02, time + 0.05);
-        gain.gain.linearRampToValueAtTime(0, time + this.beatDuration * 0.5);
+        gain.gain.linearRampToValueAtTime(0.025, time + arpeggioDuration * 0.3);
+        gain.gain.linearRampToValueAtTime(0, time + arpeggioDuration);
 
         osc.connect(gain);
         gain.connect(this.musicGain);
 
         osc.start(time);
-        osc.stop(time + this.beatDuration * 0.5);
+        osc.stop(time + arpeggioDuration);
     }
 
     playBassNote(note, time) {

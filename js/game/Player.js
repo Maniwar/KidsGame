@@ -239,39 +239,39 @@ export class Player {
         // Bow (Hello Kitty's signature feature - big and prominent)
         const bowGroup = new THREE.Group();
 
-        // Left bow loop - big and visible
+        // Left bow loop - spread wide
         const bowLoopGeometry = new THREE.SphereGeometry(0.30, 16, 16);
         const leftBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
-        leftBowLoop.position.set(-0.18, 0, 0);
+        leftBowLoop.position.set(-0.25, 0, 0);
         leftBowLoop.scale.set(0.6, 1.1, 0.7);
         leftBowLoop.castShadow = true;
         bowGroup.add(leftBowLoop);
 
-        // Right bow loop - big and visible
+        // Right bow loop - spread wide
         const rightBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
-        rightBowLoop.position.set(0.18, 0, 0);
+        rightBowLoop.position.set(0.25, 0, 0);
         rightBowLoop.scale.set(0.6, 1.1, 0.7);
         rightBowLoop.castShadow = true;
         bowGroup.add(rightBowLoop);
 
-        // Bow center knot - big enough to connect the loops
-        const bowCenterGeometry = new THREE.SphereGeometry(0.18, 12, 12);
+        // Bow center knot - MUCH bigger to be visible and connect loops
+        const bowCenterGeometry = new THREE.SphereGeometry(0.14, 12, 12);
         const bowCenter = new THREE.Mesh(bowCenterGeometry, bowMaterial);
-        bowCenter.scale.set(1.0, 0.85, 0.8);
+        bowCenter.scale.set(1.4, 1.2, 1.0); // Stretched wider to fill gap
         bowCenter.castShadow = true;
         bowGroup.add(bowCenter);
 
         // Bow ribbons hanging down
-        const ribbonGeometry = new THREE.BoxGeometry(0.09, 0.22, 0.06);
+        const ribbonGeometry = new THREE.BoxGeometry(0.10, 0.25, 0.06);
         const leftRibbon = new THREE.Mesh(ribbonGeometry, bowMaterial);
-        leftRibbon.position.set(-0.06, -0.16, 0);
-        leftRibbon.rotation.z = -0.2;
+        leftRibbon.position.set(-0.08, -0.18, 0);
+        leftRibbon.rotation.z = -0.25;
         leftRibbon.castShadow = true;
         bowGroup.add(leftRibbon);
 
         const rightRibbon = new THREE.Mesh(ribbonGeometry, bowMaterial);
-        rightRibbon.position.set(0.06, -0.16, 0);
-        rightRibbon.rotation.z = 0.2;
+        rightRibbon.position.set(0.08, -0.18, 0);
+        rightRibbon.rotation.z = 0.25;
         rightRibbon.castShadow = true;
         bowGroup.add(rightRibbon);
 

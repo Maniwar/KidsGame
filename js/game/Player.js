@@ -108,11 +108,22 @@ export class Player {
         // Straps at x = ±0.18 to go over the shoulders properly
         const strapX = 0.18; // Distance from center - wider to go over shoulders
 
-        // Overalls bib (front panel) - wider bib to match strap positions
-        const bibGeometry = new THREE.BoxGeometry(0.38, 0.20, 0.04);
+        // Overalls bib (front panel) - taller to connect to pants
+        const bibGeometry = new THREE.BoxGeometry(0.38, 0.28, 0.04);
         const bib = new THREE.Mesh(bibGeometry, overallsMaterial);
-        bib.position.set(0, 0.67, 0.42);
+        bib.position.set(0, 0.63, 0.42);
         this.character.add(bib);
+
+        // Side connectors - connect bib to overalls on the sides
+        const sideConnectorGeometry = new THREE.BoxGeometry(0.06, 0.20, 0.12);
+
+        const leftSideConnector = new THREE.Mesh(sideConnectorGeometry, overallsMaterial);
+        leftSideConnector.position.set(-0.20, 0.56, 0.36);
+        this.character.add(leftSideConnector);
+
+        const rightSideConnector = new THREE.Mesh(sideConnectorGeometry, overallsMaterial);
+        rightSideConnector.position.set(0.20, 0.56, 0.36);
+        this.character.add(rightSideConnector);
 
         // Pocket on bib
         const pocketGeometry = new THREE.BoxGeometry(0.14, 0.07, 0.02);
@@ -121,7 +132,7 @@ export class Player {
             flatShading: false,
         });
         const pocket = new THREE.Mesh(pocketGeometry, pocketMaterial);
-        pocket.position.set(0, 0.62, 0.45);
+        pocket.position.set(0, 0.60, 0.45);
         this.character.add(pocket);
 
         // Strap dimensions - wider straps

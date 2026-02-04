@@ -183,7 +183,7 @@ export class Player {
         this.head.add(this.nose);
 
         // Whiskers (3 per side - fanning out like Hello Kitty!)
-        const whiskerGeometry = new THREE.BoxGeometry(0.35, 0.015, 0.015);
+        const whiskerGeometry = new THREE.BoxGeometry(0.5, 0.018, 0.018); // Long whiskers
         const whiskerMaterial = new THREE.MeshStandardMaterial({
             color: 0x000000, // Black whiskers like the reference
         });

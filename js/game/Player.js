@@ -159,21 +159,20 @@ export class Player {
         this.bow = bowGroup;
         this.head.add(bowGroup);
 
-        // Eyes (simple round black dots - Hello Kitty style, wider spacing!)
-        // POSITIVE Z - with 180° rotation, local +Z faces world -Z (forward/away from camera)
+        // Eyes (tall vertical ovals - Hello Kitty style)
         const eyeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
         this.leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        this.leftEye.position.set(-0.28, 0.02, 0.56); // Relative to head
-        this.leftEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
+        this.leftEye.position.set(-0.22, 0.0, 0.54); // Relative to head
+        this.leftEye.scale.set(0.8, 1.6, 0.5); // Tall vertical oval like reference
         this.head.add(this.leftEye);
 
         this.rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        this.rightEye.position.set(0.28, 0.02, 0.56); // Relative to head
-        this.rightEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
+        this.rightEye.position.set(0.22, 0.0, 0.54); // Relative to head
+        this.rightEye.scale.set(0.8, 1.6, 0.5); // Tall vertical oval like reference
         this.head.add(this.rightEye);
 
         // Store default eye scale for blinking
-        this.eyeOpenScale = 1.2;
+        this.eyeOpenScale = 1.6;
 
         // Nose (small oval)
         const noseGeometry = new THREE.SphereGeometry(0.055, 12, 12);

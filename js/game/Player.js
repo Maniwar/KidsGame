@@ -183,28 +183,28 @@ export class Player {
         this.head.add(this.nose);
 
         // Whiskers (3 per side - like Hello Kitty reference)
-        // On cheeks below eyes, short lines extending outward from face
-        const whiskerGeometry = new THREE.BoxGeometry(0.18, 0.012, 0.012);
+        // Long horizontal lines at nose level, extending outward from sides of face
+        const whiskerGeometry = new THREE.BoxGeometry(0.38, 0.018, 0.018);
         const whiskerMaterial = new THREE.MeshStandardMaterial({
             color: 0x000000,
         });
 
-        // Left whiskers - on cheek near nose, extending outward
-        const leftWhiskerAngles = [-0.1, 0, 0.1]; // Subtle fan
+        // Left whiskers - at nose level, extending outward from left side of face
+        const leftWhiskerAngles = [-0.15, 0, 0.15]; // Fan: top up, middle straight, bottom down
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = -0.08 - i * 0.04; // Below eyes, near nose level
-            whisker.position.set(-0.18, yPos, 0.52); // Close to face, near nose
+            const yPos = -0.10 - i * 0.045; // At nose level (-0.14), spread around it
+            whisker.position.set(-0.42, yPos, 0.32); // At edge of face, extending outward
             whisker.rotation.z = leftWhiskerAngles[i];
             this.head.add(whisker);
         }
 
-        // Right whiskers - on cheek near nose, extending outward
-        const rightWhiskerAngles = [0.1, 0, -0.1]; // Subtle fan (mirrored)
+        // Right whiskers - at nose level, extending outward from right side of face
+        const rightWhiskerAngles = [0.15, 0, -0.15]; // Fan: top up, middle straight, bottom down
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = -0.08 - i * 0.04; // Below eyes, near nose level
-            whisker.position.set(0.18, yPos, 0.52); // Close to face, near nose
+            const yPos = -0.10 - i * 0.045; // At nose level (-0.14), spread around it
+            whisker.position.set(0.42, yPos, 0.32); // At edge of face, extending outward
             whisker.rotation.z = rightWhiskerAngles[i];
             this.head.add(whisker);
         }

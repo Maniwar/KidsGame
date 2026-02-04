@@ -128,19 +128,20 @@ export class Player {
         pocket.position.set(0, 0.62, 0.45);
         this.character.add(pocket);
 
-        // Front straps - from TOP of bib (y=0.75) up to shoulders (y=0.85)
-        // Bib: center y=0.66, height=0.18, so top = 0.66 + 0.09 = 0.75
-        // Shoulder level = 0.85 (lowered to go over shoulders, not near face)
-        // Height = 0.85 - 0.75 = 0.10, center y = 0.75 + 0.05 = 0.80
-        // z = 0.42 (outside body, same as bib)
-        const frontStrapGeometry = new THREE.BoxGeometry(0.06, 0.10, 0.03);
+        // Front straps - angled FORWARD as they rise from bib to shoulders
+        // Bottom: y=0.75, z=0.42 (bib top)
+        // Top: y=0.85, z=0.52 (angled forward to meet shoulder curve)
+        // Length = sqrt(0.10^2 + 0.10^2) = 0.14, angle = 45 degrees forward
+        const frontStrapGeometry = new THREE.BoxGeometry(0.06, 0.14, 0.03);
 
         const leftFrontStrap = new THREE.Mesh(frontStrapGeometry, overallsMaterial);
-        leftFrontStrap.position.set(-0.20, 0.80, 0.42);
+        leftFrontStrap.position.set(-0.20, 0.80, 0.47); // center position
+        leftFrontStrap.rotation.x = -Math.PI / 4; // tilt forward 45 degrees
         this.character.add(leftFrontStrap);
 
         const rightFrontStrap = new THREE.Mesh(frontStrapGeometry, overallsMaterial);
-        rightFrontStrap.position.set(0.20, 0.80, 0.42);
+        rightFrontStrap.position.set(0.20, 0.80, 0.47);
+        rightFrontStrap.rotation.x = -Math.PI / 4; // tilt forward 45 degrees
         this.character.add(rightFrontStrap);
 
         // Back straps - from belt line (y=0.58) up to shoulders (y=0.85)
@@ -156,18 +157,17 @@ export class Player {
         rightBackStrap.position.set(0.20, 0.715, -0.42);
         this.character.add(rightBackStrap);
 
-        // Shoulder straps - go FORWARD first, stay LOW, then curve over
-        // Straps bulge forward over front of shoulder before going to back
+        // Shoulder straps - starts where angled front straps end (z=0.52)
+        // Curves forward a bit more, then over and down to back
         const shoulderPoints = [
-            { z: 0.42, y: 0.85 },   // P0: front strap top
-            { z: 0.52, y: 0.85 },   // P1: going FORWARD, staying low
-            { z: 0.58, y: 0.86 },   // P2: most forward point
-            { z: 0.52, y: 0.87 },   // P3: curving back
-            { z: 0.38, y: 0.88 },   // P4: over shoulder
-            { z: 0.18, y: 0.88 },   // P5: crossing over
-            { z: -0.02, y: 0.87 },  // P6: descending
-            { z: -0.22, y: 0.86 },  // P7: continuing down
-            { z: -0.42, y: 0.85 }   // P8: back strap top
+            { z: 0.52, y: 0.85 },   // P0: where front strap ends (angled forward)
+            { z: 0.58, y: 0.86 },   // P1: most forward point
+            { z: 0.52, y: 0.87 },   // P2: curving back
+            { z: 0.38, y: 0.88 },   // P3: over shoulder
+            { z: 0.18, y: 0.88 },   // P4: crossing over
+            { z: -0.02, y: 0.87 },  // P5: descending
+            { z: -0.22, y: 0.86 },  // P6: continuing down
+            { z: -0.42, y: 0.85 }   // P7: back strap top
         ];
 
         // Create curved shoulder straps for both sides

@@ -189,11 +189,12 @@ export class Player {
         });
 
         // Left whiskers - POSITIVE Z, face forward with 180° rotation
+        // Positions adjusted for head's Y scale of 0.95
         const leftWhiskerAngles = [-0.15, 0, 0.15]; // Fan upward from bottom
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = -0.05 - i * 0.06; // Relative to head
-            whisker.position.set(-0.35, yPos, 0.42);
+            const yPos = -0.05 - i * 0.065; // Relative to head, adjusted for scale
+            whisker.position.set(-0.28, yPos, 0.44);
             whisker.rotation.z = leftWhiskerAngles[i]; // Fan out!
             this.head.add(whisker);
         }
@@ -202,8 +203,8 @@ export class Player {
         const rightWhiskerAngles = [0.15, 0, -0.15]; // Fan upward from bottom (mirrored)
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = -0.05 - i * 0.06; // Relative to head
-            whisker.position.set(0.35, yPos, 0.42);
+            const yPos = -0.05 - i * 0.065; // Relative to head, adjusted for scale
+            whisker.position.set(0.28, yPos, 0.44);
             whisker.rotation.z = rightWhiskerAngles[i]; // Fan out!
             this.head.add(whisker);
         }

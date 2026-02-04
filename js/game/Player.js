@@ -156,11 +156,12 @@ export class Player {
         bowGroup.add(rightRibbon);
 
         bowGroup.position.set(0.35, 0.35, 0.05); // Relative to head
+        bowGroup.rotation.x = 0.3; // Tilt forward like reference
         this.bow = bowGroup;
         this.head.add(bowGroup);
 
         // Eyes (tall vertical ovals - Hello Kitty style)
-        const eyeGeometry = new THREE.SphereGeometry(0.07, 16, 16); // Slightly smaller
+        const eyeGeometry = new THREE.SphereGeometry(0.06, 16, 16);
         this.leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
         this.leftEye.position.set(-0.22, 0.0, 0.54); // Relative to head
         this.leftEye.scale.set(0.8, 1.6, 0.5); // Tall vertical oval like reference

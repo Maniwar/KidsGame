@@ -240,22 +240,22 @@ export class Player {
         const bowGroup = new THREE.Group();
 
         // Left bow loop - spread wide
-        const bowLoopGeometry = new THREE.SphereGeometry(0.30, 16, 16);
+        const bowLoopGeometry = new THREE.SphereGeometry(0.35, 16, 16);
         const leftBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
-        leftBowLoop.position.set(-0.25, 0, 0);
+        leftBowLoop.position.set(-0.30, 0, 0);
         leftBowLoop.scale.set(0.6, 1.1, 0.7);
         leftBowLoop.castShadow = true;
         bowGroup.add(leftBowLoop);
 
         // Right bow loop - spread wide
         const rightBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
-        rightBowLoop.position.set(0.25, 0, 0);
+        rightBowLoop.position.set(0.30, 0, 0);
         rightBowLoop.scale.set(0.6, 1.1, 0.7);
         rightBowLoop.castShadow = true;
         bowGroup.add(rightBowLoop);
 
         // Bow center knot - MUCH bigger to be visible and connect loops
-        const bowCenterGeometry = new THREE.SphereGeometry(0.14, 12, 12);
+        const bowCenterGeometry = new THREE.SphereGeometry(0.16, 12, 12);
         const bowCenter = new THREE.Mesh(bowCenterGeometry, bowMaterial);
         bowCenter.scale.set(1.4, 1.2, 1.0); // Stretched wider to fill gap
         bowCenter.castShadow = true;

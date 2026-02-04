@@ -239,18 +239,20 @@ export class Player {
         // Bow (MUCH BIGGER - Hello Kitty's signature feature!)
         const bowGroup = new THREE.Group();
 
-        // Left bow loop (bigger and more prominent)
+        // Left bow loop (inner loop, over kitten's head - tilted UP)
         const bowLoopGeometry = new THREE.SphereGeometry(0.28, 16, 16);
         const leftBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
-        leftBowLoop.position.set(-0.22, 0, 0);
+        leftBowLoop.position.set(-0.22, 0.05, 0);
         leftBowLoop.scale.set(0.5, 1.1, 0.8); // Z fuller so loops visible from front
+        leftBowLoop.rotation.z = 0.35; // Tilt UP toward head
         leftBowLoop.castShadow = true;
         bowGroup.add(leftBowLoop);
 
-        // Right bow loop
+        // Right bow loop (outer loop - tilted DOWN for diagonal look)
         const rightBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
-        rightBowLoop.position.set(0.22, 0, 0);
+        rightBowLoop.position.set(0.22, -0.05, 0);
         rightBowLoop.scale.set(0.5, 1.1, 0.8); // Z fuller so loops visible from front
+        rightBowLoop.rotation.z = -0.35; // Tilt DOWN away from head
         rightBowLoop.castShadow = true;
         bowGroup.add(rightBowLoop);
 

@@ -102,6 +102,16 @@ export class Player {
         bib.position.set(0, 0.58, 0.32);
         this.character.add(bib);
 
+        // Pocket on bib
+        const pocketGeometry = new THREE.BoxGeometry(0.18, 0.12, 0.02);
+        const pocketMaterial = new THREE.MeshStandardMaterial({
+            color: 0x3158B8, // Slightly darker blue for pocket
+            flatShading: false,
+        });
+        const pocket = new THREE.Mesh(pocketGeometry, pocketMaterial);
+        pocket.position.set(0, 0.52, 0.37);
+        this.character.add(pocket);
+
         // Overalls (covers lower body)
         const overallsGeometry = new THREE.SphereGeometry(0.39, 24, 24);
         const overalls = new THREE.Mesh(overallsGeometry, overallsMaterial);

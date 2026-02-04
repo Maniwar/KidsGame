@@ -156,17 +156,43 @@ export class Player {
         rightBackStrap.position.set(0.20, 0.715, -0.42);
         this.character.add(rightBackStrap);
 
-        // Shoulder connectors - on top, connecting front to back
-        // y = 0.85 (shoulder level), spans z from 0.42 to -0.42 = length 0.84
-        const shoulderStrapGeometry = new THREE.BoxGeometry(0.06, 0.03, 0.84);
+        // Shoulder straps - curved to follow body contour over the shoulders
+        // Body surface at y=0.85 extends to z≈0.10, so straps must arc UP and OVER
+        // Arc points (z, y): front(0.42, 0.85) → apex(0.05, 0.96) → back(-0.42, 0.85)
+        // Using 6 segments per strap to create smooth curve
+        const shoulderPoints = [
+            { z: 0.42, y: 0.85 },   // P0: front strap top
+            { z: 0.30, y: 0.89 },   // P1: rising
+            { z: 0.18, y: 0.93 },   // P2: continuing up
+            { z: 0.05, y: 0.96 },   // P3: apex (forward of center to clear body)
+            { z: -0.10, y: 0.94 },  // P4: descending
+            { z: -0.25, y: 0.90 },  // P5: continuing down
+            { z: -0.42, y: 0.85 }   // P6: back strap top
+        ];
 
-        const leftShoulderStrap = new THREE.Mesh(shoulderStrapGeometry, overallsMaterial);
-        leftShoulderStrap.position.set(-0.20, 0.85, 0);
-        this.character.add(leftShoulderStrap);
+        // Create curved shoulder straps for both sides
+        [-0.20, 0.20].forEach(xPos => {
+            for (let i = 0; i < shoulderPoints.length - 1; i++) {
+                const p1 = shoulderPoints[i];
+                const p2 = shoulderPoints[i + 1];
 
-        const rightShoulderStrap = new THREE.Mesh(shoulderStrapGeometry, overallsMaterial);
-        rightShoulderStrap.position.set(0.20, 0.85, 0);
-        this.character.add(rightShoulderStrap);
+                // Calculate segment length and angle
+                const dz = p2.z - p1.z;
+                const dy = p2.y - p1.y;
+                const length = Math.sqrt(dz * dz + dy * dy);
+                const angle = Math.atan2(dy, -dz); // Angle in ZY plane
+
+                // Create segment
+                const segGeom = new THREE.BoxGeometry(0.06, 0.03, length + 0.01); // Slight overlap
+                const segment = new THREE.Mesh(segGeom, overallsMaterial);
+
+                // Position at midpoint
+                segment.position.set(xPos, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2);
+                segment.rotation.x = angle;
+
+                this.character.add(segment);
+            }
+        });
 
         // Buttons at belt line where straps connect to overalls
         // y = 0.58 (belt line), x = ±0.20 (aligned with straps), z = 0.44 (in front)

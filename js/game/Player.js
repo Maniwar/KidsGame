@@ -104,86 +104,78 @@ export class Player {
         overalls.scale.set(1.03, 0.85, 0.99);
         this.character.add(overalls);
 
-        // Overalls bib (front panel) - wider to reach strap positions
-        // Bib: center y=0.66, height=0.20, so spans y=0.56 to y=0.76 (top)
-        const bibGeometry = new THREE.BoxGeometry(0.26, 0.20, 0.05);
+        // === PROPER CALCULATIONS FOR STRAPS ===
+        // Body surface z: 0.39 * 0.96 = 0.37 (front), -0.37 (back)
+        // Overalls surface z: 0.40 * 0.99 = 0.40 (front), -0.40 (back)
+        // Straps must be OUTSIDE these surfaces to avoid clipping
+        // Front straps: z > 0.40, Back straps: z < -0.40
+        // Overalls top: y = 0.38 + 0.40*0.85 = 0.72 (belt line for buttons)
+        // Strap width: x = ±0.20 (wider apart)
+
+        // Overalls bib (front panel)
+        const bibGeometry = new THREE.BoxGeometry(0.24, 0.18, 0.04);
         const bib = new THREE.Mesh(bibGeometry, overallsMaterial);
-        bib.position.set(0, 0.66, 0.34);
+        bib.position.set(0, 0.66, 0.42); // z=0.42, outside body surface
         this.character.add(bib);
 
-        // Bib tabs that extend to strap positions (left and right wings)
-        const bibTabGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.05);
-        const leftBibTab = new THREE.Mesh(bibTabGeometry, overallsMaterial);
-        leftBibTab.position.set(-0.14, 0.74, 0.34);
-        this.character.add(leftBibTab);
-
-        const rightBibTab = new THREE.Mesh(bibTabGeometry, overallsMaterial);
-        rightBibTab.position.set(0.14, 0.74, 0.34);
-        this.character.add(rightBibTab);
-
         // Pocket on bib
-        const pocketGeometry = new THREE.BoxGeometry(0.14, 0.07, 0.02);
+        const pocketGeometry = new THREE.BoxGeometry(0.12, 0.06, 0.02);
         const pocketMaterial = new THREE.MeshStandardMaterial({
-            color: 0x3158B8, // Slightly darker blue for pocket
+            color: 0x3158B8, // Slightly darker blue
             flatShading: false,
         });
         const pocket = new THREE.Mesh(pocketGeometry, pocketMaterial);
-        pocket.position.set(0, 0.61, 0.38);
+        pocket.position.set(0, 0.62, 0.45);
         this.character.add(pocket);
 
-        // Front straps - connect from bib tabs upward to shoulders
-        // Straps start at top of bib tabs (y=0.78) and go to shoulders (y=0.94)
-        // Height = 0.16, so center y = 0.78 + 0.08 = 0.86
-        const strapGeometry = new THREE.BoxGeometry(0.065, 0.16, 0.04);
+        // Front straps - from belt line (y=0.58) up to shoulders (y=0.94)
+        // Height = 0.36, center y = 0.58 + 0.18 = 0.76
+        // z = 0.42 (outside body, same as bib)
+        const frontStrapGeometry = new THREE.BoxGeometry(0.06, 0.36, 0.03);
 
-        // Left front strap - connects to left bib tab
-        const leftFrontStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
-        leftFrontStrap.position.set(-0.14, 0.86, 0.32);
+        const leftFrontStrap = new THREE.Mesh(frontStrapGeometry, overallsMaterial);
+        leftFrontStrap.position.set(-0.20, 0.76, 0.42);
         this.character.add(leftFrontStrap);
 
-        // Right front strap - connects to right bib tab
-        const rightFrontStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
-        rightFrontStrap.position.set(0.14, 0.86, 0.32);
+        const rightFrontStrap = new THREE.Mesh(frontStrapGeometry, overallsMaterial);
+        rightFrontStrap.position.set(0.20, 0.76, 0.42);
         this.character.add(rightFrontStrap);
 
-        // Back straps - from shoulders down the back
-        const backStrapGeometry = new THREE.BoxGeometry(0.065, 0.20, 0.04);
+        // Back straps - from belt line (y=0.58) up to shoulders (y=0.94)
+        // z = -0.42 (outside body back surface)
+        const backStrapGeometry = new THREE.BoxGeometry(0.06, 0.36, 0.03);
 
-        // Left back strap
         const leftBackStrap = new THREE.Mesh(backStrapGeometry, overallsMaterial);
-        leftBackStrap.position.set(-0.14, 0.84, -0.30);
+        leftBackStrap.position.set(-0.20, 0.76, -0.42);
         this.character.add(leftBackStrap);
 
-        // Right back strap
         const rightBackStrap = new THREE.Mesh(backStrapGeometry, overallsMaterial);
-        rightBackStrap.position.set(0.14, 0.84, -0.30);
+        rightBackStrap.position.set(0.20, 0.76, -0.42);
         this.character.add(rightBackStrap);
 
-        // Shoulder connectors (on top of shoulders)
-        const shoulderStrapGeometry = new THREE.BoxGeometry(0.065, 0.04, 0.62);
+        // Shoulder connectors - on top, connecting front to back
+        // y = 0.94 (top of straps), spans z from 0.42 to -0.42 = length 0.84
+        const shoulderStrapGeometry = new THREE.BoxGeometry(0.06, 0.03, 0.84);
 
-        // Left shoulder connector
         const leftShoulderStrap = new THREE.Mesh(shoulderStrapGeometry, overallsMaterial);
-        leftShoulderStrap.position.set(-0.14, 0.94, 0.01);
+        leftShoulderStrap.position.set(-0.20, 0.94, 0);
         this.character.add(leftShoulderStrap);
 
-        // Right shoulder connector
         const rightShoulderStrap = new THREE.Mesh(shoulderStrapGeometry, overallsMaterial);
-        rightShoulderStrap.position.set(0.14, 0.94, 0.01);
+        rightShoulderStrap.position.set(0.20, 0.94, 0);
         this.character.add(rightShoulderStrap);
 
-        // Buttons on bib tabs where straps attach
-        const buttonGeometry = new THREE.CylinderGeometry(0.028, 0.028, 0.02, 12);
+        // Buttons at belt line where straps connect to overalls
+        // y = 0.58 (belt line), x = ±0.20 (aligned with straps), z = 0.44 (in front)
+        const buttonGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12);
 
-        // Left button - on left bib tab, in front of strap
         const leftButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-        leftButton.position.set(-0.14, 0.76, 0.38);
+        leftButton.position.set(-0.20, 0.58, 0.44);
         leftButton.rotation.x = Math.PI / 2;
         this.character.add(leftButton);
 
-        // Right button - on right bib tab, in front of strap
         const rightButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-        rightButton.position.set(0.14, 0.76, 0.38);
+        rightButton.position.set(0.20, 0.58, 0.44);
         rightButton.rotation.x = Math.PI / 2;
         this.character.add(rightButton);
 

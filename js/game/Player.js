@@ -165,9 +165,10 @@ export class Player {
                 { y: 0.96, z: -0.02 },  // Over the top
                 { y: 0.94, z: -0.15 },  // Down the back
                 { y: 0.90, z: -0.28 },  // Upper back
-                { y: 0.82, z: -0.38 },  // Mid back
-                { y: 0.72, z: -0.40 },  // Lower back - connects to pants
-                { y: 0.62, z: -0.38 },  // Into the overalls waistband
+                { y: 0.82, z: -0.36 },  // Mid back
+                { y: 0.72, z: -0.38 },  // Lower back
+                { y: 0.62, z: -0.36 },  // Connects to pants
+                { y: 0.52, z: -0.32 },  // Into the overalls waistband
             ];
 
             // Create strap segments with overlap

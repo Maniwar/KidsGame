@@ -105,14 +105,14 @@ export class Player {
         this.character.add(overalls);
 
         // === SUSPENDER STRAPS ===
-        // Bib is 0.24 wide, so edges at x = ±0.12
-        // Straps at x = ±0.10 (just inside bib edges)
-        const strapX = 0.10; // Distance from center for straps
+        // Bib is 0.32 wide, so edges at x = ±0.16
+        // Straps at x = ±0.13 (just inside bib edges)
+        const strapX = 0.13; // Distance from center for straps
 
-        // Overalls bib (front panel)
-        const bibGeometry = new THREE.BoxGeometry(0.24, 0.18, 0.04);
+        // Overalls bib (front panel) - wider bib
+        const bibGeometry = new THREE.BoxGeometry(0.32, 0.20, 0.04);
         const bib = new THREE.Mesh(bibGeometry, overallsMaterial);
-        bib.position.set(0, 0.66, 0.42);
+        bib.position.set(0, 0.67, 0.42);
         this.character.add(bib);
 
         // Pocket on bib

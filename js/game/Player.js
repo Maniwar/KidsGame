@@ -90,18 +90,18 @@ export class Player {
             flatShading: false,
         });
 
-        // Yellow shirt - visible at upper chest/neck area above overalls
-        const shirtGeometry = new THREE.SphereGeometry(0.32, 24, 24);
+        // Yellow shirt - covers entire upper body (replaces white body visible area)
+        const shirtGeometry = new THREE.SphereGeometry(0.39, 24, 24);
         const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
-        shirt.position.y = 0.78;
-        shirt.scale.set(0.95, 0.45, 0.88);
+        shirt.position.y = 0.45;
+        shirt.scale.set(1.01, 1.06, 0.96); // Slightly larger than body to cover it
         this.character.add(shirt);
 
-        // Overalls (covers lower/mid body)
-        const overallsGeometry = new THREE.SphereGeometry(0.41, 24, 24);
+        // Overalls (covers lower body, yellow shirt shows above)
+        const overallsGeometry = new THREE.SphereGeometry(0.40, 24, 24);
         const overalls = new THREE.Mesh(overallsGeometry, overallsMaterial);
-        overalls.position.y = 0.40;
-        overalls.scale.set(1.02, 0.95, 0.98);
+        overalls.position.y = 0.38;
+        overalls.scale.set(1.03, 0.85, 0.99);
         this.character.add(overalls);
 
         // Overalls bib (front panel) - connects to straps
@@ -159,18 +159,18 @@ export class Player {
         rightShoulderStrap.position.set(0.18, 0.92, 0);
         this.character.add(rightShoulderStrap);
 
-        // Buttons on bib corners where straps attach
-        const buttonGeometry = new THREE.CylinderGeometry(0.028, 0.028, 0.025, 12);
+        // Buttons where straps attach (match strap x position)
+        const buttonGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.025, 12);
 
-        // Left button - at left side of bib
+        // Left button - aligned with left strap
         const leftButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-        leftButton.position.set(-0.12, 0.74, 0.35);
+        leftButton.position.set(-0.18, 0.74, 0.30);
         leftButton.rotation.x = Math.PI / 2;
         this.character.add(leftButton);
 
-        // Right button - at right side of bib
+        // Right button - aligned with right strap
         const rightButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-        rightButton.position.set(0.12, 0.74, 0.35);
+        rightButton.position.set(0.18, 0.74, 0.30);
         rightButton.rotation.x = Math.PI / 2;
         this.character.add(rightButton);
 

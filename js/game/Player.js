@@ -531,9 +531,9 @@ export class Player {
             this.animationParts.leftLeg.rotation.x = -legSwing;
             this.animationParts.rightLeg.rotation.x = legSwing;
 
-            // Bow bounce - reuse calculated value
+            // Bow bounce - add to base diagonal tilt (0.5 rad)
             if (this.bow) {
-                this.bow.rotation.z = armSwing * 0.1875; // Optimized calculation
+                this.bow.rotation.z = 0.5 + armSwing * 0.15; // Base tilt + bounce
             }
 
             // Head tilt when turning - only update when needed

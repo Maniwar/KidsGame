@@ -156,7 +156,7 @@ export class Player {
         bowGroup.add(rightRibbon);
 
         bowGroup.position.set(0.35, 0.35, 0.05); // Relative to head
-        bowGroup.rotation.set(0, Math.PI / 2, -0.4); // Diagonal like reference
+        bowGroup.rotation.set(0, Math.PI / 2, 0.4); // Diagonal - inner loop higher like reference
         this.bow = bowGroup;
         this.head.add(bowGroup);
 

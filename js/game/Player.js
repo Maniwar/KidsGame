@@ -156,7 +156,7 @@ export class Player {
         bowGroup.add(rightRibbon);
 
         bowGroup.position.set(0.35, 0.35, 0.1); // Relative to head
-        bowGroup.rotation.z = 0.4; // Diagonal tilt, front facing forward
+        bowGroup.rotation.set(0.3, 0, 0.4); // X tilt forward, Z diagonal like reference
         this.bow = bowGroup;
         this.head.add(bowGroup);
 

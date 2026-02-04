@@ -188,9 +188,9 @@ export class Player {
             color: 0x000000,
         });
 
-        // Whisker Y positions: all centered around nose level (y=-0.14)
-        // Moderate spacing, not too wide
-        const whiskerYPositions = [-0.06, -0.14, -0.22]; // Centered around nose
+        // Whisker Y positions: equally spaced, bottom is anchor
+        // Bottom at -0.22, then equal spacing of 0.10 upward
+        const whiskerYPositions = [-0.02, -0.12, -0.22]; // Equal spacing
 
         // Left whiskers - emerging from inside cheek, extending outward
         const leftWhiskerAngles = [-0.12, 0, 0.12]; // Subtle fan

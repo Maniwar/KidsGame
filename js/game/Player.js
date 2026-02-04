@@ -84,19 +84,22 @@ export class Player {
         this.head.scale.set(1.25, 0.95, 1.1); // Much wider, slightly flatter
         this.character.add(this.head);
 
+        // === All facial features are children of head so they move together ===
+        // Positions are relative to head center (head is at y=1.2, so subtract 1.2)
+
         // Ears (spheres with slight elongation)
         const earGeometry = new THREE.SphereGeometry(0.15, 16, 16);
         const leftEar = new THREE.Mesh(earGeometry, bodyMaterial);
-        leftEar.position.set(-0.38, 1.6, -0.05);
+        leftEar.position.set(-0.38, 0.4, -0.05); // Relative to head
         leftEar.scale.set(0.9, 1.3, 0.9); // Taller ears
         leftEar.castShadow = true;
-        this.character.add(leftEar);
+        this.head.add(leftEar);
 
         const rightEar = new THREE.Mesh(earGeometry, bodyMaterial);
-        rightEar.position.set(0.38, 1.6, -0.05);
+        rightEar.position.set(0.38, 0.4, -0.05); // Relative to head
         rightEar.scale.set(0.9, 1.3, 0.9);
         rightEar.castShadow = true;
-        this.character.add(rightEar);
+        this.head.add(rightEar);
 
         // Inner ear details (pink)
         const innerEarMaterial = new THREE.MeshStandardMaterial({
@@ -105,14 +108,14 @@ export class Player {
         });
         const innerEarGeometry = new THREE.SphereGeometry(0.08, 12, 12);
         const leftInnerEar = new THREE.Mesh(innerEarGeometry, innerEarMaterial);
-        leftInnerEar.position.set(-0.38, 1.57, 0);
+        leftInnerEar.position.set(-0.38, 0.37, 0); // Relative to head
         leftInnerEar.scale.set(0.8, 1.2, 0.4);
-        this.character.add(leftInnerEar);
+        this.head.add(leftInnerEar);
 
         const rightInnerEar = new THREE.Mesh(innerEarGeometry, innerEarMaterial);
-        rightInnerEar.position.set(0.38, 1.57, 0);
+        rightInnerEar.position.set(0.38, 0.37, 0); // Relative to head
         rightInnerEar.scale.set(0.8, 1.2, 0.4);
-        this.character.add(rightInnerEar);
+        this.head.add(rightInnerEar);
 
         // Bow (MUCH BIGGER - Hello Kitty's signature feature!)
         const bowGroup = new THREE.Group();
@@ -152,22 +155,22 @@ export class Player {
         rightRibbon.castShadow = true;
         bowGroup.add(rightRibbon);
 
-        bowGroup.position.set(0.35, 1.55, 0.05);
+        bowGroup.position.set(0.35, 0.35, 0.05); // Relative to head
         this.bow = bowGroup;
-        this.character.add(bowGroup);
+        this.head.add(bowGroup);
 
         // Eyes (simple round black dots - Hello Kitty style, wider spacing!)
         // POSITIVE Z - with 180° rotation, local +Z faces world -Z (forward/away from camera)
         const eyeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
         this.leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        this.leftEye.position.set(-0.28, 1.22, 0.56); // Positive Z - face forward, slightly lower
+        this.leftEye.position.set(-0.28, 0.02, 0.56); // Relative to head
         this.leftEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
-        this.character.add(this.leftEye);
+        this.head.add(this.leftEye);
 
         this.rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        this.rightEye.position.set(0.28, 1.22, 0.56); // Positive Z - face forward, slightly lower
+        this.rightEye.position.set(0.28, 0.02, 0.56); // Relative to head
         this.rightEye.scale.set(0.9, 1.2, 0.5); // Vertical oval, flatter
-        this.character.add(this.rightEye);
+        this.head.add(this.rightEye);
 
         // Store default eye scale for blinking
         this.eyeOpenScale = 1.2;
@@ -175,9 +178,9 @@ export class Player {
         // Nose (small oval)
         const noseGeometry = new THREE.SphereGeometry(0.055, 12, 12);
         this.nose = new THREE.Mesh(noseGeometry, noseMaterial);
-        this.nose.position.set(0, 1.06, 0.5); // Positive Z - face forward
+        this.nose.position.set(0, -0.14, 0.5); // Relative to head
         this.nose.scale.set(0.9, 0.7, 0.9);
-        this.character.add(this.nose);
+        this.head.add(this.nose);
 
         // Whiskers (3 per side - fanning out like Hello Kitty!)
         const whiskerGeometry = new THREE.BoxGeometry(0.35, 0.015, 0.015);
@@ -189,20 +192,20 @@ export class Player {
         const leftWhiskerAngles = [-0.15, 0, 0.15]; // Fan upward from bottom
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = 1.15 - i * 0.06; // Stacked vertically
-            whisker.position.set(-0.35, yPos, 0.42); // Positive Z - face forward
+            const yPos = -0.05 - i * 0.06; // Relative to head
+            whisker.position.set(-0.35, yPos, 0.42);
             whisker.rotation.z = leftWhiskerAngles[i]; // Fan out!
-            this.character.add(whisker);
+            this.head.add(whisker);
         }
 
         // Right whiskers - POSITIVE Z, face forward with 180° rotation
         const rightWhiskerAngles = [0.15, 0, -0.15]; // Fan upward from bottom (mirrored)
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = 1.15 - i * 0.06; // Same vertical positions
-            whisker.position.set(0.35, yPos, 0.42); // Positive Z - face forward
+            const yPos = -0.05 - i * 0.06; // Relative to head
+            whisker.position.set(0.35, yPos, 0.42);
             whisker.rotation.z = rightWhiskerAngles[i]; // Fan out!
-            this.character.add(whisker);
+            this.head.add(whisker);
         }
 
         // Arms with shoulder joints (adjusted for smaller body)

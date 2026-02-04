@@ -90,18 +90,18 @@ export class Player {
             flatShading: false,
         });
 
-        // Yellow shirt - only visible at collar/neck area (small, positioned high)
-        const shirtGeometry = new THREE.SphereGeometry(0.28, 24, 24);
+        // Yellow shirt - visible at upper chest/neck area above overalls
+        const shirtGeometry = new THREE.SphereGeometry(0.32, 24, 24);
         const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
-        shirt.position.y = 0.72;
-        shirt.scale.set(1.0, 0.5, 0.9);
+        shirt.position.y = 0.78;
+        shirt.scale.set(0.95, 0.45, 0.88);
         this.character.add(shirt);
 
-        // Overalls (covers entire body - no white showing)
+        // Overalls (covers lower/mid body)
         const overallsGeometry = new THREE.SphereGeometry(0.41, 24, 24);
         const overalls = new THREE.Mesh(overallsGeometry, overallsMaterial);
-        overalls.position.y = 0.45;
-        overalls.scale.set(1.02, 1.1, 0.98);
+        overalls.position.y = 0.40;
+        overalls.scale.set(1.02, 0.95, 0.98);
         this.character.add(overalls);
 
         // Overalls bib (front panel) - connects to straps
@@ -174,10 +174,10 @@ export class Player {
         rightButton.rotation.x = Math.PI / 2;
         this.character.add(rightButton);
 
-        // Yellow collar at neckline
-        const collarGeometry = new THREE.TorusGeometry(0.16, 0.035, 8, 16);
+        // Yellow collar at neckline - more visible
+        const collarGeometry = new THREE.TorusGeometry(0.18, 0.05, 8, 16);
         const collar = new THREE.Mesh(collarGeometry, shirtMaterial);
-        collar.position.y = 0.88;
+        collar.position.y = 0.92;
         collar.rotation.x = Math.PI / 2;
         this.character.add(collar);
 

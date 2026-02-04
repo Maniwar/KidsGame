@@ -156,6 +156,7 @@ export class Player {
         bowGroup.add(rightRibbon);
 
         bowGroup.position.set(0.35, 0.35, 0.05); // Relative to head
+        bowGroup.rotation.z = -0.15; // Slight tilt
         this.bow = bowGroup;
         this.head.add(bowGroup);
 

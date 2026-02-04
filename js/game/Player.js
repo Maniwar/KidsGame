@@ -90,10 +90,11 @@ export class Player {
             flatShading: false,
         });
 
-        // Yellow shirt - covers upper body area (visible between overalls and neck)
-        const shirtGeometry = new THREE.CylinderGeometry(0.34, 0.38, 0.45, 24);
+        // Yellow shirt - sphere that covers upper body naturally
+        const shirtGeometry = new THREE.SphereGeometry(0.36, 24, 24);
         const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
-        shirt.position.y = 0.58;
+        shirt.position.y = 0.55;
+        shirt.scale.set(1.0, 0.85, 0.92);
         this.character.add(shirt);
 
         // Overalls bib (front panel)

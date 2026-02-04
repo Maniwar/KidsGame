@@ -189,21 +189,21 @@ export class Player {
             color: 0x000000, // Black whiskers like the reference
         });
 
-        // Left whiskers - at eye level, outside of eyes
-        const leftWhiskerAngles = [-0.2, 0, 0.2]; // Fan out
+        // Left whiskers - at eye level, outside of eyes, tightly grouped
+        const leftWhiskerAngles = [-0.15, 0, 0.15]; // Fan out
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = 0.05 - i * 0.05; // At eye level, slight spread
+            const yPos = 0.03 - i * 0.03; // Tighter spacing
             whisker.position.set(-0.5, yPos, 0.3); // Outside of eyes
             whisker.rotation.z = leftWhiskerAngles[i]; // Fan out!
             this.head.add(whisker);
         }
 
-        // Right whiskers - at eye level, outside of eyes
-        const rightWhiskerAngles = [0.2, 0, -0.2]; // Fan out (mirrored)
+        // Right whiskers - at eye level, outside of eyes, tightly grouped
+        const rightWhiskerAngles = [0.15, 0, -0.15]; // Fan out (mirrored)
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = 0.05 - i * 0.05; // At eye level, slight spread
+            const yPos = 0.03 - i * 0.03; // Tighter spacing
             whisker.position.set(0.5, yPos, 0.3); // Outside of eyes
             whisker.rotation.z = rightWhiskerAngles[i]; // Fan out!
             this.head.add(whisker);

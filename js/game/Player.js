@@ -128,41 +128,44 @@ export class Player {
         pocket.position.set(0, 0.62, 0.45);
         this.character.add(pocket);
 
-        // Front straps - from belt line (y=0.58) up to shoulders (y=0.94)
-        // Height = 0.36, center y = 0.58 + 0.18 = 0.76
+        // Front straps - from TOP of bib (y=0.75) up to shoulders (y=0.85)
+        // Bib: center y=0.66, height=0.18, so top = 0.66 + 0.09 = 0.75
+        // Shoulder level = 0.85 (lowered to go over shoulders, not near face)
+        // Height = 0.85 - 0.75 = 0.10, center y = 0.75 + 0.05 = 0.80
         // z = 0.42 (outside body, same as bib)
-        const frontStrapGeometry = new THREE.BoxGeometry(0.06, 0.36, 0.03);
+        const frontStrapGeometry = new THREE.BoxGeometry(0.06, 0.10, 0.03);
 
         const leftFrontStrap = new THREE.Mesh(frontStrapGeometry, overallsMaterial);
-        leftFrontStrap.position.set(-0.20, 0.76, 0.42);
+        leftFrontStrap.position.set(-0.20, 0.80, 0.42);
         this.character.add(leftFrontStrap);
 
         const rightFrontStrap = new THREE.Mesh(frontStrapGeometry, overallsMaterial);
-        rightFrontStrap.position.set(0.20, 0.76, 0.42);
+        rightFrontStrap.position.set(0.20, 0.80, 0.42);
         this.character.add(rightFrontStrap);
 
-        // Back straps - from belt line (y=0.58) up to shoulders (y=0.94)
+        // Back straps - from belt line (y=0.58) up to shoulders (y=0.85)
+        // Height = 0.85 - 0.58 = 0.27, center y = 0.58 + 0.135 = 0.715
         // z = -0.42 (outside body back surface)
-        const backStrapGeometry = new THREE.BoxGeometry(0.06, 0.36, 0.03);
+        const backStrapGeometry = new THREE.BoxGeometry(0.06, 0.27, 0.03);
 
         const leftBackStrap = new THREE.Mesh(backStrapGeometry, overallsMaterial);
-        leftBackStrap.position.set(-0.20, 0.76, -0.42);
+        leftBackStrap.position.set(-0.20, 0.715, -0.42);
         this.character.add(leftBackStrap);
 
         const rightBackStrap = new THREE.Mesh(backStrapGeometry, overallsMaterial);
-        rightBackStrap.position.set(0.20, 0.76, -0.42);
+        rightBackStrap.position.set(0.20, 0.715, -0.42);
         this.character.add(rightBackStrap);
 
         // Shoulder connectors - on top, connecting front to back
-        // y = 0.94 (top of straps), spans z from 0.42 to -0.42 = length 0.84
+        // y = 0.85 (shoulder level), spans z from 0.42 to -0.42 = length 0.84
         const shoulderStrapGeometry = new THREE.BoxGeometry(0.06, 0.03, 0.84);
 
         const leftShoulderStrap = new THREE.Mesh(shoulderStrapGeometry, overallsMaterial);
-        leftShoulderStrap.position.set(-0.20, 0.94, 0);
+        leftShoulderStrap.position.set(-0.20, 0.85, 0);
         this.character.add(leftShoulderStrap);
 
         const rightShoulderStrap = new THREE.Mesh(shoulderStrapGeometry, overallsMaterial);
-        rightShoulderStrap.position.set(0.20, 0.94, 0);
+        rightShoulderStrap.position.set(0.20, 0.85, 0);
         this.character.add(rightShoulderStrap);
 
         // Buttons at belt line where straps connect to overalls

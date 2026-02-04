@@ -100,16 +100,29 @@ export class Player {
         overalls.scale.set(1.02, 0.8, 0.97);
         this.character.add(overalls);
 
-        // Overall straps - positioned on front of body, visible
-        const strapGeometry = new THREE.BoxGeometry(0.10, 0.35, 0.08);
-        const leftStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
-        leftStrap.position.set(-0.14, 0.68, 0.30); // Further forward to be visible
-        leftStrap.rotation.x = 0.3;
+        // Overall straps - curved to follow body contour
+        // Left strap curve: from front of overalls, up and over shoulder
+        const leftStrapCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-0.12, 0.50, 0.35),  // Bottom front (at overalls)
+            new THREE.Vector3(-0.14, 0.62, 0.32),  // Mid front
+            new THREE.Vector3(-0.18, 0.72, 0.22),  // Upper chest
+            new THREE.Vector3(-0.24, 0.78, 0.08),  // Over shoulder
+            new THREE.Vector3(-0.26, 0.72, -0.10), // Back of shoulder
+        ]);
+        const strapTubeGeometry = new THREE.TubeGeometry(leftStrapCurve, 12, 0.04, 8, false);
+        const leftStrap = new THREE.Mesh(strapTubeGeometry, overallsMaterial);
         this.character.add(leftStrap);
 
-        const rightStrap = new THREE.Mesh(strapGeometry, overallsMaterial);
-        rightStrap.position.set(0.14, 0.68, 0.30); // Further forward to be visible
-        rightStrap.rotation.x = 0.3;
+        // Right strap curve: mirror of left
+        const rightStrapCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0.12, 0.50, 0.35),   // Bottom front (at overalls)
+            new THREE.Vector3(0.14, 0.62, 0.32),   // Mid front
+            new THREE.Vector3(0.18, 0.72, 0.22),   // Upper chest
+            new THREE.Vector3(0.24, 0.78, 0.08),   // Over shoulder
+            new THREE.Vector3(0.26, 0.72, -0.10),  // Back of shoulder
+        ]);
+        const rightStrapTubeGeometry = new THREE.TubeGeometry(rightStrapCurve, 12, 0.04, 8, false);
+        const rightStrap = new THREE.Mesh(rightStrapTubeGeometry, overallsMaterial);
         this.character.add(rightStrap);
 
         // Yellow collar at neckline

@@ -157,17 +157,17 @@ export class Player {
         this.character.add(rightBackStrap);
 
         // Shoulder straps - curved to follow body contour over the shoulders
-        // Body surface at y=0.85 extends to z≈0.10, so straps must arc UP and OVER
-        // Front portion pushed further forward to avoid clipping
-        // Using 6 segments per strap to create smooth curve
+        // Straps must bulge FORWARD (higher z) before curving over the shoulder
+        // Using 7 segments per strap for smooth forward-curving arc
         const shoulderPoints = [
             { z: 0.42, y: 0.85 },   // P0: front strap top
-            { z: 0.40, y: 0.90 },   // P1: rising, staying forward
-            { z: 0.32, y: 0.94 },   // P2: continuing up, still forward
-            { z: 0.18, y: 0.97 },   // P3: apex (well forward to clear body/collar)
-            { z: 0.00, y: 0.95 },   // P4: crossing over top
-            { z: -0.20, y: 0.90 },  // P5: descending back
-            { z: -0.42, y: 0.85 }   // P6: back strap top
+            { z: 0.50, y: 0.87 },   // P1: bulging FORWARD
+            { z: 0.52, y: 0.90 },   // P2: most forward point (in front of shoulder)
+            { z: 0.45, y: 0.92 },   // P3: starting to curve back over
+            { z: 0.25, y: 0.93 },   // P4: going over top of shoulder
+            { z: 0.00, y: 0.91 },   // P5: crossing to back side
+            { z: -0.22, y: 0.88 },  // P6: descending back
+            { z: -0.42, y: 0.85 }   // P7: back strap top
         ];
 
         // Create curved shoulder straps for both sides

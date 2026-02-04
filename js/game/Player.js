@@ -106,10 +106,10 @@ export class Player {
 
         // === SUSPENDER STRAPS ===
         // Straps at x = ±0.18 to go over the shoulders properly
-        const strapX = 0.18; // Distance from center - wider to go over shoulders
+        const strapX = 0.22; // Distance from center - wider to go over shoulders
 
         // Overalls bib (front panel) - taller to connect to pants
-        const bibGeometry = new THREE.BoxGeometry(0.38, 0.28, 0.04);
+        const bibGeometry = new THREE.BoxGeometry(0.46, 0.28, 0.04);
         const bib = new THREE.Mesh(bibGeometry, overallsMaterial);
         bib.position.set(0, 0.63, 0.42);
         this.character.add(bib);
@@ -118,11 +118,11 @@ export class Player {
         const sideConnectorGeometry = new THREE.BoxGeometry(0.06, 0.20, 0.12);
 
         const leftSideConnector = new THREE.Mesh(sideConnectorGeometry, overallsMaterial);
-        leftSideConnector.position.set(-0.20, 0.56, 0.36);
+        leftSideConnector.position.set(-0.24, 0.56, 0.36);
         this.character.add(leftSideConnector);
 
         const rightSideConnector = new THREE.Mesh(sideConnectorGeometry, overallsMaterial);
-        rightSideConnector.position.set(0.20, 0.56, 0.36);
+        rightSideConnector.position.set(0.24, 0.56, 0.36);
         this.character.add(rightSideConnector);
 
         // Pocket on bib
@@ -165,10 +165,10 @@ export class Player {
                 { y: 0.96, z: -0.02 },  // Over the top
                 { y: 0.94, z: -0.15 },  // Down the back
                 { y: 0.90, z: -0.28 },  // Upper back
-                { y: 0.82, z: -0.36 },  // Mid back
-                { y: 0.72, z: -0.38 },  // Lower back
-                { y: 0.62, z: -0.36 },  // Connects to pants
-                { y: 0.52, z: -0.32 },  // Into the overalls waistband
+                { y: 0.82, z: -0.34 },  // Mid back
+                { y: 0.72, z: -0.36 },  // Lower back
+                { y: 0.62, z: -0.34 },  // Connects to pants
+                { y: 0.52, z: -0.28 },  // Into the overalls waistband
             ];
 
             // Create strap segments with overlap

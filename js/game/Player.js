@@ -277,7 +277,7 @@ export class Player {
 
         bowGroup.position.set(0.35, 0.35, 0.1); // Relative to head
         // Group rotation creates diagonal look: inner loop UP, outer loop DOWN
-        bowGroup.rotation.set(0.2, 0, 0.5); // Slight forward tilt, diagonal
+        bowGroup.rotation.set(0.2, 0, -0.5); // Negative Z = inner loop UP, outer DOWN
         this.bow = bowGroup;
         this.head.add(bowGroup);
 
@@ -531,9 +531,9 @@ export class Player {
             this.animationParts.leftLeg.rotation.x = -legSwing;
             this.animationParts.rightLeg.rotation.x = legSwing;
 
-            // Bow bounce - add to base diagonal tilt (0.5 rad)
+            // Bow bounce - add to base diagonal tilt (-0.5 rad = inner loop UP)
             if (this.bow) {
-                this.bow.rotation.z = 0.5 + armSwing * 0.15; // Base tilt + bounce
+                this.bow.rotation.z = -0.5 + armSwing * 0.15; // Base tilt + bounce
             }
 
             // Head tilt when turning - only update when needed

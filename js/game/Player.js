@@ -183,28 +183,28 @@ export class Player {
         this.head.add(this.nose);
 
         // Whiskers (3 per side - like Hello Kitty reference)
-        // On cheeks below eyes, extending outward horizontally
-        const whiskerGeometry = new THREE.BoxGeometry(0.22, 0.014, 0.014);
+        // On cheeks below eyes, short lines extending outward from face
+        const whiskerGeometry = new THREE.BoxGeometry(0.18, 0.012, 0.012);
         const whiskerMaterial = new THREE.MeshStandardMaterial({
             color: 0x000000,
         });
 
-        // Left whiskers - on cheek below eye, slight fan
-        const leftWhiskerAngles = [-0.12, 0, 0.12]; // Subtle fan
+        // Left whiskers - on cheek near nose, extending outward
+        const leftWhiskerAngles = [-0.1, 0, 0.1]; // Subtle fan
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = -0.06 - i * 0.035; // Below eyes, on cheek
-            whisker.position.set(-0.32, yPos, 0.45); // On cheek, extending outward
+            const yPos = -0.08 - i * 0.04; // Below eyes, near nose level
+            whisker.position.set(-0.18, yPos, 0.52); // Close to face, near nose
             whisker.rotation.z = leftWhiskerAngles[i];
             this.head.add(whisker);
         }
 
-        // Right whiskers - on cheek below eye, slight fan
-        const rightWhiskerAngles = [0.12, 0, -0.12]; // Subtle fan (mirrored)
+        // Right whiskers - on cheek near nose, extending outward
+        const rightWhiskerAngles = [0.1, 0, -0.1]; // Subtle fan (mirrored)
         for (let i = 0; i < 3; i++) {
             const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-            const yPos = -0.06 - i * 0.035; // Below eyes, on cheek
-            whisker.position.set(0.32, yPos, 0.45); // On cheek, extending outward
+            const yPos = -0.08 - i * 0.04; // Below eyes, near nose level
+            whisker.position.set(0.18, yPos, 0.52); // Close to face, near nose
             whisker.rotation.z = rightWhiskerAngles[i];
             this.head.add(whisker);
         }

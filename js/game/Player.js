@@ -158,15 +158,15 @@ export class Player {
 
         // Shoulder straps - curved to follow body contour over the shoulders
         // Body surface at y=0.85 extends to z≈0.10, so straps must arc UP and OVER
-        // Arc points (z, y): front(0.42, 0.85) → apex(0.05, 0.96) → back(-0.42, 0.85)
+        // Front portion pushed further forward to avoid clipping
         // Using 6 segments per strap to create smooth curve
         const shoulderPoints = [
             { z: 0.42, y: 0.85 },   // P0: front strap top
-            { z: 0.30, y: 0.89 },   // P1: rising
-            { z: 0.18, y: 0.93 },   // P2: continuing up
-            { z: 0.05, y: 0.96 },   // P3: apex (forward of center to clear body)
-            { z: -0.10, y: 0.94 },  // P4: descending
-            { z: -0.25, y: 0.90 },  // P5: continuing down
+            { z: 0.40, y: 0.90 },   // P1: rising, staying forward
+            { z: 0.32, y: 0.94 },   // P2: continuing up, still forward
+            { z: 0.18, y: 0.97 },   // P3: apex (well forward to clear body/collar)
+            { z: 0.00, y: 0.95 },   // P4: crossing over top
+            { z: -0.20, y: 0.90 },  // P5: descending back
             { z: -0.42, y: 0.85 }   // P6: back strap top
         ];
 

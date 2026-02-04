@@ -157,17 +157,16 @@ export class Player {
             // Full strap path from bib top, over shoulder, down the back to pants
             const strapPoints = [
                 { y: 0.69, z: 0.43 },   // At bib top (button level)
-                { y: 0.76, z: 0.42 },   // Rising from bib
-                { y: 0.82, z: 0.38 },   // Going up
-                { y: 0.86, z: 0.30 },   // Upper chest
-                { y: 0.88, z: 0.18 },   // Approaching shoulder
-                { y: 0.89, z: 0.05 },   // Top of shoulder
-                { y: 0.88, z: -0.10 },  // Over and down
-                { y: 0.85, z: -0.22 },  // Down the back
-                { y: 0.78, z: -0.32 },  // Upper back
-                { y: 0.68, z: -0.36 },  // Mid back
-                { y: 0.58, z: -0.34 },  // Lower back
-                { y: 0.50, z: -0.28 },  // Into the overalls waistband
+                { y: 0.73, z: 0.38 },   // Rising from bib
+                { y: 0.77, z: 0.30 },   // Going up
+                { y: 0.80, z: 0.18 },   // Upper chest
+                { y: 0.82, z: 0.05 },   // Shoulder front
+                { y: 0.82, z: -0.08 },  // Top/over shoulder
+                { y: 0.80, z: -0.20 },  // Down the back
+                { y: 0.74, z: -0.30 },  // Upper back
+                { y: 0.66, z: -0.36 },  // Mid back
+                { y: 0.56, z: -0.34 },  // Lower back
+                { y: 0.48, z: -0.28 },  // Into the overalls waistband
             ];
 
             // Create strap segments with overlap

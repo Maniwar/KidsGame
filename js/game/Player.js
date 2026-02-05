@@ -97,8 +97,10 @@ export class Player {
             color: this.outfitColors.shirtColor,
             flatShading: false,
         });
-        const buttonMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFD700, // Gold buttons (always gold)
+        // Button material - gold normally, but white when "no overalls" selected
+        const isNoOveralls = this.outfitColors.overallsColor === 0xFFFFFF;
+        this.buttonMaterial = new THREE.MeshStandardMaterial({
+            color: isNoOveralls ? 0xFFFFFF : 0xFFD700,
             flatShading: false,
         });
 
@@ -154,12 +156,12 @@ export class Player {
         // Gold buttons at top of bib where straps attach
         const buttonGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12);
 
-        const leftButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
+        const leftButton = new THREE.Mesh(buttonGeometry, this.buttonMaterial);
         leftButton.position.set(-strapX, 0.68, 0.45);
         leftButton.rotation.x = Math.PI / 2;
         this.character.add(leftButton);
 
-        const rightButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
+        const rightButton = new THREE.Mesh(buttonGeometry, this.buttonMaterial);
         rightButton.position.set(strapX, 0.68, 0.45);
         rightButton.rotation.x = Math.PI / 2;
         this.character.add(rightButton);
@@ -475,6 +477,11 @@ export class Player {
         if (colors.overallsColor !== undefined && this.overallsMaterial) {
             this.overallsMaterial.color.setHex(colors.overallsColor);
             this.outfitColors.overallsColor = colors.overallsColor;
+            // Update button color: white when "no overalls" (white), gold otherwise
+            if (this.buttonMaterial) {
+                const isNoOveralls = colors.overallsColor === 0xFFFFFF;
+                this.buttonMaterial.color.setHex(isNoOveralls ? 0xFFFFFF : 0xFFD700);
+            }
         }
         if (colors.pocketColor !== undefined && this.pocketMaterial) {
             this.pocketMaterial.color.setHex(colors.pocketColor);

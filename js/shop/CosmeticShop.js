@@ -1,12 +1,19 @@
 // Cosmetic Shop
 // Defines all available cosmetic items and handles purchases
+//
+// ECONOMY BALANCE (based on leaderboard data):
+// - Top players: ~4000 coins per run
+// - Good players: ~1500-2500 coins per run
+// - Average players: ~500-1000 coins per run
+// - Beginners: ~100-300 coins per run
+//
 // PRICE TIERS:
 // - Free (0): Defaults + "no clothes" options
-// - Starter (75-150): Early wins after 2-3 runs
-// - Common (200-350): Regular play rewards
-// - Uncommon (400-600): Dedicated players
-// - Rare (800-1200): Significant investment
-// - Legendary (2000+): Aspirational goals
+// - Starter (150-400): Achievable in 1 decent run
+// - Common (600-1200): 2-3 runs for average player
+// - Uncommon (1500-2500): 3-5 runs, or 1 great run
+// - Rare (3000-5000): Multiple sessions required
+// - Legendary (10000+): Long-term goal, flex item
 
 export const COSMETIC_ITEMS = {
     // === SHIRTS ===
@@ -24,7 +31,7 @@ export const COSMETIC_ITEMS = {
         name: 'Pink Shirt',
         slot: 'shirt',
         color: 0xFF69B4, // Hot pink
-        price: 75, // Starter - first purchase!
+        price: 200, // Starter - first purchase for beginners
         description: 'Cute pink shirt'
     },
     red_shirt: {
@@ -32,7 +39,7 @@ export const COSMETIC_ITEMS = {
         name: 'Red Shirt',
         slot: 'shirt',
         color: 0xFF4444,
-        price: 200, // Common
+        price: 600, // Common
         description: 'Bold red shirt'
     },
     purple_shirt: {
@@ -40,7 +47,7 @@ export const COSMETIC_ITEMS = {
         name: 'Purple Shirt',
         slot: 'shirt',
         color: 0x9370DB, // Medium purple
-        price: 250, // Common
+        price: 800, // Common
         description: 'Royal purple shirt'
     },
     mint_shirt: {
@@ -48,7 +55,7 @@ export const COSMETIC_ITEMS = {
         name: 'Mint Shirt',
         slot: 'shirt',
         color: 0x98FF98, // Pale green
-        price: 400, // Uncommon
+        price: 1500, // Uncommon
         description: 'Fresh mint green shirt'
     },
     orange_shirt: {
@@ -56,7 +63,7 @@ export const COSMETIC_ITEMS = {
         name: 'Orange Shirt',
         slot: 'shirt',
         color: 0xFF8C00, // Dark orange
-        price: 500, // Uncommon
+        price: 2000, // Uncommon
         description: 'Bright orange shirt'
     },
     none_shirt: {
@@ -85,7 +92,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0x8A2BE2, // Blue violet
         pocketColor: 0x7222C9,
-        price: 100, // Starter - early win
+        price: 300, // Starter - early win
         description: 'Stylish purple overalls'
     },
     pink_overalls: {
@@ -94,7 +101,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0xFF1493, // Deep pink
         pocketColor: 0xDB1180,
-        price: 300, // Common
+        price: 900, // Common
         description: 'Adorable pink overalls'
     },
     red_overalls: {
@@ -103,7 +110,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0xDC143C, // Crimson
         pocketColor: 0xB81030,
-        price: 350, // Common
+        price: 1200, // Common
         description: 'Sporty red overalls'
     },
     green_overalls: {
@@ -112,7 +119,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0x32CD32, // Lime green
         pocketColor: 0x28A428,
-        price: 550, // Uncommon
+        price: 2200, // Uncommon
         description: 'Nature green overalls'
     },
     black_overalls: {
@@ -121,7 +128,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0x2F2F2F, // Dark gray/black
         pocketColor: 0x1F1F1F,
-        price: 1000, // Rare - premium
+        price: 4000, // Rare - prestige item
         description: 'Sleek black overalls'
     },
     none_overalls: {
@@ -149,7 +156,7 @@ export const COSMETIC_ITEMS = {
         name: 'Pink Bow',
         slot: 'bow',
         color: 0xFF69B4, // Hot pink
-        price: 50, // Starter - first purchase possible!
+        price: 150, // Starter - first purchase possible!
         description: 'Pretty pink bow'
     },
     purple_bow: {
@@ -157,7 +164,7 @@ export const COSMETIC_ITEMS = {
         name: 'Purple Bow',
         slot: 'bow',
         color: 0x9370DB, // Medium purple
-        price: 150, // Starter
+        price: 400, // Starter
         description: 'Royal purple bow'
     },
     blue_bow: {
@@ -165,7 +172,7 @@ export const COSMETIC_ITEMS = {
         name: 'Blue Bow',
         slot: 'bow',
         color: 0x4169E1, // Royal blue
-        price: 150, // Starter
+        price: 400, // Starter
         description: 'Cool blue bow'
     },
     gold_bow: {
@@ -173,7 +180,7 @@ export const COSMETIC_ITEMS = {
         name: 'Gold Bow',
         slot: 'bow',
         color: 0xFFD700, // Gold
-        price: 350, // Common
+        price: 1000, // Common
         description: 'Shiny gold bow'
     },
     mint_bow: {
@@ -181,7 +188,7 @@ export const COSMETIC_ITEMS = {
         name: 'Mint Bow',
         slot: 'bow',
         color: 0x98FF98, // Pale green
-        price: 400, // Uncommon
+        price: 1400, // Uncommon
         description: 'Fresh mint bow'
     },
     orange_bow: {
@@ -189,7 +196,7 @@ export const COSMETIC_ITEMS = {
         name: 'Orange Bow',
         slot: 'bow',
         color: 0xFF8C00, // Dark orange
-        price: 450, // Uncommon
+        price: 1800, // Uncommon
         description: 'Bright orange bow'
     },
     black_bow: {
@@ -197,7 +204,7 @@ export const COSMETIC_ITEMS = {
         name: 'Black Bow',
         slot: 'bow',
         color: 0x2F2F2F, // Dark gray/black
-        price: 800, // Rare
+        price: 3500, // Rare
         description: 'Elegant black bow'
     },
     rainbow_bow: {
@@ -206,7 +213,7 @@ export const COSMETIC_ITEMS = {
         slot: 'bow',
         color: 0xFF69B4, // Base pink (special effect handled in Player)
         isRainbow: true,
-        price: 2500, // Legendary - aspirational goal!
+        price: 12000, // Legendary - THE flex item!
         description: 'Magical color-changing bow!'
     }
 };

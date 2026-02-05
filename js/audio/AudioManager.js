@@ -1026,6 +1026,76 @@ export class AudioManager {
         osc.stop(now + 0.2);
     }
 
+    // Purchase sound - satisfying "ka-ching" for buying items
+    playPurchaseSound() {
+        if (!this.isInitialized) return;
+
+        const now = this.context.currentTime;
+
+        // Coin drop sound (descending)
+        const osc1 = this.context.createOscillator();
+        const gain1 = this.context.createGain();
+        osc1.frequency.setValueAtTime(1200, now);
+        osc1.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+        osc1.type = 'sine';
+        gain1.gain.setValueAtTime(0.3, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc1.connect(gain1);
+        gain1.connect(this.sfxGain);
+        osc1.start(now);
+        osc1.stop(now + 0.1);
+
+        // Cash register "ching" (ascending sparkle)
+        const notes = [1318.51, 1567.98, 2093.00]; // E6, G6, C7
+        notes.forEach((freq, index) => {
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+            const startTime = now + 0.08 + index * 0.04;
+
+            osc.frequency.value = freq;
+            osc.type = 'triangle';
+            gain.gain.setValueAtTime(0.25, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
+
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+            osc.start(startTime);
+            osc.stop(startTime + 0.15);
+        });
+    }
+
+    // Equip sound - quick "swoosh/click" for switching gear
+    playEquipSound() {
+        if (!this.isInitialized) return;
+
+        const now = this.context.currentTime;
+
+        // Quick swoosh
+        const osc1 = this.context.createOscillator();
+        const gain1 = this.context.createGain();
+        osc1.frequency.setValueAtTime(300, now);
+        osc1.frequency.exponentialRampToValueAtTime(600, now + 0.05);
+        osc1.type = 'sine';
+        gain1.gain.setValueAtTime(0.15, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        osc1.connect(gain1);
+        gain1.connect(this.sfxGain);
+        osc1.start(now);
+        osc1.stop(now + 0.08);
+
+        // Soft click/snap
+        const osc2 = this.context.createOscillator();
+        const gain2 = this.context.createGain();
+        osc2.frequency.value = 1000;
+        osc2.type = 'square';
+        gain2.gain.setValueAtTime(0.1, now + 0.05);
+        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        osc2.connect(gain2);
+        gain2.connect(this.sfxGain);
+        osc2.start(now + 0.05);
+        osc2.stop(now + 0.08);
+    }
+
     setMusicVolume(volume) {
         this.musicVolume = Math.max(0, Math.min(1, volume));
         if (this.musicGain) {

@@ -3274,11 +3274,11 @@ class Game {
         const result = this.cosmeticShop.purchase(itemId);
 
         if (result.success) {
-            // Play purchase sound
-            this.audio.playCoinSound();
+            // Play satisfying purchase sound (ka-ching!)
+            this.audio.playPurchaseSound();
 
-            // Auto-equip the purchased item
-            this.equipItem(itemId);
+            // Auto-equip the purchased item (skip equip sound since purchase sound is playing)
+            this.equipItem(itemId, true);
 
             // Refresh shop display
             this.populateShop();
@@ -3287,10 +3287,15 @@ class Game {
         }
     }
 
-    equipItem(itemId) {
+    equipItem(itemId, skipSound = false) {
         const result = this.cosmeticShop.equip(itemId);
 
         if (result.success) {
+            // Play equip sound (swoosh/click) unless skipped
+            if (!skipSound) {
+                this.audio.playEquipSound();
+            }
+
             // Update player appearance immediately
             const colors = this.cosmeticShop.getEquippedColors();
             if (this.player) {

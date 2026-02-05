@@ -106,38 +106,44 @@ export class Player {
 
         // Shirt - covers entire upper body
         const shirtGeometry = new THREE.SphereGeometry(0.39, 24, 24);
-        const shirt = new THREE.Mesh(shirtGeometry, this.shirtMaterial);
-        shirt.position.y = 0.45;
-        shirt.scale.set(1.01, 1.06, 0.96); // Slightly larger than body to cover it
-        this.character.add(shirt);
+        this.shirt = new THREE.Mesh(shirtGeometry, this.shirtMaterial);
+        this.shirt.position.y = 0.45;
+        this.shirt.scale.set(1.01, 1.06, 0.96); // Slightly larger than body to cover it
+        this.character.add(this.shirt);
 
         // Overalls (covers lower body, shirt shows above)
         const overallsGeometry = new THREE.SphereGeometry(0.40, 24, 24);
-        const overalls = new THREE.Mesh(overallsGeometry, this.overallsMaterial);
-        overalls.position.y = 0.38;
-        overalls.scale.set(1.03, 0.85, 0.99);
-        this.character.add(overalls);
+        this.overalls = new THREE.Mesh(overallsGeometry, this.overallsMaterial);
+        this.overalls.position.y = 0.38;
+        this.overalls.scale.set(1.03, 0.85, 0.99);
+        this.character.add(this.overalls);
 
         // === SUSPENDER STRAPS ===
         // Straps at x = ±0.18 to go over the shoulders properly
         const strapX = 0.22; // Distance from center - wider to go over shoulders
 
+        // Array to store all overalls-related meshes for visibility toggling
+        this.overallsMeshes = [];
+
         // Overalls bib (front panel) - taller to connect to pants
         const bibGeometry = new THREE.BoxGeometry(0.46, 0.28, 0.04);
-        const bib = new THREE.Mesh(bibGeometry, this.overallsMaterial);
-        bib.position.set(0, 0.63, 0.42);
-        this.character.add(bib);
+        this.bib = new THREE.Mesh(bibGeometry, this.overallsMaterial);
+        this.bib.position.set(0, 0.63, 0.42);
+        this.character.add(this.bib);
+        this.overallsMeshes.push(this.bib);
 
         // Side connectors - connect bib to overalls on the sides
         const sideConnectorGeometry = new THREE.BoxGeometry(0.06, 0.20, 0.12);
 
-        const leftSideConnector = new THREE.Mesh(sideConnectorGeometry, this.overallsMaterial);
-        leftSideConnector.position.set(-0.24, 0.56, 0.36);
-        this.character.add(leftSideConnector);
+        this.leftSideConnector = new THREE.Mesh(sideConnectorGeometry, this.overallsMaterial);
+        this.leftSideConnector.position.set(-0.24, 0.56, 0.36);
+        this.character.add(this.leftSideConnector);
+        this.overallsMeshes.push(this.leftSideConnector);
 
-        const rightSideConnector = new THREE.Mesh(sideConnectorGeometry, this.overallsMaterial);
-        rightSideConnector.position.set(0.24, 0.56, 0.36);
-        this.character.add(rightSideConnector);
+        this.rightSideConnector = new THREE.Mesh(sideConnectorGeometry, this.overallsMaterial);
+        this.rightSideConnector.position.set(0.24, 0.56, 0.36);
+        this.character.add(this.rightSideConnector);
+        this.overallsMeshes.push(this.rightSideConnector);
 
         // Pocket on bib
         const pocketGeometry = new THREE.BoxGeometry(0.14, 0.07, 0.02);
@@ -145,9 +151,10 @@ export class Player {
             color: this.outfitColors.pocketColor,
             flatShading: false,
         });
-        const pocket = new THREE.Mesh(pocketGeometry, this.pocketMaterial);
-        pocket.position.set(0, 0.60, 0.45);
-        this.character.add(pocket);
+        this.pocket = new THREE.Mesh(pocketGeometry, this.pocketMaterial);
+        this.pocket.position.set(0, 0.60, 0.45);
+        this.character.add(this.pocket);
+        this.overallsMeshes.push(this.pocket);
 
         // Strap dimensions - wider straps
         const strapWidth = 0.09;
@@ -156,15 +163,17 @@ export class Player {
         // Gold buttons at top of bib where straps attach
         const buttonGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12);
 
-        const leftButton = new THREE.Mesh(buttonGeometry, this.buttonMaterial);
-        leftButton.position.set(-strapX, 0.68, 0.45);
-        leftButton.rotation.x = Math.PI / 2;
-        this.character.add(leftButton);
+        this.leftButton = new THREE.Mesh(buttonGeometry, this.buttonMaterial);
+        this.leftButton.position.set(-strapX, 0.68, 0.45);
+        this.leftButton.rotation.x = Math.PI / 2;
+        this.character.add(this.leftButton);
+        this.overallsMeshes.push(this.leftButton);
 
-        const rightButton = new THREE.Mesh(buttonGeometry, this.buttonMaterial);
-        rightButton.position.set(strapX, 0.68, 0.45);
-        rightButton.rotation.x = Math.PI / 2;
-        this.character.add(rightButton);
+        this.rightButton = new THREE.Mesh(buttonGeometry, this.buttonMaterial);
+        this.rightButton.position.set(strapX, 0.68, 0.45);
+        this.rightButton.rotation.x = Math.PI / 2;
+        this.character.add(this.rightButton);
+        this.overallsMeshes.push(this.rightButton);
 
         // Create continuous straps from bib over shoulders to back
         [-strapX, strapX].forEach(xPos => {
@@ -199,15 +208,22 @@ export class Player {
                 segment.position.set(xPos, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2);
                 segment.rotation.x = angle;
                 this.character.add(segment);
+                this.overallsMeshes.push(segment); // Track strap segments too
             }
         });
 
         // Collar at neckline - more visible
         const collarGeometry = new THREE.TorusGeometry(0.18, 0.05, 8, 16);
-        const collar = new THREE.Mesh(collarGeometry, this.shirtMaterial);
-        collar.position.y = 0.92;
-        collar.rotation.x = Math.PI / 2;
-        this.character.add(collar);
+        this.collar = new THREE.Mesh(collarGeometry, this.shirtMaterial);
+        this.collar.position.y = 0.92;
+        this.collar.rotation.x = Math.PI / 2;
+        this.character.add(this.collar);
+
+        // Store shirt meshes for visibility toggling
+        this.shirtMeshes = [this.shirt, this.collar];
+
+        // Apply initial visibility based on outfit colors
+        this.updateOutfitVisibility();
 
         // Head (larger sphere - wider like Hello Kitty!)
         const headGeometry = new THREE.SphereGeometry(0.5, 24, 24);
@@ -477,10 +493,9 @@ export class Player {
         if (colors.overallsColor !== undefined && this.overallsMaterial) {
             this.overallsMaterial.color.setHex(colors.overallsColor);
             this.outfitColors.overallsColor = colors.overallsColor;
-            // Update button color: white when "no overalls" (white), gold otherwise
+            // Update button color: gold when overalls visible, doesn't matter when hidden
             if (this.buttonMaterial) {
-                const isNoOveralls = colors.overallsColor === 0xFFFFFF;
-                this.buttonMaterial.color.setHex(isNoOveralls ? 0xFFFFFF : 0xFFD700);
+                this.buttonMaterial.color.setHex(0xFFD700);
             }
         }
         if (colors.pocketColor !== undefined && this.pocketMaterial) {
@@ -493,6 +508,31 @@ export class Player {
         }
         if (colors.isRainbowBow !== undefined) {
             this.outfitColors.isRainbowBow = colors.isRainbowBow;
+        }
+        // Update visibility based on "no clothes" selections
+        this.updateOutfitVisibility();
+    }
+
+    // Update outfit visibility - hide geometry when "no clothes" selected
+    updateOutfitVisibility() {
+        const isNoShirt = this.outfitColors.shirtColor === 0xFFFFFF;
+        const isNoOveralls = this.outfitColors.overallsColor === 0xFFFFFF;
+
+        // Toggle shirt visibility (shirt sphere + collar)
+        if (this.shirtMeshes) {
+            this.shirtMeshes.forEach(mesh => {
+                mesh.visible = !isNoShirt;
+            });
+        }
+
+        // Toggle overalls visibility (main sphere + bib + straps + buttons + pocket + connectors)
+        if (this.overalls) {
+            this.overalls.visible = !isNoOveralls;
+        }
+        if (this.overallsMeshes) {
+            this.overallsMeshes.forEach(mesh => {
+                mesh.visible = !isNoOveralls;
+            });
         }
     }
 

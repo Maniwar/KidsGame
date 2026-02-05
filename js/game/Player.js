@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GAME_CONFIG, HELLO_KITTY_COLORS, COLORS } from '../utils/Constants.js';
 
 export class Player {
-    constructor(scene) {
+    constructor(scene, outfitColors = null) {
         this.scene = scene;
 
         // Position and movement
@@ -33,6 +33,13 @@ export class Player {
         // Knocked out animation (game over screen)
         this.knockedOutTimer = 0;
         this.isKnockedOut = false;
+
+        // Outfit colors (can be customized)
+        this.outfitColors = outfitColors || {
+            shirtColor: 0xFFD700,    // Gold/yellow (default)
+            overallsColor: 0x4169E1, // Royal blue (default)
+            pocketColor: 0x3158B8    // Darker blue (default)
+        };
 
         // Create character
         this.createCharacter();
@@ -76,30 +83,30 @@ export class Player {
         this.body.scale.set(1, 1.05, 0.95); // Slightly taller
         this.character.add(this.body);
 
-        // === Outfit: Blue overalls with yellow shirt ===
-        const overallsMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4169E1, // Royal blue
+        // === Outfit: Customizable shirt and overalls ===
+        this.overallsMaterial = new THREE.MeshStandardMaterial({
+            color: this.outfitColors.overallsColor,
             flatShading: false,
         });
-        const shirtMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFD700, // Gold/yellow
+        this.shirtMaterial = new THREE.MeshStandardMaterial({
+            color: this.outfitColors.shirtColor,
             flatShading: false,
         });
         const buttonMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFD700, // Gold buttons
+            color: 0xFFD700, // Gold buttons (always gold)
             flatShading: false,
         });
 
-        // Yellow shirt - covers entire upper body (replaces white body visible area)
+        // Shirt - covers entire upper body
         const shirtGeometry = new THREE.SphereGeometry(0.39, 24, 24);
-        const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
+        const shirt = new THREE.Mesh(shirtGeometry, this.shirtMaterial);
         shirt.position.y = 0.45;
         shirt.scale.set(1.01, 1.06, 0.96); // Slightly larger than body to cover it
         this.character.add(shirt);
 
-        // Overalls (covers lower body, yellow shirt shows above)
+        // Overalls (covers lower body, shirt shows above)
         const overallsGeometry = new THREE.SphereGeometry(0.40, 24, 24);
-        const overalls = new THREE.Mesh(overallsGeometry, overallsMaterial);
+        const overalls = new THREE.Mesh(overallsGeometry, this.overallsMaterial);
         overalls.position.y = 0.38;
         overalls.scale.set(1.03, 0.85, 0.99);
         this.character.add(overalls);
@@ -110,28 +117,28 @@ export class Player {
 
         // Overalls bib (front panel) - taller to connect to pants
         const bibGeometry = new THREE.BoxGeometry(0.46, 0.28, 0.04);
-        const bib = new THREE.Mesh(bibGeometry, overallsMaterial);
+        const bib = new THREE.Mesh(bibGeometry, this.overallsMaterial);
         bib.position.set(0, 0.63, 0.42);
         this.character.add(bib);
 
         // Side connectors - connect bib to overalls on the sides
         const sideConnectorGeometry = new THREE.BoxGeometry(0.06, 0.20, 0.12);
 
-        const leftSideConnector = new THREE.Mesh(sideConnectorGeometry, overallsMaterial);
+        const leftSideConnector = new THREE.Mesh(sideConnectorGeometry, this.overallsMaterial);
         leftSideConnector.position.set(-0.24, 0.56, 0.36);
         this.character.add(leftSideConnector);
 
-        const rightSideConnector = new THREE.Mesh(sideConnectorGeometry, overallsMaterial);
+        const rightSideConnector = new THREE.Mesh(sideConnectorGeometry, this.overallsMaterial);
         rightSideConnector.position.set(0.24, 0.56, 0.36);
         this.character.add(rightSideConnector);
 
         // Pocket on bib
         const pocketGeometry = new THREE.BoxGeometry(0.14, 0.07, 0.02);
-        const pocketMaterial = new THREE.MeshStandardMaterial({
-            color: 0x3158B8, // Slightly darker blue
+        this.pocketMaterial = new THREE.MeshStandardMaterial({
+            color: this.outfitColors.pocketColor,
             flatShading: false,
         });
-        const pocket = new THREE.Mesh(pocketGeometry, pocketMaterial);
+        const pocket = new THREE.Mesh(pocketGeometry, this.pocketMaterial);
         pocket.position.set(0, 0.60, 0.45);
         this.character.add(pocket);
 
@@ -181,16 +188,16 @@ export class Player {
 
                 // Extra length for overlap between segments
                 const segGeom = new THREE.BoxGeometry(strapWidth, length + 0.03, strapThickness);
-                const segment = new THREE.Mesh(segGeom, overallsMaterial);
+                const segment = new THREE.Mesh(segGeom, this.overallsMaterial);
                 segment.position.set(xPos, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2);
                 segment.rotation.x = angle;
                 this.character.add(segment);
             }
         });
 
-        // Yellow collar at neckline - more visible
+        // Collar at neckline - more visible
         const collarGeometry = new THREE.TorusGeometry(0.18, 0.05, 8, 16);
-        const collar = new THREE.Mesh(collarGeometry, shirtMaterial);
+        const collar = new THREE.Mesh(collarGeometry, this.shirtMaterial);
         collar.position.y = 0.92;
         collar.rotation.x = Math.PI / 2;
         this.character.add(collar);
@@ -452,6 +459,27 @@ export class Player {
             this.isSliding = true;
             this.slideTimer = 0.5; // Slide duration in seconds
         }
+    }
+
+    // Update outfit colors (for cosmetic customization)
+    setOutfitColors(colors) {
+        if (colors.shirtColor !== undefined && this.shirtMaterial) {
+            this.shirtMaterial.color.setHex(colors.shirtColor);
+            this.outfitColors.shirtColor = colors.shirtColor;
+        }
+        if (colors.overallsColor !== undefined && this.overallsMaterial) {
+            this.overallsMaterial.color.setHex(colors.overallsColor);
+            this.outfitColors.overallsColor = colors.overallsColor;
+        }
+        if (colors.pocketColor !== undefined && this.pocketMaterial) {
+            this.pocketMaterial.color.setHex(colors.pocketColor);
+            this.outfitColors.pocketColor = colors.pocketColor;
+        }
+    }
+
+    // Get current outfit colors
+    getOutfitColors() {
+        return { ...this.outfitColors };
     }
 
     update(deltaTime) {

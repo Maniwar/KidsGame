@@ -8,6 +8,8 @@ import { TouchController } from './input/Touch.js';
 import { World } from './game/World.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { LeaderboardManager } from './firebase/LeaderboardManager.js';
+import { PlayerDataManager } from './firebase/PlayerDataManager.js';
+import { CosmeticShop } from './shop/CosmeticShop.js';
 
 class Game {
     constructor() {
@@ -56,6 +58,10 @@ class Game {
         this.isNewHighScore = false;
         this.leaderboardInitialized = false;
         this.leaderboardUnsubscribe = null; // Store unsubscribe function for cleanup
+
+        // Player data persistence (coins, cosmetics)
+        this.playerData = new PlayerDataManager();
+        this.cosmeticShop = new CosmeticShop(this.playerData);
 
         // PERFORMANCE: Cached frame time (updated once per frame, passed to all systems)
         this.frameTime = 0;
@@ -145,8 +151,36 @@ class Game {
         // Initialize Firebase leaderboard (async, non-blocking)
         this.initLeaderboard();
 
+        // Initialize player data (async, non-blocking)
+        this.initPlayerData();
+
         // Start render loop (menu visible initially)
         this.render();
+    }
+
+    async initPlayerData() {
+        try {
+            await this.playerData.init();
+            console.log('Player data initialized, total coins:', this.playerData.getTotalCoins());
+
+            // Update player outfit with equipped cosmetics
+            const colors = this.cosmeticShop.getEquippedColors();
+            if (this.player) {
+                this.player.setOutfitColors(colors);
+            }
+
+            // Update total coins display if it exists
+            this.updateTotalCoinsDisplay();
+        } catch (error) {
+            console.warn('Player data running in offline mode:', error);
+        }
+    }
+
+    updateTotalCoinsDisplay() {
+        const totalCoinsElement = document.getElementById('total-coins');
+        if (totalCoinsElement) {
+            totalCoinsElement.textContent = this.playerData.getTotalCoins();
+        }
     }
 
     async initLeaderboard() {
@@ -425,6 +459,12 @@ class Game {
 
         this.updateHUD();
 
+        // Apply equipped cosmetics
+        const colors = this.cosmeticShop.getEquippedColors();
+        if (this.player) {
+            this.player.setOutfitColors(colors);
+        }
+
         this.isRunning = true;
         this.isPaused = false;
         this.lastTime = performance.now();
@@ -472,6 +512,12 @@ class Game {
         document.getElementById('final-coins').textContent = this.coins;
         document.getElementById('final-candies').textContent = this.candyCollected;
         document.getElementById('final-distance').textContent = Math.floor(this.distance) + 'm';
+
+        // Add collected coins to lifetime total
+        if (this.coins > 0) {
+            this.playerData.addCoins(this.coins);
+            this.updateTotalCoinsDisplay();
+        }
 
         // Check if it's a high score (global OR local qualifies)
         const isGlobalHighScore = this.checkHighScore(finalScore);
@@ -3101,5 +3147,5 @@ class Game {
 
 // Start the game when DOM is loaded
 window.addEventListener('DOMContentLoaded', () => {
-    new Game();
+    window.game = new Game();
 });

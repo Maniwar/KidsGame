@@ -1,16 +1,18 @@
 // Player Data Manager
 // Handles persistent player data including lifetime coins, unlocked cosmetics, and equipped items
-// Uses Firebase for cloud sync with localStorage fallback
+// Uses Firebase Anonymous Auth for user identification + Realtime Database for storage
 
 export class PlayerDataManager {
     constructor() {
         this.db = null;
+        this.auth = null;
+        this.userId = null;
         this.isInitialized = false;
-        this.deviceId = this.getOrCreateDeviceId();
         this.data = this.getDefaultData();
         this.listeners = new Set();
         this.syncPending = false;
         this.firebaseFns = null;
+        this.authFns = null;
     }
 
     getDefaultData() {
@@ -25,21 +27,12 @@ export class PlayerDataManager {
         };
     }
 
-    getOrCreateDeviceId() {
-        let deviceId = localStorage.getItem('helloKittyDeviceId');
-        if (!deviceId) {
-            deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('helloKittyDeviceId', deviceId);
-        }
-        return deviceId;
-    }
-
     async init() {
         // Load local data first (immediate availability)
         this.loadLocalData();
 
         try {
-            // Firebase config (same as LeaderboardManager)
+            // Firebase config
             const firebaseConfig = {
                 apiKey: "AIzaSyCC1eUkZW_30a5h2U9e8SOlXgCg3V6EDSE",
                 authDomain: "kidsgame-8dc5a.firebaseapp.com",
@@ -54,6 +47,8 @@ export class PlayerDataManager {
             const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
             const { getDatabase, ref, set, get, onValue } =
                 await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
+            const { getAuth, signInAnonymously, onAuthStateChanged } =
+                await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
 
             // Initialize Firebase (reuse if already initialized)
             let app;
@@ -65,13 +60,21 @@ export class PlayerDataManager {
             }
 
             this.db = getDatabase(app);
+            this.auth = getAuth(app);
             this.firebaseFns = { ref, set, get, onValue };
+            this.authFns = { signInAnonymously, onAuthStateChanged };
+
+            // Sign in anonymously
+            await this.signIn();
 
             this.isInitialized = true;
-            console.log('PlayerDataManager initialized successfully');
+            console.log('PlayerDataManager initialized with user:', this.userId);
 
             // Sync with Firebase (merge remote data)
             await this.syncWithFirebase();
+
+            // Check if there's old device-based data to migrate
+            await this.migrateOldDeviceData();
 
             return true;
         } catch (error) {
@@ -79,6 +82,81 @@ export class PlayerDataManager {
             this.isInitialized = false;
             return false;
         }
+    }
+
+    // Sign in anonymously with Firebase Auth
+    async signIn() {
+        try {
+            const { signInAnonymously } = this.authFns;
+            const userCredential = await signInAnonymously(this.auth);
+            this.userId = userCredential.user.uid;
+
+            // Store userId locally for reference
+            localStorage.setItem('helloKittyUserId', this.userId);
+
+            console.log('Signed in anonymously:', this.userId);
+            return this.userId;
+        } catch (error) {
+            console.error('Anonymous sign-in failed:', error);
+            // Fallback to local-only mode
+            this.userId = localStorage.getItem('helloKittyUserId') || this.generateLocalId();
+            localStorage.setItem('helloKittyUserId', this.userId);
+            return this.userId;
+        }
+    }
+
+    // Generate a local ID as fallback
+    generateLocalId() {
+        return 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Migrate old device-based data to new user account
+    async migrateOldDeviceData() {
+        const oldDeviceId = localStorage.getItem('helloKittyDeviceId');
+        if (!oldDeviceId || !this.isInitialized || !this.db) return;
+
+        try {
+            const { ref, get, set } = this.firebaseFns;
+            const oldDataRef = ref(this.db, `users/${oldDeviceId}`);
+            const snapshot = await get(oldDataRef);
+
+            if (snapshot.exists()) {
+                const oldData = snapshot.val();
+                console.log('Found old device data, migrating to user account...');
+
+                // Merge old data with current data
+                this.data.totalCoins = Math.max(this.data.totalCoins, oldData.totalCoins || 0);
+
+                // Merge unlocked items
+                const oldUnlocked = oldData.unlockedItems || [];
+                const allUnlocked = new Set([...this.data.unlockedItems, ...oldUnlocked]);
+                this.data.unlockedItems = Array.from(allUnlocked);
+
+                // Keep equipped items from old data if they're unlocked
+                if (oldData.equippedItems) {
+                    if (this.data.unlockedItems.includes(oldData.equippedItems.shirt)) {
+                        this.data.equippedItems.shirt = oldData.equippedItems.shirt;
+                    }
+                    if (this.data.unlockedItems.includes(oldData.equippedItems.overalls)) {
+                        this.data.equippedItems.overalls = oldData.equippedItems.overalls;
+                    }
+                }
+
+                // Save migrated data
+                await this.saveToFirebaseImmediate();
+
+                // Remove old device ID to prevent re-migration
+                localStorage.removeItem('helloKittyDeviceId');
+                console.log('Migration complete! Coins:', this.data.totalCoins);
+            }
+        } catch (error) {
+            console.warn('Could not migrate old device data:', error);
+        }
+    }
+
+    // Get current user ID
+    getUserId() {
+        return this.userId;
     }
 
     // Load data from localStorage
@@ -113,11 +191,11 @@ export class PlayerDataManager {
 
     // Sync with Firebase
     async syncWithFirebase() {
-        if (!this.isInitialized || !this.db) return;
+        if (!this.isInitialized || !this.db || !this.userId) return;
 
         try {
             const { ref, get, set } = this.firebaseFns;
-            const userRef = ref(this.db, `users/${this.deviceId}`);
+            const userRef = ref(this.db, `users/${this.userId}`);
 
             const snapshot = await get(userRef);
 
@@ -155,9 +233,28 @@ export class PlayerDataManager {
         }
     }
 
+    // Save data to Firebase immediately (for migration)
+    async saveToFirebaseImmediate() {
+        if (!this.isInitialized || !this.db || !this.userId) {
+            this.saveLocalData();
+            return;
+        }
+
+        try {
+            const { ref, set } = this.firebaseFns;
+            const userRef = ref(this.db, `users/${this.userId}`);
+            this.data.lastUpdated = Date.now();
+            await set(userRef, this.data);
+            this.saveLocalData();
+        } catch (error) {
+            console.error('Failed to save to Firebase:', error);
+            this.saveLocalData();
+        }
+    }
+
     // Save data to Firebase (debounced)
     async saveToFirebase() {
-        if (!this.isInitialized || !this.db) {
+        if (!this.isInitialized || !this.db || !this.userId) {
             this.saveLocalData();
             return;
         }
@@ -169,7 +266,7 @@ export class PlayerDataManager {
         setTimeout(async () => {
             try {
                 const { ref, set } = this.firebaseFns;
-                const userRef = ref(this.db, `users/${this.deviceId}`);
+                const userRef = ref(this.db, `users/${this.userId}`);
                 this.data.lastUpdated = Date.now();
                 await set(userRef, this.data);
                 this.saveLocalData();

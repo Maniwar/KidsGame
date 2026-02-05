@@ -350,7 +350,7 @@ class Game {
             if (value.length > 10) {
                 value = value.slice(0, 10) + '-' + value.slice(10);
             }
-            e.target.value = value.slice(0, 14);
+            e.target.value = value.slice(0, 15); // KITTY-XXXX-XXXX = 15 chars
         });
 
         // Shop button (from start screen)

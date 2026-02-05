@@ -1,5 +1,19 @@
 // Cosmetic Shop
 // Defines all available cosmetic items and handles purchases
+//
+// ECONOMY BALANCE (based on leaderboard data):
+// - Top players: ~4000 coins per run
+// - Good players: ~1500-2500 coins per run
+// - Average players: ~500-1000 coins per run
+// - Beginners: ~100-300 coins per run
+//
+// PRICE TIERS:
+// - Free (0): Defaults + "no clothes" options
+// - Starter (150-400): Achievable in 1 decent run
+// - Common (600-1200): 2-3 runs for average player
+// - Uncommon (1500-2500): 3-5 runs, or 1 great run
+// - Rare (3000-5000): Multiple sessions required
+// - Legendary (10000+): Long-term goal, flex item
 
 export const COSMETIC_ITEMS = {
     // === SHIRTS ===
@@ -17,7 +31,7 @@ export const COSMETIC_ITEMS = {
         name: 'Pink Shirt',
         slot: 'shirt',
         color: 0xFF69B4, // Hot pink
-        price: 500,
+        price: 200, // Starter - first purchase for beginners
         description: 'Cute pink shirt'
     },
     red_shirt: {
@@ -25,7 +39,7 @@ export const COSMETIC_ITEMS = {
         name: 'Red Shirt',
         slot: 'shirt',
         color: 0xFF4444,
-        price: 750,
+        price: 600, // Common
         description: 'Bold red shirt'
     },
     purple_shirt: {
@@ -33,7 +47,7 @@ export const COSMETIC_ITEMS = {
         name: 'Purple Shirt',
         slot: 'shirt',
         color: 0x9370DB, // Medium purple
-        price: 750,
+        price: 800, // Common
         description: 'Royal purple shirt'
     },
     mint_shirt: {
@@ -41,7 +55,7 @@ export const COSMETIC_ITEMS = {
         name: 'Mint Shirt',
         slot: 'shirt',
         color: 0x98FF98, // Pale green
-        price: 1000,
+        price: 1500, // Uncommon
         description: 'Fresh mint green shirt'
     },
     orange_shirt: {
@@ -49,7 +63,7 @@ export const COSMETIC_ITEMS = {
         name: 'Orange Shirt',
         slot: 'shirt',
         color: 0xFF8C00, // Dark orange
-        price: 1000,
+        price: 2000, // Uncommon
         description: 'Bright orange shirt'
     },
     none_shirt: {
@@ -57,7 +71,7 @@ export const COSMETIC_ITEMS = {
         name: 'No Shirt',
         slot: 'shirt',
         color: 0xFFFFFF, // White (matches body)
-        price: 0, // Free
+        price: 0, // Free - gives options without grind
         description: 'Just the fur!'
     },
 
@@ -78,7 +92,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0x8A2BE2, // Blue violet
         pocketColor: 0x7222C9,
-        price: 500,
+        price: 300, // Starter - early win
         description: 'Stylish purple overalls'
     },
     pink_overalls: {
@@ -87,7 +101,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0xFF1493, // Deep pink
         pocketColor: 0xDB1180,
-        price: 750,
+        price: 900, // Common
         description: 'Adorable pink overalls'
     },
     red_overalls: {
@@ -96,7 +110,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0xDC143C, // Crimson
         pocketColor: 0xB81030,
-        price: 750,
+        price: 1200, // Common
         description: 'Sporty red overalls'
     },
     green_overalls: {
@@ -105,7 +119,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0x32CD32, // Lime green
         pocketColor: 0x28A428,
-        price: 1000,
+        price: 2200, // Uncommon
         description: 'Nature green overalls'
     },
     black_overalls: {
@@ -114,7 +128,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0x2F2F2F, // Dark gray/black
         pocketColor: 0x1F1F1F,
-        price: 1500,
+        price: 4000, // Rare - prestige item
         description: 'Sleek black overalls'
     },
     none_overalls: {
@@ -123,7 +137,7 @@ export const COSMETIC_ITEMS = {
         slot: 'overalls',
         color: 0xFFFFFF, // White (matches body)
         pocketColor: 0xFFFFFF,
-        price: 0, // Free
+        price: 0, // Free - gives options without grind
         description: 'Just the fur!'
     },
 
@@ -142,7 +156,7 @@ export const COSMETIC_ITEMS = {
         name: 'Pink Bow',
         slot: 'bow',
         color: 0xFF69B4, // Hot pink
-        price: 300,
+        price: 150, // Starter - first purchase possible!
         description: 'Pretty pink bow'
     },
     purple_bow: {
@@ -150,7 +164,7 @@ export const COSMETIC_ITEMS = {
         name: 'Purple Bow',
         slot: 'bow',
         color: 0x9370DB, // Medium purple
-        price: 500,
+        price: 400, // Starter
         description: 'Royal purple bow'
     },
     blue_bow: {
@@ -158,7 +172,7 @@ export const COSMETIC_ITEMS = {
         name: 'Blue Bow',
         slot: 'bow',
         color: 0x4169E1, // Royal blue
-        price: 500,
+        price: 400, // Starter
         description: 'Cool blue bow'
     },
     gold_bow: {
@@ -166,7 +180,7 @@ export const COSMETIC_ITEMS = {
         name: 'Gold Bow',
         slot: 'bow',
         color: 0xFFD700, // Gold
-        price: 750,
+        price: 1000, // Common
         description: 'Shiny gold bow'
     },
     mint_bow: {
@@ -174,7 +188,7 @@ export const COSMETIC_ITEMS = {
         name: 'Mint Bow',
         slot: 'bow',
         color: 0x98FF98, // Pale green
-        price: 750,
+        price: 1400, // Uncommon
         description: 'Fresh mint bow'
     },
     orange_bow: {
@@ -182,7 +196,7 @@ export const COSMETIC_ITEMS = {
         name: 'Orange Bow',
         slot: 'bow',
         color: 0xFF8C00, // Dark orange
-        price: 750,
+        price: 1800, // Uncommon
         description: 'Bright orange bow'
     },
     black_bow: {
@@ -190,7 +204,7 @@ export const COSMETIC_ITEMS = {
         name: 'Black Bow',
         slot: 'bow',
         color: 0x2F2F2F, // Dark gray/black
-        price: 1000,
+        price: 3500, // Rare
         description: 'Elegant black bow'
     },
     rainbow_bow: {
@@ -199,7 +213,7 @@ export const COSMETIC_ITEMS = {
         slot: 'bow',
         color: 0xFF69B4, // Base pink (special effect handled in Player)
         isRainbow: true,
-        price: 2000,
+        price: 12000, // Legendary - THE flex item!
         description: 'Magical color-changing bow!'
     }
 };

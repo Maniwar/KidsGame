@@ -8,6 +8,8 @@ import { TouchController } from './input/Touch.js';
 import { World } from './game/World.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { LeaderboardManager } from './firebase/LeaderboardManager.js';
+import { PlayerDataManager } from './firebase/PlayerDataManager.js';
+import { CosmeticShop } from './shop/CosmeticShop.js';
 
 class Game {
     constructor() {
@@ -56,6 +58,10 @@ class Game {
         this.isNewHighScore = false;
         this.leaderboardInitialized = false;
         this.leaderboardUnsubscribe = null; // Store unsubscribe function for cleanup
+
+        // Player data persistence (coins, cosmetics)
+        this.playerData = new PlayerDataManager();
+        this.cosmeticShop = new CosmeticShop(this.playerData);
 
         // PERFORMANCE: Cached frame time (updated once per frame, passed to all systems)
         this.frameTime = 0;
@@ -145,8 +151,36 @@ class Game {
         // Initialize Firebase leaderboard (async, non-blocking)
         this.initLeaderboard();
 
+        // Initialize player data (async, non-blocking)
+        this.initPlayerData();
+
         // Start render loop (menu visible initially)
         this.render();
+    }
+
+    async initPlayerData() {
+        try {
+            await this.playerData.init();
+            console.log('Player data initialized, total coins:', this.playerData.getTotalCoins());
+
+            // Update player outfit with equipped cosmetics
+            const colors = this.cosmeticShop.getEquippedColors();
+            if (this.player) {
+                this.player.setOutfitColors(colors);
+            }
+
+            // Update total coins display if it exists
+            this.updateTotalCoinsDisplay();
+        } catch (error) {
+            console.warn('Player data running in offline mode:', error);
+        }
+    }
+
+    updateTotalCoinsDisplay() {
+        const totalCoinsElement = document.getElementById('total-coins');
+        if (totalCoinsElement) {
+            totalCoinsElement.textContent = this.playerData.getTotalCoins();
+        }
     }
 
     async initLeaderboard() {
@@ -231,6 +265,19 @@ class Game {
                     window.location.reload();
                 }
             }
+        });
+
+        // Shop button
+        document.getElementById('shop-button').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('shop-screen').classList.add('active');
+            this.populateShop();
+        });
+
+        // Shop back button
+        document.getElementById('shop-back-button').addEventListener('click', () => {
+            document.getElementById('shop-screen').classList.remove('active');
+            document.getElementById('start-screen').classList.add('active');
         });
 
         // Restart button
@@ -425,6 +472,12 @@ class Game {
 
         this.updateHUD();
 
+        // Apply equipped cosmetics
+        const colors = this.cosmeticShop.getEquippedColors();
+        if (this.player) {
+            this.player.setOutfitColors(colors);
+        }
+
         this.isRunning = true;
         this.isPaused = false;
         this.lastTime = performance.now();
@@ -472,6 +525,12 @@ class Game {
         document.getElementById('final-coins').textContent = this.coins;
         document.getElementById('final-candies').textContent = this.candyCollected;
         document.getElementById('final-distance').textContent = Math.floor(this.distance) + 'm';
+
+        // Add collected coins to lifetime total
+        if (this.coins > 0) {
+            this.playerData.addCoins(this.coins);
+            this.updateTotalCoinsDisplay();
+        }
 
         // Check if it's a high score (global OR local qualifies)
         const isGlobalHighScore = this.checkHighScore(finalScore);
@@ -3066,6 +3125,169 @@ class Game {
         }
     }
 
+    // ============================================
+    // SHOP UI METHODS
+    // ============================================
+
+    populateShop() {
+        const shopData = this.cosmeticShop.getShopData();
+
+        // Update coin displays
+        document.getElementById('shop-total-coins').textContent = shopData.totalCoins.toLocaleString();
+        this.updateTotalCoinsDisplay();
+
+        // Populate bows
+        this.populateShopSection('shop-bows', shopData.bows);
+
+        // Populate shirts
+        this.populateShopSection('shop-shirts', shopData.shirts);
+
+        // Populate overalls
+        this.populateShopSection('shop-overalls', shopData.overalls);
+    }
+
+    populateShopSection(containerId, items) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+
+        items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'shop-item';
+
+            // Add state classes
+            if (item.equipped) {
+                itemDiv.classList.add('equipped');
+            } else if (item.owned) {
+                itemDiv.classList.add('owned');
+            } else {
+                itemDiv.classList.add('locked');
+                if (!item.canAfford) {
+                    itemDiv.classList.add('cannot-afford');
+                }
+            }
+
+            // Create color swatch
+            const swatch = document.createElement('div');
+            swatch.className = 'item-color-swatch';
+
+            if (item.id.startsWith('none_')) {
+                swatch.classList.add('no-clothes');
+            } else if (item.isRainbow) {
+                swatch.classList.add('rainbow');
+            } else {
+                swatch.style.backgroundColor = '#' + item.color.toString(16).padStart(6, '0');
+            }
+
+            // Item name
+            const name = document.createElement('div');
+            name.className = 'item-name';
+            name.textContent = item.name;
+
+            // Price display
+            const price = document.createElement('div');
+            price.className = 'item-price';
+            if (item.price === 0) {
+                price.classList.add('free');
+                price.textContent = 'FREE';
+            } else {
+                price.innerHTML = `<span class="coin-icon">🪙</span>${item.price}`;
+            }
+
+            // Status badge
+            if (item.equipped) {
+                const badge = document.createElement('div');
+                badge.className = 'item-status equipped-badge';
+                badge.textContent = 'WEARING';
+                itemDiv.appendChild(badge);
+            } else if (item.owned) {
+                const badge = document.createElement('div');
+                badge.className = 'item-status owned-badge';
+                badge.textContent = 'OWNED';
+                itemDiv.appendChild(badge);
+            }
+
+            // Action button
+            const actionBtn = document.createElement('button');
+            actionBtn.className = 'item-action-btn';
+
+            if (item.equipped) {
+                actionBtn.className += ' equipped-btn';
+                actionBtn.textContent = 'Equipped';
+                actionBtn.disabled = true;
+            } else if (item.owned) {
+                actionBtn.className += ' equip-btn';
+                actionBtn.textContent = 'Equip';
+                actionBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.equipItem(item.id);
+                });
+            } else {
+                actionBtn.className += ' buy-btn';
+                actionBtn.textContent = item.price === 0 ? 'Get' : 'Buy';
+                actionBtn.disabled = !item.canAfford && item.price > 0;
+                actionBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.purchaseItem(item.id);
+                });
+            }
+
+            itemDiv.appendChild(swatch);
+            itemDiv.appendChild(name);
+            itemDiv.appendChild(price);
+            itemDiv.appendChild(actionBtn);
+
+            // Click on item also triggers action
+            itemDiv.addEventListener('click', () => {
+                if (item.equipped) return;
+                if (item.owned) {
+                    this.equipItem(item.id);
+                } else if (item.canAfford || item.price === 0) {
+                    this.purchaseItem(item.id);
+                }
+            });
+
+            container.appendChild(itemDiv);
+        });
+    }
+
+    purchaseItem(itemId) {
+        const result = this.cosmeticShop.purchase(itemId);
+
+        if (result.success) {
+            // Play purchase sound
+            this.audio.playCoinSound();
+
+            // Auto-equip the purchased item
+            this.equipItem(itemId);
+
+            // Refresh shop display
+            this.populateShop();
+        } else {
+            console.warn('Purchase failed:', result.error);
+        }
+    }
+
+    equipItem(itemId) {
+        const result = this.cosmeticShop.equip(itemId);
+
+        if (result.success) {
+            // Update player appearance immediately
+            const colors = this.cosmeticShop.getEquippedColors();
+            if (this.player) {
+                this.player.setOutfitColors(colors);
+            }
+
+            // Refresh shop display
+            this.populateShop();
+        } else {
+            console.warn('Equip failed:', result.error);
+        }
+    }
+
+    // ============================================
+    // END SHOP UI METHODS
+    // ============================================
+
     // Cleanup method to prevent memory leaks
     destroy() {
         // Unsubscribe from Firebase real-time updates
@@ -3101,5 +3323,5 @@ class Game {
 
 // Start the game when DOM is loaded
 window.addEventListener('DOMContentLoaded', () => {
-    new Game();
+    window.game = new Game();
 });

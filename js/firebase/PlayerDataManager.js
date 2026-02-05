@@ -118,23 +118,28 @@ export class PlayerDataManager {
     async restoreFromCode(code) {
         // Normalize code format
         code = code.toUpperCase().trim();
+        console.log('[Firebase] Restore attempt with code:', code);
 
         // Validate format: KITTY-XXXX-XXXX
         const pattern = /^KITTY-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
         if (!pattern.test(code)) {
+            console.log('[Firebase] Invalid code format');
             return { success: false, error: 'Invalid code format. Should be KITTY-XXXX-XXXX' };
         }
 
         if (!this.isInitialized || !this.db) {
+            console.log('[Firebase] Not initialized for restore');
             return { success: false, error: 'Not connected to server. Try again later.' };
         }
 
         try {
             const { ref, get } = this.firebaseFns;
             const codePath = this.codeToPath(code);
+            console.log('[Firebase] Looking up path:', `players/${codePath}`);
             const userRef = ref(this.db, `players/${codePath}`);
 
             const snapshot = await get(userRef);
+            console.log('[Firebase] Snapshot exists:', snapshot.exists());
 
             if (!snapshot.exists()) {
                 return { success: false, error: 'No account found with this code.' };
@@ -286,11 +291,13 @@ export class PlayerDataManager {
     async saveToFirebaseImmediate() {
         // Only save if player has progress
         if (!this.checkHasProgress()) {
+            console.log('[Firebase] Skipping save - no progress yet');
             this.saveLocalData();
             return;
         }
 
         if (!this.isInitialized || !this.db || !this.recoveryCode) {
+            console.log('[Firebase] Skipping save - not initialized', { isInitialized: this.isInitialized, hasDb: !!this.db, code: this.recoveryCode });
             this.saveLocalData();
             return;
         }
@@ -300,10 +307,12 @@ export class PlayerDataManager {
             const codePath = this.codeToPath(this.recoveryCode);
             const userRef = ref(this.db, `players/${codePath}`);
             this.data.lastUpdated = Date.now();
+            console.log('[Firebase] Saving to path:', `players/${codePath}`, 'data:', this.data);
             await set(userRef, this.data);
+            console.log('[Firebase] Save successful!');
             this.saveLocalData();
         } catch (error) {
-            console.error('Failed to save to Firebase:', error);
+            console.error('[Firebase] Failed to save:', error);
             this.saveLocalData();
         }
     }
@@ -312,11 +321,13 @@ export class PlayerDataManager {
     async saveToFirebase() {
         // Only save if player has progress
         if (!this.checkHasProgress()) {
+            console.log('[Firebase] Debounced save skipped - no progress');
             this.saveLocalData();
             return;
         }
 
         if (!this.isInitialized || !this.db || !this.recoveryCode) {
+            console.log('[Firebase] Debounced save skipped - not initialized');
             this.saveLocalData();
             return;
         }
@@ -331,10 +342,12 @@ export class PlayerDataManager {
                 const codePath = this.codeToPath(this.recoveryCode);
                 const userRef = ref(this.db, `players/${codePath}`);
                 this.data.lastUpdated = Date.now();
+                console.log('[Firebase] Debounced save to:', `players/${codePath}`);
                 await set(userRef, this.data);
+                console.log('[Firebase] Debounced save successful!');
                 this.saveLocalData();
             } catch (error) {
-                console.error('Failed to save to Firebase:', error);
+                console.error('[Firebase] Debounced save failed:', error);
                 this.saveLocalData();
             }
             this.syncPending = false;

@@ -98,6 +98,24 @@
                     </label>
                 </div>
                 <p class="setting-hint">Disable for better performance on mobile</p>
+
+                <!-- Recovery Code Section -->
+                <div class="recovery-section">
+                    <h3>🔑 Recovery Code</h3>
+                    <p class="setting-hint">Write this down to restore your coins and items!</p>
+                    <div class="recovery-code-display">
+                        <span id="recovery-code">KITTY-XXXX-XXXX</span>
+                        <button id="copy-code-btn" class="small-btn" title="Copy to clipboard">📋</button>
+                    </div>
+
+                    <h4>Restore Account</h4>
+                    <p class="setting-hint">Enter a code to restore your progress</p>
+                    <div class="restore-input-row">
+                        <input type="text" id="restore-code-input" placeholder="KITTY-XXXX-XXXX" maxlength="14">
+                        <button id="restore-btn" class="small-btn">Restore</button>
+                    </div>
+                    <p id="restore-status" class="restore-status"></p>
+                </div>
             </div>
             <button id="settings-back-button" class="game-button">Back</button>
         </div>

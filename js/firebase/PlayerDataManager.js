@@ -1,18 +1,18 @@
 // Player Data Manager
-// Handles persistent player data including lifetime coins, unlocked cosmetics, and equipped items
-// Uses Firebase Anonymous Auth for user identification + Realtime Database for storage
+// Uses Recovery Codes instead of Firebase Auth - no orphaned accounts!
+// Recovery code format: KITTY-XXXX-XXXX (easy to read/write down)
+// Only saves to Firebase when player has actual progress (coins > 0 or items purchased)
 
 export class PlayerDataManager {
     constructor() {
         this.db = null;
-        this.auth = null;
-        this.userId = null;
+        this.recoveryCode = null;
         this.isInitialized = false;
         this.data = this.getDefaultData();
         this.listeners = new Set();
         this.syncPending = false;
         this.firebaseFns = null;
-        this.authFns = null;
+        this.hasProgress = false; // Track if player has made any progress worth saving
     }
 
     getDefaultData() {
@@ -33,6 +33,9 @@ export class PlayerDataManager {
         // Load local data first (immediate availability)
         this.loadLocalData();
 
+        // Get or generate recovery code
+        this.recoveryCode = this.getOrCreateRecoveryCode();
+
         try {
             // Firebase config
             const firebaseConfig = {
@@ -45,12 +48,10 @@ export class PlayerDataManager {
                 appId: "1:97196037909:web:284433a3bd2292ce8bbb1c"
             };
 
-            // Dynamically import Firebase modules
+            // Dynamically import Firebase modules (no Auth needed!)
             const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
-            const { getDatabase, ref, set, get, onValue } =
+            const { getDatabase, ref, set, get } =
                 await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
-            const { getAuth, signInAnonymously, onAuthStateChanged } =
-                await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
 
             // Initialize Firebase (reuse if already initialized)
             let app;
@@ -62,21 +63,13 @@ export class PlayerDataManager {
             }
 
             this.db = getDatabase(app);
-            this.auth = getAuth(app);
-            this.firebaseFns = { ref, set, get, onValue };
-            this.authFns = { signInAnonymously, onAuthStateChanged };
-
-            // Sign in anonymously
-            await this.signIn();
+            this.firebaseFns = { ref, set, get };
 
             this.isInitialized = true;
-            console.log('PlayerDataManager initialized with user:', this.userId);
+            console.log('PlayerDataManager initialized with recovery code:', this.recoveryCode);
 
-            // Sync with Firebase (merge remote data)
+            // Sync with Firebase if we have progress
             await this.syncWithFirebase();
-
-            // Check if there's old device-based data to migrate
-            await this.migrateOldDeviceData();
 
             return true;
         } catch (error) {
@@ -86,79 +79,118 @@ export class PlayerDataManager {
         }
     }
 
-    // Sign in anonymously with Firebase Auth
-    async signIn() {
-        try {
-            const { signInAnonymously } = this.authFns;
-            const userCredential = await signInAnonymously(this.auth);
-            this.userId = userCredential.user.uid;
-
-            // Store userId locally for reference
-            localStorage.setItem('helloKittyUserId', this.userId);
-
-            console.log('Signed in anonymously:', this.userId);
-            return this.userId;
-        } catch (error) {
-            console.error('Anonymous sign-in failed:', error);
-            // Fallback to local-only mode
-            this.userId = localStorage.getItem('helloKittyUserId') || this.generateLocalId();
-            localStorage.setItem('helloKittyUserId', this.userId);
-            return this.userId;
+    // Generate a human-readable recovery code
+    // Format: KITTY-XXXX-XXXX (no confusing characters like 0/O, 1/l/I)
+    generateRecoveryCode() {
+        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // No 0,O,1,I,L
+        let code = 'KITTY-';
+        for (let i = 0; i < 4; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
         }
+        code += '-';
+        for (let i = 0; i < 4; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
     }
 
-    // Generate a local ID as fallback
-    generateLocalId() {
-        return 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    // Get existing code or create a new one
+    getOrCreateRecoveryCode() {
+        let code = localStorage.getItem('helloKittyRecoveryCode');
+        if (!code) {
+            code = this.generateRecoveryCode();
+            localStorage.setItem('helloKittyRecoveryCode', code);
+        }
+        return code;
     }
 
-    // Migrate old device-based data to new user account
-    async migrateOldDeviceData() {
-        const oldDeviceId = localStorage.getItem('helloKittyDeviceId');
-        if (!oldDeviceId || !this.isInitialized || !this.db) return;
+    // Get the recovery code (for display in settings)
+    getRecoveryCode() {
+        return this.recoveryCode;
+    }
+
+    // Convert recovery code to Firebase-safe path (replace dashes)
+    codeToPath(code) {
+        return code.replace(/-/g, '_');
+    }
+
+    // Restore account using a recovery code
+    async restoreFromCode(code) {
+        // Normalize code format
+        code = code.toUpperCase().trim();
+
+        // Validate format: KITTY-XXXX-XXXX
+        const pattern = /^KITTY-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+        if (!pattern.test(code)) {
+            return { success: false, error: 'Invalid code format. Should be KITTY-XXXX-XXXX' };
+        }
+
+        if (!this.isInitialized || !this.db) {
+            return { success: false, error: 'Not connected to server. Try again later.' };
+        }
 
         try {
-            const { ref, get, set } = this.firebaseFns;
-            const oldDataRef = ref(this.db, `users/${oldDeviceId}`);
-            const snapshot = await get(oldDataRef);
+            const { ref, get } = this.firebaseFns;
+            const codePath = this.codeToPath(code);
+            const userRef = ref(this.db, `players/${codePath}`);
 
-            if (snapshot.exists()) {
-                const oldData = snapshot.val();
-                console.log('Found old device data, migrating to user account...');
+            const snapshot = await get(userRef);
 
-                // Merge old data with current data
-                this.data.totalCoins = Math.max(this.data.totalCoins, oldData.totalCoins || 0);
-
-                // Merge unlocked items
-                const oldUnlocked = oldData.unlockedItems || [];
-                const allUnlocked = new Set([...this.data.unlockedItems, ...oldUnlocked]);
-                this.data.unlockedItems = Array.from(allUnlocked);
-
-                // Keep equipped items from old data if they're unlocked
-                if (oldData.equippedItems) {
-                    if (this.data.unlockedItems.includes(oldData.equippedItems.shirt)) {
-                        this.data.equippedItems.shirt = oldData.equippedItems.shirt;
-                    }
-                    if (this.data.unlockedItems.includes(oldData.equippedItems.overalls)) {
-                        this.data.equippedItems.overalls = oldData.equippedItems.overalls;
-                    }
-                }
-
-                // Save migrated data
-                await this.saveToFirebaseImmediate();
-
-                // Remove old device ID to prevent re-migration
-                localStorage.removeItem('helloKittyDeviceId');
-                console.log('Migration complete! Coins:', this.data.totalCoins);
+            if (!snapshot.exists()) {
+                return { success: false, error: 'No account found with this code.' };
             }
+
+            const remoteData = snapshot.val();
+
+            // Merge data (take the best of both)
+            this.data.totalCoins = Math.max(this.data.totalCoins, remoteData.totalCoins || 0);
+
+            // Merge unlocked items
+            const remoteUnlocked = remoteData.unlockedItems || [];
+            const allUnlocked = new Set([...this.data.unlockedItems, ...remoteUnlocked]);
+            this.data.unlockedItems = Array.from(allUnlocked);
+
+            // Use remote equipped items if available
+            if (remoteData.equippedItems) {
+                if (this.data.unlockedItems.includes(remoteData.equippedItems.shirt)) {
+                    this.data.equippedItems.shirt = remoteData.equippedItems.shirt;
+                }
+                if (this.data.unlockedItems.includes(remoteData.equippedItems.overalls)) {
+                    this.data.equippedItems.overalls = remoteData.equippedItems.overalls;
+                }
+                if (this.data.unlockedItems.includes(remoteData.equippedItems.bow)) {
+                    this.data.equippedItems.bow = remoteData.equippedItems.bow;
+                }
+            }
+
+            // Switch to the restored recovery code
+            this.recoveryCode = code;
+            localStorage.setItem('helloKittyRecoveryCode', code);
+            this.hasProgress = true;
+
+            // Save merged data
+            this.saveLocalData();
+            await this.saveToFirebaseImmediate();
+            this.notifyListeners();
+
+            return {
+                success: true,
+                coins: this.data.totalCoins,
+                items: this.data.unlockedItems.length
+            };
         } catch (error) {
-            console.warn('Could not migrate old device data:', error);
+            console.error('Restore failed:', error);
+            return { success: false, error: 'Failed to restore. Try again later.' };
         }
     }
 
-    // Get current user ID
-    getUserId() {
-        return this.userId;
+    // Check if player has made progress worth saving
+    checkHasProgress() {
+        const defaults = this.getDefaultData();
+        // Has progress if coins > 0 or has more items than default
+        this.hasProgress = this.data.totalCoins > 0 ||
+            this.data.unlockedItems.length > defaults.unlockedItems.length;
+        return this.hasProgress;
     }
 
     // Load data from localStorage
@@ -181,6 +213,7 @@ export class PlayerDataManager {
                         this.data.unlockedItems.push(item);
                     }
                 }
+                this.checkHasProgress();
             }
         } catch (e) {
             console.warn('Could not load player data from localStorage:', e);
@@ -198,11 +231,18 @@ export class PlayerDataManager {
 
     // Sync with Firebase
     async syncWithFirebase() {
-        if (!this.isInitialized || !this.db || !this.userId) return;
+        if (!this.isInitialized || !this.db || !this.recoveryCode) return;
+
+        // Only sync if player has progress (prevents database flooding)
+        if (!this.checkHasProgress()) {
+            console.log('No progress to sync yet');
+            return;
+        }
 
         try {
             const { ref, get, set } = this.firebaseFns;
-            const userRef = ref(this.db, `users/${this.userId}`);
+            const codePath = this.codeToPath(this.recoveryCode);
+            const userRef = ref(this.db, `players/${codePath}`);
 
             const snapshot = await get(userRef);
 
@@ -216,19 +256,21 @@ export class PlayerDataManager {
                 const allUnlocked = new Set([...this.data.unlockedItems, ...remoteUnlocked]);
                 this.data.unlockedItems = Array.from(allUnlocked);
 
-                // Use remote equipped items if local has defaults
+                // Use remote equipped items if available
                 if (remoteData.equippedItems) {
-                    // Only override if we have the items unlocked
                     if (this.data.unlockedItems.includes(remoteData.equippedItems.shirt)) {
                         this.data.equippedItems.shirt = remoteData.equippedItems.shirt;
                     }
                     if (this.data.unlockedItems.includes(remoteData.equippedItems.overalls)) {
                         this.data.equippedItems.overalls = remoteData.equippedItems.overalls;
                     }
+                    if (this.data.unlockedItems.includes(remoteData.equippedItems.bow)) {
+                        this.data.equippedItems.bow = remoteData.equippedItems.bow;
+                    }
                 }
-
-                this.data.lastUpdated = Date.now();
             }
+
+            this.data.lastUpdated = Date.now();
 
             // Save merged data back to Firebase and locally
             await set(userRef, this.data);
@@ -240,16 +282,23 @@ export class PlayerDataManager {
         }
     }
 
-    // Save data to Firebase immediately (for migration)
+    // Save data to Firebase immediately
     async saveToFirebaseImmediate() {
-        if (!this.isInitialized || !this.db || !this.userId) {
+        // Only save if player has progress
+        if (!this.checkHasProgress()) {
+            this.saveLocalData();
+            return;
+        }
+
+        if (!this.isInitialized || !this.db || !this.recoveryCode) {
             this.saveLocalData();
             return;
         }
 
         try {
             const { ref, set } = this.firebaseFns;
-            const userRef = ref(this.db, `users/${this.userId}`);
+            const codePath = this.codeToPath(this.recoveryCode);
+            const userRef = ref(this.db, `players/${codePath}`);
             this.data.lastUpdated = Date.now();
             await set(userRef, this.data);
             this.saveLocalData();
@@ -261,7 +310,13 @@ export class PlayerDataManager {
 
     // Save data to Firebase (debounced)
     async saveToFirebase() {
-        if (!this.isInitialized || !this.db || !this.userId) {
+        // Only save if player has progress
+        if (!this.checkHasProgress()) {
+            this.saveLocalData();
+            return;
+        }
+
+        if (!this.isInitialized || !this.db || !this.recoveryCode) {
             this.saveLocalData();
             return;
         }
@@ -273,13 +328,14 @@ export class PlayerDataManager {
         setTimeout(async () => {
             try {
                 const { ref, set } = this.firebaseFns;
-                const userRef = ref(this.db, `users/${this.userId}`);
+                const codePath = this.codeToPath(this.recoveryCode);
+                const userRef = ref(this.db, `players/${codePath}`);
                 this.data.lastUpdated = Date.now();
                 await set(userRef, this.data);
                 this.saveLocalData();
             } catch (error) {
                 console.error('Failed to save to Firebase:', error);
-                this.saveLocalData(); // Ensure local save on Firebase failure
+                this.saveLocalData();
             }
             this.syncPending = false;
         }, 1000); // 1 second debounce
@@ -289,6 +345,7 @@ export class PlayerDataManager {
     addCoins(amount) {
         if (amount <= 0) return;
         this.data.totalCoins += Math.floor(amount);
+        this.hasProgress = true;
         this.saveToFirebase();
         this.notifyListeners();
     }
@@ -318,6 +375,7 @@ export class PlayerDataManager {
     unlockItem(itemId) {
         if (!this.data.unlockedItems.includes(itemId)) {
             this.data.unlockedItems.push(itemId);
+            this.hasProgress = true;
             this.saveToFirebase();
             this.notifyListeners();
         }

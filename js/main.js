@@ -193,6 +193,13 @@ class Game {
         });
     }
 
+    updateRecoveryCodeDisplay() {
+        const codeElement = document.getElementById('recovery-code');
+        if (codeElement && this.playerData) {
+            codeElement.textContent = this.playerData.getRecoveryCode();
+        }
+    }
+
     async initLeaderboard() {
         // Always display local scores first (instant)
         this.displayLocalLeaderboard();
@@ -256,6 +263,8 @@ class Game {
             document.getElementById('settings-panel').classList.add('active');
             // Update toggle to match current setting
             document.getElementById('aa-toggle').checked = this.settings.antialias;
+            // Display recovery code
+            this.updateRecoveryCodeDisplay();
         });
 
         // Settings back button
@@ -275,6 +284,73 @@ class Game {
                     window.location.reload();
                 }
             }
+        });
+
+        // Recovery code copy button
+        document.getElementById('copy-code-btn').addEventListener('click', () => {
+            const code = this.playerData.getRecoveryCode();
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.getElementById('copy-code-btn');
+                btn.textContent = '✓';
+                setTimeout(() => { btn.textContent = '📋'; }, 1500);
+            }).catch(() => {
+                // Fallback for older browsers
+                const codeEl = document.getElementById('recovery-code');
+                const range = document.createRange();
+                range.selectNode(codeEl);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                window.getSelection().removeAllRanges();
+            });
+        });
+
+        // Recovery code restore button
+        document.getElementById('restore-btn').addEventListener('click', async () => {
+            const input = document.getElementById('restore-code-input');
+            const status = document.getElementById('restore-status');
+            const code = input.value.trim();
+
+            if (!code) {
+                status.textContent = 'Please enter a code';
+                status.className = 'restore-status error';
+                return;
+            }
+
+            status.textContent = 'Restoring...';
+            status.className = 'restore-status loading';
+
+            const result = await this.playerData.restoreFromCode(code);
+
+            if (result.success) {
+                status.textContent = `Restored! ${result.coins} coins, ${result.items} items`;
+                status.className = 'restore-status success';
+                input.value = '';
+                // Update displays
+                this.updateRecoveryCodeDisplay();
+                this.updateTotalCoinsDisplay();
+                // Update player appearance
+                const colors = this.cosmeticShop.getEquippedColors();
+                if (this.player) {
+                    this.player.setOutfitColors(colors);
+                }
+            } else {
+                status.textContent = result.error;
+                status.className = 'restore-status error';
+            }
+        });
+
+        // Auto-format recovery code input
+        document.getElementById('restore-code-input').addEventListener('input', (e) => {
+            let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            // Add dashes at correct positions
+            if (value.length > 5) {
+                value = value.slice(0, 5) + '-' + value.slice(5);
+            }
+            if (value.length > 10) {
+                value = value.slice(0, 10) + '-' + value.slice(10);
+            }
+            e.target.value = value.slice(0, 14);
         });
 
         // Shop button (from start screen)

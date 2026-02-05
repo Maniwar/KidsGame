@@ -18,10 +18,12 @@ export class PlayerDataManager {
     getDefaultData() {
         return {
             totalCoins: 0,
-            unlockedItems: ['yellow_shirt', 'blue_overalls'], // Default items are free
+            // Default items are free: default outfit + no-clothes options + default bow
+            unlockedItems: ['yellow_shirt', 'blue_overalls', 'red_bow', 'none_shirt', 'none_overalls'],
             equippedItems: {
                 shirt: 'yellow_shirt',
-                overalls: 'blue_overalls'
+                overalls: 'blue_overalls',
+                bow: 'red_bow'
             },
             lastUpdated: Date.now()
         };
@@ -167,12 +169,17 @@ export class PlayerDataManager {
                 const parsed = JSON.parse(saved);
                 // Merge with defaults to ensure all fields exist
                 this.data = { ...this.getDefaultData(), ...parsed };
-                // Ensure default items are always unlocked
-                if (!this.data.unlockedItems.includes('yellow_shirt')) {
-                    this.data.unlockedItems.push('yellow_shirt');
-                }
-                if (!this.data.unlockedItems.includes('blue_overalls')) {
-                    this.data.unlockedItems.push('blue_overalls');
+                // Merge equipped items to ensure bow slot exists
+                this.data.equippedItems = {
+                    ...this.getDefaultData().equippedItems,
+                    ...this.data.equippedItems
+                };
+                // Ensure all free items are always unlocked
+                const freeItems = ['yellow_shirt', 'blue_overalls', 'red_bow', 'none_shirt', 'none_overalls'];
+                for (const item of freeItems) {
+                    if (!this.data.unlockedItems.includes(item)) {
+                        this.data.unlockedItems.push(item);
+                    }
                 }
             }
         } catch (e) {
@@ -327,7 +334,7 @@ export class PlayerDataManager {
             console.warn(`Cannot equip ${itemId} - not unlocked`);
             return false;
         }
-        if (!['shirt', 'overalls'].includes(slot)) {
+        if (!['shirt', 'overalls', 'bow'].includes(slot)) {
             console.warn(`Invalid slot: ${slot}`);
             return false;
         }

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="description" content="Hello Kitty Sanrio Rush - A fun 3D endless runner game for kids">
     <title>Hello Kitty Sanrio Rush 🎀</title>
-    <link rel="stylesheet" href="/css/styles.css?v=7">
+    <link rel="stylesheet" href="/css/styles.css?v=8">
 </head>
 <body>
     <div id="game-container">
@@ -40,10 +40,50 @@
         <!-- Start Screen -->
         <div id="start-screen" class="screen active">
             <h1>🎀 Hello Kitty Sanrio Rush 🎀</h1>
+            <div id="total-coins-display">
+                <span class="coin-icon">🪙</span>
+                <span id="total-coins">0</span>
+            </div>
             <p>Use Arrow Keys or WASD to move</p>
             <p>↑ Jump | ↓ Slide | ← → Switch Lanes</p>
             <button id="start-button" class="game-button">Start Game</button>
-            <button id="settings-button" class="game-button settings-btn">⚙️ Settings</button>
+            <div class="menu-buttons">
+                <button id="shop-button" class="game-button shop-btn">🛍️ Shop</button>
+                <button id="settings-button" class="game-button settings-btn">⚙️ Settings</button>
+            </div>
+        </div>
+
+        <!-- Shop Screen -->
+        <div id="shop-screen" class="screen">
+            <div class="shop-header">
+                <h2>🛍️ Costume Shop</h2>
+                <div class="shop-coins">
+                    <span class="coin-icon">🪙</span>
+                    <span id="shop-total-coins">0</span>
+                </div>
+            </div>
+
+            <div class="shop-content">
+                <!-- Bows Section -->
+                <div class="shop-section">
+                    <h3>🎀 Bows</h3>
+                    <div id="shop-bows" class="shop-items"></div>
+                </div>
+
+                <!-- Shirts Section -->
+                <div class="shop-section">
+                    <h3>👕 Shirts</h3>
+                    <div id="shop-shirts" class="shop-items"></div>
+                </div>
+
+                <!-- Overalls Section -->
+                <div class="shop-section">
+                    <h3>👖 Overalls</h3>
+                    <div id="shop-overalls" class="shop-items"></div>
+                </div>
+            </div>
+
+            <button id="shop-back-button" class="game-button">Back to Menu</button>
         </div>
 
         <!-- Settings Panel -->

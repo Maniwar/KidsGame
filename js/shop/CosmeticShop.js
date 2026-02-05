@@ -2,7 +2,7 @@
 // Defines all available cosmetic items and handles purchases
 
 export const COSMETIC_ITEMS = {
-    // Shirts
+    // === SHIRTS ===
     yellow_shirt: {
         id: 'yellow_shirt',
         name: 'Yellow Shirt',
@@ -52,8 +52,16 @@ export const COSMETIC_ITEMS = {
         price: 1000,
         description: 'Bright orange shirt'
     },
+    none_shirt: {
+        id: 'none_shirt',
+        name: 'No Shirt',
+        slot: 'shirt',
+        color: 0xFFFFFF, // White (matches body)
+        price: 0, // Free
+        description: 'Just the fur!'
+    },
 
-    // Overalls
+    // === OVERALLS ===
     blue_overalls: {
         id: 'blue_overalls',
         name: 'Blue Overalls',
@@ -108,6 +116,91 @@ export const COSMETIC_ITEMS = {
         pocketColor: 0x1F1F1F,
         price: 1500,
         description: 'Sleek black overalls'
+    },
+    none_overalls: {
+        id: 'none_overalls',
+        name: 'No Overalls',
+        slot: 'overalls',
+        color: 0xFFFFFF, // White (matches body)
+        pocketColor: 0xFFFFFF,
+        price: 0, // Free
+        description: 'Just the fur!'
+    },
+
+    // === BOWS ===
+    red_bow: {
+        id: 'red_bow',
+        name: 'Red Bow',
+        slot: 'bow',
+        color: 0xFF0000, // Classic red
+        price: 0, // Free - default
+        description: 'Classic Hello Kitty bow',
+        isDefault: true
+    },
+    pink_bow: {
+        id: 'pink_bow',
+        name: 'Pink Bow',
+        slot: 'bow',
+        color: 0xFF69B4, // Hot pink
+        price: 300,
+        description: 'Pretty pink bow'
+    },
+    purple_bow: {
+        id: 'purple_bow',
+        name: 'Purple Bow',
+        slot: 'bow',
+        color: 0x9370DB, // Medium purple
+        price: 500,
+        description: 'Royal purple bow'
+    },
+    blue_bow: {
+        id: 'blue_bow',
+        name: 'Blue Bow',
+        slot: 'bow',
+        color: 0x4169E1, // Royal blue
+        price: 500,
+        description: 'Cool blue bow'
+    },
+    gold_bow: {
+        id: 'gold_bow',
+        name: 'Gold Bow',
+        slot: 'bow',
+        color: 0xFFD700, // Gold
+        price: 750,
+        description: 'Shiny gold bow'
+    },
+    mint_bow: {
+        id: 'mint_bow',
+        name: 'Mint Bow',
+        slot: 'bow',
+        color: 0x98FF98, // Pale green
+        price: 750,
+        description: 'Fresh mint bow'
+    },
+    orange_bow: {
+        id: 'orange_bow',
+        name: 'Orange Bow',
+        slot: 'bow',
+        color: 0xFF8C00, // Dark orange
+        price: 750,
+        description: 'Bright orange bow'
+    },
+    black_bow: {
+        id: 'black_bow',
+        name: 'Black Bow',
+        slot: 'bow',
+        color: 0x2F2F2F, // Dark gray/black
+        price: 1000,
+        description: 'Elegant black bow'
+    },
+    rainbow_bow: {
+        id: 'rainbow_bow',
+        name: 'Rainbow Bow',
+        slot: 'bow',
+        color: 0xFF69B4, // Base pink (special effect handled in Player)
+        isRainbow: true,
+        price: 2000,
+        description: 'Magical color-changing bow!'
     }
 };
 
@@ -129,6 +222,11 @@ export class CosmeticShop {
     // Get all overalls
     getOveralls() {
         return this.getItemsBySlot('overalls');
+    }
+
+    // Get all bows
+    getBows() {
+        return this.getItemsBySlot('bow');
     }
 
     // Get item by ID
@@ -216,10 +314,18 @@ export class CosmeticShop {
             canAfford: totalCoins >= item.price
         }));
 
+        const bows = this.getBows().map(item => ({
+            ...item,
+            owned: unlockedItems.includes(item.id),
+            equipped: equippedItems.bow === item.id,
+            canAfford: totalCoins >= item.price
+        }));
+
         return {
             totalCoins,
             shirts,
-            overalls
+            overalls,
+            bows
         };
     }
 
@@ -227,11 +333,14 @@ export class CosmeticShop {
     getEquippedColors() {
         const shirtItem = this.getEquipped('shirt') || COSMETIC_ITEMS.yellow_shirt;
         const overallsItem = this.getEquipped('overalls') || COSMETIC_ITEMS.blue_overalls;
+        const bowItem = this.getEquipped('bow') || COSMETIC_ITEMS.red_bow;
 
         return {
             shirtColor: shirtItem.color,
             overallsColor: overallsItem.color,
-            pocketColor: overallsItem.pocketColor || overallsItem.color
+            pocketColor: overallsItem.pocketColor || overallsItem.color,
+            bowColor: bowItem.color,
+            isRainbowBow: bowItem.isRainbow || false
         };
     }
 }

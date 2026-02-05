@@ -38,8 +38,13 @@ export class Player {
         this.outfitColors = outfitColors || {
             shirtColor: 0xFFD700,    // Gold/yellow (default)
             overallsColor: 0x4169E1, // Royal blue (default)
-            pocketColor: 0x3158B8    // Darker blue (default)
+            pocketColor: 0x3158B8,   // Darker blue (default)
+            bowColor: 0xFF0000,      // Red (default)
+            isRainbowBow: false
         };
+
+        // Rainbow bow animation state
+        this.rainbowHue = 0;
 
         // Create character
         this.createCharacter();
@@ -56,8 +61,8 @@ export class Player {
             metalness: 0.05,
         });
 
-        const bowMaterial = new THREE.MeshStandardMaterial({
-            color: HELLO_KITTY_COLORS.BOW,
+        this.bowMaterial = new THREE.MeshStandardMaterial({
+            color: this.outfitColors.bowColor || HELLO_KITTY_COLORS.BOW,
             flatShading: false,
             roughness: 0.5,
             metalness: 0.1,
@@ -248,14 +253,14 @@ export class Player {
 
         // Left bow loop - spread wide
         const bowLoopGeometry = new THREE.SphereGeometry(0.32, 16, 16);
-        const leftBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
+        const leftBowLoop = new THREE.Mesh(bowLoopGeometry, this.bowMaterial);
         leftBowLoop.position.set(-0.27, 0, 0);
         leftBowLoop.scale.set(0.6, 1.1, 0.7);
         leftBowLoop.castShadow = true;
         bowGroup.add(leftBowLoop);
 
         // Right bow loop - spread wide
-        const rightBowLoop = new THREE.Mesh(bowLoopGeometry, bowMaterial);
+        const rightBowLoop = new THREE.Mesh(bowLoopGeometry, this.bowMaterial);
         rightBowLoop.position.set(0.27, 0, 0);
         rightBowLoop.scale.set(0.6, 1.1, 0.7);
         rightBowLoop.castShadow = true;
@@ -263,20 +268,20 @@ export class Player {
 
         // Bow center knot - MUCH bigger to be visible and connect loops
         const bowCenterGeometry = new THREE.SphereGeometry(0.15, 12, 12);
-        const bowCenter = new THREE.Mesh(bowCenterGeometry, bowMaterial);
+        const bowCenter = new THREE.Mesh(bowCenterGeometry, this.bowMaterial);
         bowCenter.scale.set(1.4, 1.2, 1.0); // Stretched wider to fill gap
         bowCenter.castShadow = true;
         bowGroup.add(bowCenter);
 
         // Bow ribbons hanging down
         const ribbonGeometry = new THREE.BoxGeometry(0.10, 0.25, 0.06);
-        const leftRibbon = new THREE.Mesh(ribbonGeometry, bowMaterial);
+        const leftRibbon = new THREE.Mesh(ribbonGeometry, this.bowMaterial);
         leftRibbon.position.set(-0.08, -0.18, 0);
         leftRibbon.rotation.z = -0.25;
         leftRibbon.castShadow = true;
         bowGroup.add(leftRibbon);
 
-        const rightRibbon = new THREE.Mesh(ribbonGeometry, bowMaterial);
+        const rightRibbon = new THREE.Mesh(ribbonGeometry, this.bowMaterial);
         rightRibbon.position.set(0.08, -0.18, 0);
         rightRibbon.rotation.z = 0.25;
         rightRibbon.castShadow = true;
@@ -475,6 +480,13 @@ export class Player {
             this.pocketMaterial.color.setHex(colors.pocketColor);
             this.outfitColors.pocketColor = colors.pocketColor;
         }
+        if (colors.bowColor !== undefined && this.bowMaterial) {
+            this.bowMaterial.color.setHex(colors.bowColor);
+            this.outfitColors.bowColor = colors.bowColor;
+        }
+        if (colors.isRainbowBow !== undefined) {
+            this.outfitColors.isRainbowBow = colors.isRainbowBow;
+        }
     }
 
     // Get current outfit colors
@@ -482,7 +494,19 @@ export class Player {
         return { ...this.outfitColors };
     }
 
+    // Update rainbow bow color (call from update loop)
+    updateRainbowBow(deltaTime) {
+        if (!this.outfitColors.isRainbowBow || !this.bowMaterial) return;
+
+        // Cycle through hues smoothly
+        this.rainbowHue = (this.rainbowHue + deltaTime * 0.5) % 1;
+        this.bowMaterial.color.setHSL(this.rainbowHue, 0.8, 0.5);
+    }
+
     update(deltaTime) {
+        // Update rainbow bow animation if active
+        this.updateRainbowBow(deltaTime);
+
         // Move forward automatically
         this.position.z -= this.speed * deltaTime;
 

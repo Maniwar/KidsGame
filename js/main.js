@@ -267,6 +267,19 @@ class Game {
             }
         });
 
+        // Shop button
+        document.getElementById('shop-button').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('shop-screen').classList.add('active');
+            this.populateShop();
+        });
+
+        // Shop back button
+        document.getElementById('shop-back-button').addEventListener('click', () => {
+            document.getElementById('shop-screen').classList.remove('active');
+            document.getElementById('start-screen').classList.add('active');
+        });
+
         // Restart button
         const restartButton = document.getElementById('restart-button');
         restartButton.addEventListener('click', () => this.restartGame());
@@ -3111,6 +3124,169 @@ class Game {
             }, 100);
         }
     }
+
+    // ============================================
+    // SHOP UI METHODS
+    // ============================================
+
+    populateShop() {
+        const shopData = this.cosmeticShop.getShopData();
+
+        // Update coin displays
+        document.getElementById('shop-total-coins').textContent = shopData.totalCoins.toLocaleString();
+        this.updateTotalCoinsDisplay();
+
+        // Populate bows
+        this.populateShopSection('shop-bows', shopData.bows);
+
+        // Populate shirts
+        this.populateShopSection('shop-shirts', shopData.shirts);
+
+        // Populate overalls
+        this.populateShopSection('shop-overalls', shopData.overalls);
+    }
+
+    populateShopSection(containerId, items) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+
+        items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'shop-item';
+
+            // Add state classes
+            if (item.equipped) {
+                itemDiv.classList.add('equipped');
+            } else if (item.owned) {
+                itemDiv.classList.add('owned');
+            } else {
+                itemDiv.classList.add('locked');
+                if (!item.canAfford) {
+                    itemDiv.classList.add('cannot-afford');
+                }
+            }
+
+            // Create color swatch
+            const swatch = document.createElement('div');
+            swatch.className = 'item-color-swatch';
+
+            if (item.id.startsWith('none_')) {
+                swatch.classList.add('no-clothes');
+            } else if (item.isRainbow) {
+                swatch.classList.add('rainbow');
+            } else {
+                swatch.style.backgroundColor = '#' + item.color.toString(16).padStart(6, '0');
+            }
+
+            // Item name
+            const name = document.createElement('div');
+            name.className = 'item-name';
+            name.textContent = item.name;
+
+            // Price display
+            const price = document.createElement('div');
+            price.className = 'item-price';
+            if (item.price === 0) {
+                price.classList.add('free');
+                price.textContent = 'FREE';
+            } else {
+                price.innerHTML = `<span class="coin-icon">🪙</span>${item.price}`;
+            }
+
+            // Status badge
+            if (item.equipped) {
+                const badge = document.createElement('div');
+                badge.className = 'item-status equipped-badge';
+                badge.textContent = 'WEARING';
+                itemDiv.appendChild(badge);
+            } else if (item.owned) {
+                const badge = document.createElement('div');
+                badge.className = 'item-status owned-badge';
+                badge.textContent = 'OWNED';
+                itemDiv.appendChild(badge);
+            }
+
+            // Action button
+            const actionBtn = document.createElement('button');
+            actionBtn.className = 'item-action-btn';
+
+            if (item.equipped) {
+                actionBtn.className += ' equipped-btn';
+                actionBtn.textContent = 'Equipped';
+                actionBtn.disabled = true;
+            } else if (item.owned) {
+                actionBtn.className += ' equip-btn';
+                actionBtn.textContent = 'Equip';
+                actionBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.equipItem(item.id);
+                });
+            } else {
+                actionBtn.className += ' buy-btn';
+                actionBtn.textContent = item.price === 0 ? 'Get' : 'Buy';
+                actionBtn.disabled = !item.canAfford && item.price > 0;
+                actionBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.purchaseItem(item.id);
+                });
+            }
+
+            itemDiv.appendChild(swatch);
+            itemDiv.appendChild(name);
+            itemDiv.appendChild(price);
+            itemDiv.appendChild(actionBtn);
+
+            // Click on item also triggers action
+            itemDiv.addEventListener('click', () => {
+                if (item.equipped) return;
+                if (item.owned) {
+                    this.equipItem(item.id);
+                } else if (item.canAfford || item.price === 0) {
+                    this.purchaseItem(item.id);
+                }
+            });
+
+            container.appendChild(itemDiv);
+        });
+    }
+
+    purchaseItem(itemId) {
+        const result = this.cosmeticShop.purchase(itemId);
+
+        if (result.success) {
+            // Play purchase sound
+            this.audio.playCoinSound();
+
+            // Auto-equip the purchased item
+            this.equipItem(itemId);
+
+            // Refresh shop display
+            this.populateShop();
+        } else {
+            console.warn('Purchase failed:', result.error);
+        }
+    }
+
+    equipItem(itemId) {
+        const result = this.cosmeticShop.equip(itemId);
+
+        if (result.success) {
+            // Update player appearance immediately
+            const colors = this.cosmeticShop.getEquippedColors();
+            if (this.player) {
+                this.player.setOutfitColors(colors);
+            }
+
+            // Refresh shop display
+            this.populateShop();
+        } else {
+            console.warn('Equip failed:', result.error);
+        }
+    }
+
+    // ============================================
+    // END SHOP UI METHODS
+    // ============================================
 
     // Cleanup method to prevent memory leaks
     destroy() {

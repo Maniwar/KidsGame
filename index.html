@@ -105,6 +105,13 @@
         <!-- Game Over Screen -->
         <div id="game-over-screen" class="screen">
             <h2>Game Over!</h2>
+
+            <!-- Total Coins Display -->
+            <div id="gameover-coins-display" class="total-coins-badge">
+                <span class="coin-icon">🪙</span>
+                <span id="gameover-total-coins">0</span>
+            </div>
+
             <div class="score-summary">
                 <p>Final Score: <span id="final-score">0</span></p>
                 <p>Coins Collected: <span id="final-coins">0</span></p>
@@ -112,8 +119,11 @@
                 <p>Distance: <span id="final-distance">0m</span></p>
             </div>
 
-            <!-- Play Again Button (moved to top) -->
-            <button type="button" id="restart-button" class="game-button">Play Again</button>
+            <!-- Action Buttons -->
+            <div class="gameover-buttons">
+                <button type="button" id="restart-button" class="game-button">Play Again</button>
+                <button type="button" id="gameover-shop-button" class="game-button shop-btn">🛍️ Shop</button>
+            </div>
 
             <!-- New High Score Input -->
             <div id="new-high-score">

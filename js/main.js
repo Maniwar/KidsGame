@@ -62,6 +62,7 @@ class Game {
         // Player data persistence (coins, cosmetics)
         this.playerData = new PlayerDataManager();
         this.cosmeticShop = new CosmeticShop(this.playerData);
+        this.shopReturnScreen = 'start-screen'; // Track which screen to return to after shop
 
         // PERFORMANCE: Cached frame time (updated once per frame, passed to all systems)
         this.frameTime = 0;
@@ -177,10 +178,19 @@ class Game {
     }
 
     updateTotalCoinsDisplay() {
-        const totalCoinsElement = document.getElementById('total-coins');
-        if (totalCoinsElement) {
-            totalCoinsElement.textContent = this.playerData.getTotalCoins();
-        }
+        const totalCoins = this.playerData.getTotalCoins();
+        // Update all total coins displays across all screens
+        const displays = [
+            'total-coins',           // Start screen
+            'shop-total-coins',      // Shop screen
+            'gameover-total-coins'   // Game over screen
+        ];
+        displays.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = totalCoins;
+            }
+        });
     }
 
     async initLeaderboard() {
@@ -267,17 +277,27 @@ class Game {
             }
         });
 
-        // Shop button
+        // Shop button (from start screen)
         document.getElementById('shop-button').addEventListener('click', () => {
+            this.shopReturnScreen = 'start-screen';
             document.getElementById('start-screen').classList.remove('active');
             document.getElementById('shop-screen').classList.add('active');
             this.populateShop();
         });
 
-        // Shop back button
+        // Shop button (from game over screen)
+        document.getElementById('gameover-shop-button').addEventListener('click', () => {
+            this.shopReturnScreen = 'game-over-screen';
+            document.getElementById('game-over-screen').classList.remove('active');
+            document.getElementById('shop-screen').classList.add('active');
+            this.populateShop();
+        });
+
+        // Shop back button - returns to wherever shop was opened from
         document.getElementById('shop-back-button').addEventListener('click', () => {
             document.getElementById('shop-screen').classList.remove('active');
-            document.getElementById('start-screen').classList.add('active');
+            const returnScreen = this.shopReturnScreen || 'start-screen';
+            document.getElementById(returnScreen).classList.add('active');
         });
 
         // Restart button

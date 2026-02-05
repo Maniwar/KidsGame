@@ -1056,3 +1056,55 @@ input:checked + .toggle-slider:before {
         height: 35px;
     }
 }
+
+/* ============================================
+   GAME OVER SCREEN ENHANCEMENTS
+   ============================================ */
+
+/* Total coins badge (shared style for game over) */
+.total-coins-badge {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    padding: 8px 20px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.total-coins-badge .coin-icon {
+    font-size: 20px;
+}
+
+.total-coins-badge span:last-child {
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Game over buttons container */
+.gameover-buttons {
+    display: flex;
+    gap: 15px;
+    margin: 15px 0;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.gameover-buttons .game-button {
+    min-width: 120px;
+}
+
+/* Mobile adjustments for game over buttons */
+@media (max-width: 400px) {
+    .gameover-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .gameover-buttons .game-button {
+        width: 100%;
+    }
+}

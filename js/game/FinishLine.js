@@ -27,14 +27,14 @@ export class FinishLine {
         const bannerHeight = 1.5;
         const bannerGeometry = new THREE.PlaneGeometry(totalWidth, bannerHeight);
 
-        // Create checkered pattern texture
+        // Create checkered pattern texture (square canvas for square pattern)
         const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 32;
+        canvas.width = 64;
+        canvas.height = 64;
         const ctx = canvas.getContext('2d');
 
-        // Draw checkered pattern
-        const squareSize = 16;
+        // Draw checkered pattern - 2x2 squares per texture tile
+        const squareSize = 32;
         for (let x = 0; x < canvas.width; x += squareSize) {
             for (let y = 0; y < canvas.height; y += squareSize) {
                 const isWhite = ((x / squareSize) + (y / squareSize)) % 2 === 0;
@@ -46,7 +46,11 @@ export class FinishLine {
         const texture = new THREE.CanvasTexture(canvas);
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(8, 1);
+        // Calculate repeat to maintain square appearance on rectangular banner
+        // Banner aspect ratio: totalWidth / bannerHeight ≈ 6.33
+        // Want 2 rows of squares, so repeatY = 2, repeatX = 2 * aspectRatio
+        const aspectRatio = totalWidth / bannerHeight;
+        texture.repeat.set(Math.round(2 * aspectRatio), 2);
 
         const bannerMaterial = new THREE.MeshStandardMaterial({
             map: texture,
@@ -81,9 +85,15 @@ export class FinishLine {
         this.createMilestoneNumber();
 
         // Ground stripe (checkered pattern on the road)
-        const stripeGeometry = new THREE.PlaneGeometry(totalWidth, 2);
+        const stripeHeight = 2;
+        const stripeGeometry = new THREE.PlaneGeometry(totalWidth, stripeHeight);
+        // Clone texture with different repeat for ground stripe dimensions
+        const stripeTexture = texture.clone();
+        stripeTexture.needsUpdate = true;
+        const stripeAspectRatio = totalWidth / stripeHeight;
+        stripeTexture.repeat.set(Math.round(2 * stripeAspectRatio), 2);
         const stripeMaterial = new THREE.MeshStandardMaterial({
-            map: texture,
+            map: stripeTexture,
             side: THREE.DoubleSide,
             emissive: 0xFFFFFF,
             emissiveIntensity: 0.3,

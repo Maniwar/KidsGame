@@ -891,7 +891,7 @@ export class Player {
         }
         if (this.character) {
             this.character.rotation.x = 0;
-            this.character.rotation.y = 0;
+            this.character.rotation.y = Math.PI; // 180° to face forward (-Z direction)
             this.character.rotation.z = 0;
             this.character.position.y = 0.065; // Reset to ground level
         }

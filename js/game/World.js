@@ -18,9 +18,10 @@ export class World {
         this.nextChunkZ = -this.chunkLength; // Start ahead of player
         this.chunksGenerated = 0;
 
-        // Finish line configuration
-        this.finishLineInterval = 500; // Distance between finish lines (in game units)
-        this.nextFinishLineZ = -this.finishLineInterval; // First finish line at 500m
+        // Finish line configuration - progressive difficulty
+        this.baseFinishLineInterval = 300; // First finish line at 300m
+        this.finishLineIntervalIncrease = 100; // Each subsequent milestone is 100m further
+        this.nextFinishLineZ = -this.baseFinishLineInterval; // First finish line at 300m
         this.finishLineCount = 0;
 
         // Obstacle types (low = jump, tall = slide)
@@ -224,12 +225,14 @@ export class World {
             this.generateChunk();
         }
 
-        // Spawn finish lines at regular intervals
+        // Spawn finish lines with progressive difficulty (each one further than the last)
         while (playerZ < this.nextFinishLineZ + 200) {
             this.finishLineCount++;
             const finishLine = new FinishLine(this.scene, this.nextFinishLineZ, this.finishLineCount);
             this.finishLines.push(finishLine);
-            this.nextFinishLineZ -= this.finishLineInterval;
+            // Next milestone is progressively further: 300, 400, 500, 600, etc.
+            const nextInterval = this.baseFinishLineInterval + (this.finishLineCount * this.finishLineIntervalIncrease);
+            this.nextFinishLineZ -= nextInterval;
         }
 
         // PERFORMANCE: In-place removal instead of filter() (avoids new array allocation)
@@ -327,7 +330,7 @@ export class World {
         this.chunksGenerated = 0;
 
         // Reset finish line tracking
-        this.nextFinishLineZ = -this.finishLineInterval;
+        this.nextFinishLineZ = -this.baseFinishLineInterval;
         this.finishLineCount = 0;
 
         // Generate initial chunks

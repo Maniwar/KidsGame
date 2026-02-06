@@ -20,12 +20,22 @@ export class GameCamera {
         this.isDeathCamera = false;
         this.deathCameraAngle = 0;
         this.deathCameraTarget = null;
+
+        // Celebration camera state
+        this.isCelebrationCamera = false;
+        this.celebrationCameraTarget = null;
     }
 
     update(playerPosition) {
         // If in death camera mode, orbit around character face
         if (this.isDeathCamera && this.deathCameraTarget) {
             this.updateDeathCamera();
+            return;
+        }
+
+        // If in celebration camera mode, orbit around character
+        if (this.isCelebrationCamera && this.celebrationCameraTarget) {
+            this.updateCelebrationCamera();
             return;
         }
 
@@ -126,6 +136,76 @@ export class GameCamera {
         this.isDeathCamera = false;
         this.deathCameraTarget = null;
         this.deathCameraCallback = null;
+    }
+
+    // Celebration camera - swings around to see Kitty's face celebrating
+    startCelebrationCamera(playerPosition) {
+        this.isCelebrationCamera = true;
+        this.celebrationCameraTarget = playerPosition.clone();
+        this.celebrationCameraStartTime = performance.now();
+        this.celebrationCameraDuration = 800; // Quick swing to front
+
+        // Start position (behind player)
+        this.celebrationCameraStartPos = this.camera.position.clone();
+
+        // End position: in front of character, slightly lower to frame face nicely
+        this.celebrationCameraEndPos = new THREE.Vector3(
+            playerPosition.x,
+            playerPosition.y + 1.3, // At face height
+            playerPosition.z - 3.5  // Close up in front
+        );
+
+        // Look directly at Kitty's face
+        this.celebrationLookAt = new THREE.Vector3(
+            playerPosition.x,
+            playerPosition.y + 1.4, // Face/head height
+            playerPosition.z
+        );
+    }
+
+    updateCelebrationCamera() {
+        if (!this.isCelebrationCamera) return false;
+
+        const elapsed = performance.now() - this.celebrationCameraStartTime;
+        const progress = Math.min(elapsed / this.celebrationCameraDuration, 1);
+
+        // Smooth easing
+        const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+
+        if (progress < 1) {
+            // Swing around from behind to front
+            const angle = Math.PI * easeOutCubic; // 0 to 180 degrees
+            const radius = 5 - easeOutCubic * 1.0; // Start far, end closer
+            const height = 3 - easeOutCubic * 1.5; // Start high, end at face level
+
+            const camX = this.celebrationCameraTarget.x + Math.sin(angle) * radius;
+            const camY = this.celebrationCameraTarget.y + height;
+            const camZ = this.celebrationCameraTarget.z + Math.cos(angle) * radius;
+
+            this.camera.position.set(camX, camY, camZ);
+            this.camera.lookAt(this.celebrationLookAt);
+        } else {
+            // Gentle sway while showing celebration
+            const idleTime = (elapsed - this.celebrationCameraDuration) * 0.001;
+
+            const swayX = Math.sin(idleTime * 0.8) * 0.3;
+            const swayY = Math.sin(idleTime * 0.5) * 0.1;
+
+            this.camera.position.set(
+                this.celebrationCameraEndPos.x + swayX,
+                this.celebrationCameraEndPos.y + swayY,
+                this.celebrationCameraEndPos.z
+            );
+            this.camera.lookAt(this.celebrationLookAt);
+        }
+
+        return true;
+    }
+
+    // Reset celebration camera back to normal
+    resetCelebrationCamera() {
+        this.isCelebrationCamera = false;
+        this.celebrationCameraTarget = null;
     }
 
     handleResize() {

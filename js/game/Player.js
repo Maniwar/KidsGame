@@ -834,38 +834,52 @@ export class Player {
         this.celebrationStartTime = performance.now();
 
         const startY = 0; // Ground level
-        const jumpHeight = 1.0;
-        const jumpDuration = 600; // ms per jump cycle
+        const jumpHeight = 1.2;
+        // Pattern: 3 jumps then a pause, each jump 800ms
+        const jumpDuration = 800; // ms per jump cycle (slower)
+        const jumpsPerSet = 3;
+        const pauseDuration = 1200; // pause between jump sets
+        const setDuration = (jumpDuration * jumpsPerSet) + pauseDuration;
 
         const animate = () => {
             if (!this.isCelebrating) return; // Stop if celebration ended
 
             const elapsed = performance.now() - this.celebrationStartTime;
 
-            // Continuous jumping - loop the jump animation
-            const jumpCycle = (elapsed % jumpDuration) / jumpDuration;
-            const jumpProgress = Math.sin(jumpCycle * Math.PI);
-            this.character.position.y = startY + jumpProgress * jumpHeight + 0.065;
+            // Jump pattern: 3 jumps then pause
+            const setProgress = elapsed % setDuration;
+            let jumpY = 0;
 
-            // Arms up and waving continuously!
+            if (setProgress < jumpDuration * jumpsPerSet) {
+                // During jumping phase
+                const jumpCycle = (setProgress % jumpDuration) / jumpDuration;
+                const jumpProgress = Math.sin(jumpCycle * Math.PI);
+                jumpY = jumpProgress * jumpHeight;
+            }
+            // During pause phase, jumpY stays 0
+
+            this.character.position.y = startY + jumpY + 0.065;
+
+            // Arms raised HIGH over head and waving!
+            // rotation.x of -3.14 (negative PI) points arms straight up
             if (this.leftArm) {
-                this.leftArm.rotation.x = -2.5 + Math.sin(elapsed * 0.02) * 0.3;
-                this.leftArm.rotation.z = 0.3;
+                this.leftArm.rotation.x = -3.0 + Math.sin(elapsed * 0.015) * 0.25;
+                this.leftArm.rotation.z = 0.4; // Spread outward slightly
             }
             if (this.rightArm) {
-                this.rightArm.rotation.x = -2.5 + Math.sin(elapsed * 0.02 + Math.PI) * 0.3;
-                this.rightArm.rotation.z = -0.3;
+                this.rightArm.rotation.x = -3.0 + Math.sin(elapsed * 0.015 + Math.PI) * 0.25;
+                this.rightArm.rotation.z = -0.4; // Spread outward slightly
             }
 
             // Happy head bobbing
             if (this.head) {
-                this.head.rotation.z = Math.sin(elapsed * 0.015) * 0.15;
-                this.head.rotation.x = Math.sin(elapsed * 0.01) * 0.1;
+                this.head.rotation.z = Math.sin(elapsed * 0.012) * 0.15;
+                this.head.rotation.x = Math.sin(elapsed * 0.008) * 0.1;
             }
 
             // Body twist for excitement (oscillate around Math.PI to stay facing forward)
             if (this.character) {
-                this.character.rotation.y = Math.PI + Math.sin(elapsed * 0.012) * 0.2;
+                this.character.rotation.y = Math.PI + Math.sin(elapsed * 0.01) * 0.2;
             }
 
             // Keep animating while celebrating

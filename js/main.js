@@ -377,7 +377,13 @@ class Game {
         document.getElementById('shop-back-button').addEventListener('click', () => {
             document.getElementById('shop-screen').classList.remove('active');
             const returnScreen = this.shopReturnScreen || 'start-screen';
-            document.getElementById(returnScreen).classList.add('active');
+
+            if (returnScreen === 'gameplay') {
+                // Returning to mid-game, show countdown
+                this.showResumeCountdown();
+            } else {
+                document.getElementById(returnScreen).classList.add('active');
+            }
         });
 
         // Restart button
@@ -1085,6 +1091,13 @@ class Game {
             // Show countdown before resuming
             this.showResumeCountdown();
         }
+    }
+
+    // Open shop from mid-game (milestone)
+    openShop() {
+        this.shopReturnScreen = 'gameplay'; // Special flag for returning to gameplay
+        document.getElementById('shop-screen').classList.add('active');
+        this.populateShop();
     }
 
     // Show 3-2-1 countdown before resuming

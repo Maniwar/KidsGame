@@ -1,5 +1,26 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GAME_CONFIG, HELLO_KITTY_COLORS, COLORS } from '../utils/Constants.js';
+
+// PERFORMANCE: Pre-computed rainbow lookup table (avoids per-frame HSL→RGB trig math)
+// 360 entries × 3 channels = 1080 floats, computed once at module load
+const RAINBOW_LUT_SIZE = 360;
+const RAINBOW_LUT = new Float32Array(RAINBOW_LUT_SIZE * 3);
+const RAINBOW_LUT_DARK = new Float32Array(RAINBOW_LUT_SIZE * 3); // Lower lightness for pocket
+const _lutColor = new THREE.Color();
+for (let i = 0; i < RAINBOW_LUT_SIZE; i++) {
+    _lutColor.setHSL(i / RAINBOW_LUT_SIZE, 0.85, 0.55);
+    RAINBOW_LUT[i * 3] = _lutColor.r;
+    RAINBOW_LUT[i * 3 + 1] = _lutColor.g;
+    RAINBOW_LUT[i * 3 + 2] = _lutColor.b;
+    _lutColor.setHSL(i / RAINBOW_LUT_SIZE, 0.85, 0.45);
+    RAINBOW_LUT_DARK[i * 3] = _lutColor.r;
+    RAINBOW_LUT_DARK[i * 3 + 1] = _lutColor.g;
+    RAINBOW_LUT_DARK[i * 3 + 2] = _lutColor.b;
+}
+
+// Pre-allocated hue offsets for bow parts (avoids per-frame array allocation)
+const BOW_HUE_OFFSETS = [0, 0.15, 0.3, 0.45, 0.6];
 
 export class Player {
     constructor(scene, outfitColors = null) {
@@ -48,10 +69,13 @@ export class Player {
         // Rainbow animation state
         this.rainbowHue = 0;
 
-        // Rainbow materials for multi-color effect (bow, shirt, overalls)
-        this.rainbowBowMaterials = [];
-        this.rainbowShirtMaterials = [];
-        this.rainbowOverallsMaterials = [];
+        // PERFORMANCE: Throttle rainbow visual updates to ~30fps (imperceptible vs 60fps for smooth hue cycling)
+        this._rainbowUpdateAccum = 0;
+        this._rainbowUpdateInterval = 1 / 30; // ~33ms between visual updates
+
+        // Rainbow bow: merged geometry with vertex colors (5 draw calls → 1)
+        this._bowColorAttr = null;     // BufferAttribute reference for fast updates
+        this._bowPartRanges = [];      // [{start, count}, ...] vertex ranges per bow part
 
         // Celebration animation state
         this.isCelebrating = false;
@@ -70,13 +94,6 @@ export class Player {
             flatShading: false,
             roughness: 0.6,
             metalness: 0.05,
-        });
-
-        this.bowMaterial = new THREE.MeshStandardMaterial({
-            color: this.outfitColors.bowColor || HELLO_KITTY_COLORS.BOW,
-            flatShading: false,
-            roughness: 0.5,
-            metalness: 0.1,
         });
 
         const eyeMaterial = new THREE.MeshStandardMaterial({
@@ -277,69 +294,76 @@ export class Player {
         rightInnerEar.scale.set(0.8, 1.2, 0.4);
         this.head.add(rightInnerEar);
 
-        // Bow (Hello Kitty's signature feature - big and prominent)
-        const bowGroup = new THREE.Group();
+        // Bow (Hello Kitty's signature feature - PERFORMANCE: merged into single geometry with vertex colors)
+        // This reduces 5 separate meshes/materials/draw calls down to 1, eliminating per-frame
+        // material state changes that caused the FPS drop with rainbow gear
+        const bowColor = new THREE.Color(this.outfitColors.bowColor || HELLO_KITTY_COLORS.BOW);
 
-        // Create separate materials for each bow part (for rainbow multi-color effect)
-        const createBowPartMaterial = () => new THREE.MeshStandardMaterial({
-            color: this.outfitColors.bowColor || HELLO_KITTY_COLORS.BOW,
+        // Create base geometries
+        const bowLoopGeometry = new THREE.SphereGeometry(0.32, 16, 16);
+        const bowCenterGeometry = new THREE.SphereGeometry(0.15, 12, 12);
+        const ribbonGeometry = new THREE.BoxGeometry(0.10, 0.25, 0.06);
+
+        // Clone and bake transforms into each geometry (same positions/scales as before)
+        const leftLoopGeo = bowLoopGeometry.clone();
+        leftLoopGeo.scale(0.6, 1.1, 0.7);
+        leftLoopGeo.translate(-0.27, 0, 0);
+
+        const rightLoopGeo = bowLoopGeometry.clone();
+        rightLoopGeo.scale(0.6, 1.1, 0.7);
+        rightLoopGeo.translate(0.27, 0, 0);
+
+        const centerGeo = bowCenterGeometry.clone();
+        centerGeo.scale(1.4, 1.2, 1.0);
+
+        const leftRibbonGeo = ribbonGeometry.clone();
+        leftRibbonGeo.applyMatrix4(new THREE.Matrix4().makeRotationZ(-0.25));
+        leftRibbonGeo.translate(-0.08, -0.18, 0);
+
+        const rightRibbonGeo = ribbonGeometry.clone();
+        rightRibbonGeo.applyMatrix4(new THREE.Matrix4().makeRotationZ(0.25));
+        rightRibbonGeo.translate(0.08, -0.18, 0);
+
+        // Order: left loop, center, right loop, left ribbon, right ribbon (matches BOW_HUE_OFFSETS)
+        const bowParts = [leftLoopGeo, centerGeo, rightLoopGeo, leftRibbonGeo, rightRibbonGeo];
+
+        // Add vertex color attribute to each part and track vertex ranges for per-part rainbow updates
+        this._bowPartRanges = [];
+        let vertexOffset = 0;
+        for (const geo of bowParts) {
+            const count = geo.attributes.position.count;
+            const colors = new Float32Array(count * 3);
+            for (let j = 0; j < count; j++) {
+                colors[j * 3] = bowColor.r;
+                colors[j * 3 + 1] = bowColor.g;
+                colors[j * 3 + 2] = bowColor.b;
+            }
+            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            this._bowPartRanges.push({ start: vertexOffset, count });
+            vertexOffset += count;
+        }
+
+        // Merge all bow parts into single geometry (5 draw calls → 1)
+        const mergedBowGeo = mergeGeometries(bowParts, false);
+
+        // Single material with vertex colors (replaces 5 separate MeshStandardMaterials)
+        this.bowMaterial = new THREE.MeshStandardMaterial({
+            vertexColors: true,
             flatShading: false,
             roughness: 0.5,
             metalness: 0.1,
         });
 
-        // Left bow loop - spread wide
-        const bowLoopGeometry = new THREE.SphereGeometry(0.32, 16, 16);
-        const leftLoopMaterial = createBowPartMaterial();
-        const leftBowLoop = new THREE.Mesh(bowLoopGeometry, leftLoopMaterial);
-        leftBowLoop.position.set(-0.27, 0, 0);
-        leftBowLoop.scale.set(0.6, 1.1, 0.7);
-        leftBowLoop.castShadow = true;
-        bowGroup.add(leftBowLoop);
+        // Cache vertex color attribute for fast updates in rainbow animation
+        this._bowColorAttr = mergedBowGeo.attributes.color;
 
-        // Right bow loop - spread wide
-        const rightLoopMaterial = createBowPartMaterial();
-        const rightBowLoop = new THREE.Mesh(bowLoopGeometry, rightLoopMaterial);
-        rightBowLoop.position.set(0.27, 0, 0);
-        rightBowLoop.scale.set(0.6, 1.1, 0.7);
-        rightBowLoop.castShadow = true;
-        bowGroup.add(rightBowLoop);
-
-        // Bow center knot - MUCH bigger to be visible and connect loops
-        const bowCenterGeometry = new THREE.SphereGeometry(0.15, 12, 12);
-        const centerMaterial = createBowPartMaterial();
-        const bowCenter = new THREE.Mesh(bowCenterGeometry, centerMaterial);
-        bowCenter.scale.set(1.4, 1.2, 1.0); // Stretched wider to fill gap
-        bowCenter.castShadow = true;
-        bowGroup.add(bowCenter);
-
-        // Bow ribbons hanging down
-        const ribbonGeometry = new THREE.BoxGeometry(0.10, 0.25, 0.06);
-        const leftRibbonMaterial = createBowPartMaterial();
-        const leftRibbon = new THREE.Mesh(ribbonGeometry, leftRibbonMaterial);
-        leftRibbon.position.set(-0.08, -0.18, 0);
-        leftRibbon.rotation.z = -0.25;
-        leftRibbon.castShadow = true;
-        bowGroup.add(leftRibbon);
-
-        const rightRibbonMaterial = createBowPartMaterial();
-        const rightRibbon = new THREE.Mesh(ribbonGeometry, rightRibbonMaterial);
-        rightRibbon.position.set(0.08, -0.18, 0);
-        rightRibbon.rotation.z = 0.25;
-        rightRibbon.castShadow = true;
-        bowGroup.add(rightRibbon);
-
-        // Store materials for rainbow animation (order: left loop, center, right loop, left ribbon, right ribbon)
-        this.rainbowBowMaterials = [leftLoopMaterial, centerMaterial, rightLoopMaterial, leftRibbonMaterial, rightRibbonMaterial];
-        // Keep main bowMaterial reference for non-rainbow color changes
-        this.bowMaterial = leftLoopMaterial;
-        this.allBowMaterials = this.rainbowBowMaterials;
-
-        bowGroup.position.set(0.35, 0.42, 0.1); // Relative to head - raised up
-        // Group rotation creates diagonal look: inner loop UP, outer loop DOWN
-        bowGroup.rotation.set(0.2, 0, -0.5); // Negative Z = inner loop UP, outer DOWN
-        this.bow = bowGroup;
-        this.head.add(bowGroup);
+        const bowMesh = new THREE.Mesh(mergedBowGeo, this.bowMaterial);
+        bowMesh.castShadow = true;
+        bowMesh.position.set(0.35, 0.42, 0.1); // Relative to head - raised up
+        // Diagonal look: inner loop UP, outer loop DOWN
+        bowMesh.rotation.set(0.2, 0, -0.5);
+        this.bow = bowMesh;
+        this.head.add(bowMesh);
 
         // Eyes (tall vertical ovals - Hello Kitty style)
         const eyeGeometry = new THREE.SphereGeometry(0.06, 16, 16);
@@ -534,9 +558,16 @@ export class Player {
             this.pocketMaterial.color.setHex(colors.pocketColor);
             this.outfitColors.pocketColor = colors.pocketColor;
         }
-        if (colors.bowColor !== undefined && this.allBowMaterials) {
-            // Update all bow part materials to the same color
-            this.allBowMaterials.forEach(mat => mat.color.setHex(colors.bowColor));
+        if (colors.bowColor !== undefined && this._bowColorAttr) {
+            // Update all vertex colors in merged bow geometry to the same color
+            const c = _lutColor.setHex(colors.bowColor);
+            const arr = this._bowColorAttr.array;
+            for (let i = 0; i < arr.length; i += 3) {
+                arr[i] = c.r;
+                arr[i + 1] = c.g;
+                arr[i + 2] = c.b;
+            }
+            this._bowColorAttr.needsUpdate = true;
             this.outfitColors.bowColor = colors.bowColor;
         }
         if (colors.isRainbowBow !== undefined) {
@@ -580,34 +611,53 @@ export class Player {
         return { ...this.outfitColors };
     }
 
-    // Update rainbow colors for all rainbow items (call from update loop)
+    // PERFORMANCE: Optimized rainbow color update with throttling and pre-computed LUT
+    // - Throttled to ~30fps (imperceptible difference from 60fps for smooth hue cycling)
+    // - Uses pre-computed rainbow lookup table (eliminates per-frame HSL→RGB trig math)
+    // - Bow uses merged geometry vertex colors (1 buffer update instead of 5 material updates)
     updateRainbowColors(deltaTime) {
-        // Cycle through hues smoothly
+        // Always advance hue smoothly (even if we skip the visual update this frame)
         this.rainbowHue = (this.rainbowHue + deltaTime * 0.5) % 1;
 
-        // Rainbow bow - each part gets a different hue offset
-        if (this.outfitColors.isRainbowBow && this.rainbowBowMaterials.length) {
-            const bowHueOffsets = [0, 0.15, 0.3, 0.45, 0.6];
-            this.rainbowBowMaterials.forEach((mat, i) => {
-                const hue = (this.rainbowHue + bowHueOffsets[i]) % 1;
-                mat.color.setHSL(hue, 0.85, 0.55);
-            });
+        // Early exit if no rainbow items are active
+        if (!this.outfitColors.isRainbowBow && !this.outfitColors.isRainbowShirt && !this.outfitColors.isRainbowOveralls) return;
+
+        // Throttle visual updates to ~30fps - halves GPU state changes with no visible difference
+        this._rainbowUpdateAccum += deltaTime;
+        if (this._rainbowUpdateAccum < this._rainbowUpdateInterval) return;
+        this._rainbowUpdateAccum = 0;
+
+        // Rainbow bow - update vertex colors in merged geometry (1 draw call for all 5 parts)
+        if (this.outfitColors.isRainbowBow && this._bowColorAttr) {
+            const colors = this._bowColorAttr.array;
+            for (let p = 0; p < 5; p++) {
+                const lutIdx = Math.floor(((this.rainbowHue + BOW_HUE_OFFSETS[p]) % 1) * RAINBOW_LUT_SIZE) * 3;
+                const r = RAINBOW_LUT[lutIdx], g = RAINBOW_LUT[lutIdx + 1], b = RAINBOW_LUT[lutIdx + 2];
+                const range = this._bowPartRanges[p];
+                const start = range.start * 3;
+                const end = start + range.count * 3;
+                for (let i = start; i < end; i += 3) {
+                    colors[i] = r;
+                    colors[i + 1] = g;
+                    colors[i + 2] = b;
+                }
+            }
+            this._bowColorAttr.needsUpdate = true;
         }
 
-        // Rainbow shirt - shirt body and collar cycle with offset
+        // Rainbow shirt - LUT lookup instead of setHSL trig
         if (this.outfitColors.isRainbowShirt && this.shirtMaterial) {
-            const shirtHue = (this.rainbowHue + 0.33) % 1; // Offset from bow
-            this.shirtMaterial.color.setHSL(shirtHue, 0.85, 0.55);
+            const lutIdx = Math.floor(((this.rainbowHue + 0.33) % 1) * RAINBOW_LUT_SIZE) * 3;
+            this.shirtMaterial.color.setRGB(RAINBOW_LUT[lutIdx], RAINBOW_LUT[lutIdx + 1], RAINBOW_LUT[lutIdx + 2]);
         }
 
-        // Rainbow overalls - multiple parts with gradient offsets
+        // Rainbow overalls - LUT lookup instead of setHSL trig
         if (this.outfitColors.isRainbowOveralls && this.overallsMaterial) {
-            const overallsHue = (this.rainbowHue + 0.66) % 1; // Offset from bow and shirt
-            this.overallsMaterial.color.setHSL(overallsHue, 0.85, 0.55);
-            // Also update pocket to complement
+            const lutIdx = Math.floor(((this.rainbowHue + 0.66) % 1) * RAINBOW_LUT_SIZE) * 3;
+            this.overallsMaterial.color.setRGB(RAINBOW_LUT[lutIdx], RAINBOW_LUT[lutIdx + 1], RAINBOW_LUT[lutIdx + 2]);
             if (this.pocketMaterial) {
-                const pocketHue = (overallsHue + 0.2) % 1;
-                this.pocketMaterial.color.setHSL(pocketHue, 0.85, 0.45);
+                const pocketIdx = Math.floor(((this.rainbowHue + 0.86) % 1) * RAINBOW_LUT_SIZE) * 3;
+                this.pocketMaterial.color.setRGB(RAINBOW_LUT_DARK[pocketIdx], RAINBOW_LUT_DARK[pocketIdx + 1], RAINBOW_LUT_DARK[pocketIdx + 2]);
             }
         }
     }

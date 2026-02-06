@@ -834,8 +834,8 @@ export class Candy {
         rind.position.set(0.07, 0, 0);
         watermelonGroup.add(rind);
 
-        // Black seeds - added as children of flesh so they rotate with it
-        const seedGeometry = new THREE.SphereGeometry(0.025, 6, 6);
+        // Black seeds - small and flat against the flesh
+        const seedGeometry = new THREE.SphereGeometry(0.015, 5, 5);
         const seedMaterial = new THREE.MeshStandardMaterial({
             color: 0x1a1a1a, // True black
             roughness: 0.3,
@@ -853,20 +853,20 @@ export class Candy {
             { x: 0.15, y: 0.10 },
         ];
 
-        // Add seeds on front face (z = depth + tiny offset)
+        // Add seeds on front face - flush with surface
         seedPositions.forEach(pos => {
             const seed = new THREE.Mesh(seedGeometry, seedMaterial);
-            seed.position.set(pos.x, pos.y, 0.15); // Just past the front face
-            seed.scale.set(0.8, 1.8, 0.6); // Teardrop shape
+            seed.position.set(pos.x, pos.y, 0.14); // Flush with front face
+            seed.scale.set(0.6, 1.2, 0.3); // Flatter teardrop
             seed.rotation.z = Math.random() * 0.6 - 0.3;
-            flesh.add(seed); // Add to flesh so it rotates with the slice
+            flesh.add(seed);
         });
 
-        // Add seeds on back face (z = small negative)
+        // Add seeds on back face
         seedPositions.slice(0, 4).forEach(pos => {
             const seed = new THREE.Mesh(seedGeometry, seedMaterial);
-            seed.position.set(pos.x + 0.02, pos.y - 0.02, -0.01);
-            seed.scale.set(0.8, 1.8, 0.6);
+            seed.position.set(pos.x + 0.02, pos.y - 0.02, 0.0);
+            seed.scale.set(0.6, 1.2, 0.3);
             seed.rotation.z = Math.random() * 0.6 - 0.3;
             flesh.add(seed);
         });

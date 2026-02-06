@@ -1096,6 +1096,83 @@ export class AudioManager {
         osc2.stop(now + 0.08);
     }
 
+    // Finish line celebration fanfare!
+    playFinishLineFanfare() {
+        if (!this.isInitialized) return;
+
+        const now = this.context.currentTime;
+
+        // Triumphant fanfare melody
+        const fanfareNotes = [
+            { freq: 523.25, start: 0, dur: 0.15 },      // C5
+            { freq: 659.25, start: 0.15, dur: 0.15 },   // E5
+            { freq: 783.99, start: 0.3, dur: 0.15 },    // G5
+            { freq: 1046.50, start: 0.45, dur: 0.4 },   // C6 (held)
+        ];
+
+        fanfareNotes.forEach(note => {
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+
+            osc.frequency.value = note.freq;
+            osc.type = 'triangle';
+
+            gain.gain.setValueAtTime(0.25, now + note.start);
+            gain.gain.setValueAtTime(0.25, now + note.start + note.dur * 0.7);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + note.start + note.dur);
+
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.start(now + note.start);
+            osc.stop(now + note.start + note.dur);
+        });
+
+        // Harmonizing lower notes
+        const harmonyNotes = [
+            { freq: 261.63, start: 0, dur: 0.15 },      // C4
+            { freq: 329.63, start: 0.15, dur: 0.15 },   // E4
+            { freq: 392.00, start: 0.3, dur: 0.15 },    // G4
+            { freq: 523.25, start: 0.45, dur: 0.4 },    // C5
+        ];
+
+        harmonyNotes.forEach(note => {
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+
+            osc.frequency.value = note.freq;
+            osc.type = 'sine';
+
+            gain.gain.setValueAtTime(0.15, now + note.start);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + note.start + note.dur);
+
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.start(now + note.start);
+            osc.stop(now + note.start + note.dur);
+        });
+
+        // Sparkle/chime overlay
+        for (let i = 0; i < 5; i++) {
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+
+            osc.frequency.value = 2000 + Math.random() * 1500;
+            osc.type = 'sine';
+
+            const delay = 0.5 + i * 0.1;
+            gain.gain.setValueAtTime(0.1, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.15);
+
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.15);
+        }
+    }
+
     setMusicVolume(volume) {
         this.musicVolume = Math.max(0, Math.min(1, volume));
         if (this.musicGain) {

@@ -53,6 +53,10 @@ export class Player {
         this.rainbowShirtMaterials = [];
         this.rainbowOverallsMaterials = [];
 
+        // Celebration animation state
+        this.isCelebrating = false;
+        this.celebrationTimer = 0;
+
         // Create character
         this.createCharacter();
     }
@@ -819,6 +823,77 @@ export class Player {
         }
         if (this.character) {
             this.character.rotation.z = 0;
+        }
+    }
+
+    // Play celebration animation (jumping and cheering at finish line)
+    playCelebration() {
+        if (this.isCelebrating) return;
+        this.isCelebrating = true;
+        this.celebrationTimer = 0;
+
+        const startY = this.position.y;
+        const jumpHeight = 1.5;
+        const duration = 800; // ms
+        const startTime = performance.now();
+
+        const animate = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Jump arc
+            const jumpProgress = Math.sin(progress * Math.PI);
+            this.character.position.y = startY + jumpProgress * jumpHeight + 0.065;
+
+            // Arms up and waving!
+            if (this.leftArm) {
+                this.leftArm.rotation.x = -2.5 + Math.sin(elapsed * 0.02) * 0.3;
+                this.leftArm.rotation.z = 0.3;
+            }
+            if (this.rightArm) {
+                this.rightArm.rotation.x = -2.5 + Math.sin(elapsed * 0.02 + Math.PI) * 0.3;
+                this.rightArm.rotation.z = -0.3;
+            }
+
+            // Happy head bobbing
+            if (this.head) {
+                this.head.rotation.z = Math.sin(elapsed * 0.015) * 0.15;
+                this.head.rotation.x = Math.sin(elapsed * 0.01) * 0.1;
+            }
+
+            // Body twist for excitement
+            if (this.character) {
+                this.character.rotation.y = Math.sin(elapsed * 0.012) * 0.2;
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Reset pose
+                this.resetCelebrationPose();
+                this.isCelebrating = false;
+            }
+        };
+
+        requestAnimationFrame(animate);
+    }
+
+    // Reset pose after celebration
+    resetCelebrationPose() {
+        if (this.leftArm) {
+            this.leftArm.rotation.x = 0;
+            this.leftArm.rotation.z = 0;
+        }
+        if (this.rightArm) {
+            this.rightArm.rotation.x = 0;
+            this.rightArm.rotation.z = 0;
+        }
+        if (this.head) {
+            this.head.rotation.z = 0;
+            this.head.rotation.x = 0;
+        }
+        if (this.character) {
+            this.character.rotation.y = 0;
         }
     }
 

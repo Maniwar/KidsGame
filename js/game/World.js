@@ -2,6 +2,7 @@ import { Obstacle } from './Obstacle.js';
 import { Collectible } from './Collectible.js';
 import { PowerUp } from './PowerUp.js';
 import { Candy } from './Candy.js';
+import { FinishLine } from './FinishLine.js';
 import { GAME_CONFIG } from '../utils/Constants.js';
 
 export class World {
@@ -11,10 +12,16 @@ export class World {
         this.collectibles = [];
         this.powerUps = [];
         this.candies = []; // New candy collectibles!
+        this.finishLines = []; // Milestone finish lines!
 
         this.chunkLength = GAME_CONFIG.CHUNK_LENGTH;
         this.nextChunkZ = -this.chunkLength; // Start ahead of player
         this.chunksGenerated = 0;
+
+        // Finish line configuration
+        this.finishLineInterval = 500; // Distance between finish lines (in game units)
+        this.nextFinishLineZ = -this.finishLineInterval; // First finish line at 500m
+        this.finishLineCount = 0;
 
         // Obstacle types (low = jump, tall = slide)
         this.obstacleTypes = ['low', 'tall'];
@@ -217,6 +224,14 @@ export class World {
             this.generateChunk();
         }
 
+        // Spawn finish lines at regular intervals
+        while (playerZ < this.nextFinishLineZ + 200) {
+            this.finishLineCount++;
+            const finishLine = new FinishLine(this.scene, this.nextFinishLineZ, this.finishLineCount);
+            this.finishLines.push(finishLine);
+            this.nextFinishLineZ -= this.finishLineInterval;
+        }
+
         // PERFORMANCE: In-place removal instead of filter() (avoids new array allocation)
         // Update and cleanup obstacles
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
@@ -262,6 +277,17 @@ export class World {
                 this.candies.pop();
             }
         }
+
+        // Update and cleanup finish lines
+        for (let i = this.finishLines.length - 1; i >= 0; i--) {
+            const finishLine = this.finishLines[i];
+            finishLine.update(deltaTime, playerZ);
+            if (!finishLine.isActive) {
+                finishLine.dispose();
+                this.finishLines[i] = this.finishLines[this.finishLines.length - 1];
+                this.finishLines.pop();
+            }
+        }
     }
 
     getObstacles() {
@@ -280,19 +306,29 @@ export class World {
         return this.candies;
     }
 
+    getFinishLines() {
+        return this.finishLines;
+    }
+
     reset() {
         // Clean up all objects
         this.obstacles.forEach(o => o.dispose());
         this.collectibles.forEach(c => c.dispose());
         this.powerUps.forEach(p => p.dispose());
         this.candies.forEach(c => c.dispose());
+        this.finishLines.forEach(f => f.dispose());
 
         this.obstacles = [];
         this.collectibles = [];
         this.powerUps = [];
         this.candies = [];
+        this.finishLines = [];
         this.nextChunkZ = -this.chunkLength;
         this.chunksGenerated = 0;
+
+        // Reset finish line tracking
+        this.nextFinishLineZ = -this.finishLineInterval;
+        this.finishLineCount = 0;
 
         // Generate initial chunks
         for (let i = 0; i < 3; i++) {

@@ -20,6 +20,10 @@ class Game {
         this.candyCollected = 0;
         this.distance = 0;
 
+        // Finish line tracking
+        this.finishLinesCrossed = 0;
+        this.bestFinishLines = parseInt(localStorage.getItem('bestFinishLines') || '0');
+
         // Input debounce for discrete actions
         this.lastJumpTime = 0;
         this.lastSlideTime = 0;
@@ -552,6 +556,7 @@ class Game {
         this.coins = 0;
         this.candyCollected = 0;
         this.distance = 0;
+        this.finishLinesCrossed = 0; // Reset finish lines for new run
         this.activePowerUps.clear();
         this.coinMultiplier = 1;
         this.hasShield = false;
@@ -621,6 +626,8 @@ class Game {
         document.getElementById('final-coins').textContent = this.coins;
         document.getElementById('final-candies').textContent = this.candyCollected;
         document.getElementById('final-distance').textContent = Math.floor(this.distance) + 'm';
+        document.getElementById('final-milestones').textContent = this.finishLinesCrossed;
+        document.getElementById('best-milestones').textContent = this.bestFinishLines;
 
         // Add collected coins to lifetime total
         if (this.coins > 0) {
@@ -918,6 +925,281 @@ class Game {
             case 'magnet':
                 this.removeMagnetVisual();
                 break;
+        }
+    }
+
+    // Cross a finish line - celebration and rewards!
+    crossFinishLine(finishLine) {
+        finishLine.markCrossed();
+        this.finishLinesCrossed++;
+
+        // Update best record
+        if (this.finishLinesCrossed > this.bestFinishLines) {
+            this.bestFinishLines = this.finishLinesCrossed;
+            localStorage.setItem('bestFinishLines', this.bestFinishLines.toString());
+        }
+
+        // Award bonus coins
+        const bonusCoins = finishLine.getBonusCoins();
+        const sugarMultiplier = this.getSugarRushMultiplier();
+        this.coins += bonusCoins * sugarMultiplier;
+        this.score += bonusCoins * 10 * sugarMultiplier;
+
+        // Play celebration fanfare
+        this.audio.playFinishLineFanfare();
+
+        // Player celebration animation (jump and cheer!)
+        this.player.playCelebration();
+
+        // Create confetti explosion
+        this.createFinishLineConfetti();
+
+        // Pause game and show milestone screen with outfit options
+        this.showMilestoneScreen(finishLine.lineNumber, bonusCoins * sugarMultiplier);
+    }
+
+    // Show milestone screen with outfit change options
+    showMilestoneScreen(mileNumber, bonusCoins) {
+        // Pause the game
+        this.isPaused = true;
+
+        // Create milestone screen
+        const screen = document.createElement('div');
+        screen.id = 'milestone-screen';
+        screen.className = 'milestone-screen';
+
+        // Get current equipped items for display
+        const equipped = this.cosmeticShop.getEquippedColors();
+
+        screen.innerHTML = `
+            <div class="milestone-content">
+                <div class="milestone-header">
+                    <div class="milestone-banner">🏁 MILE ${mileNumber} COMPLETE! 🏁</div>
+                    <div class="milestone-bonus">+${Math.floor(bonusCoins)} coins!</div>
+                    <div class="milestone-total">Total: ${Math.floor(this.coins)} coins</div>
+                </div>
+
+                <div class="milestone-outfit-section">
+                    <h3>🎀 Quick Outfit Change 🎀</h3>
+                    <div class="milestone-outfit-slots">
+                        <div class="milestone-slot" data-slot="shirt">
+                            <div class="slot-label">Shirt</div>
+                            <div class="slot-options" id="milestone-shirts"></div>
+                        </div>
+                        <div class="milestone-slot" data-slot="overalls">
+                            <div class="slot-label">Overalls</div>
+                            <div class="slot-options" id="milestone-overalls"></div>
+                        </div>
+                        <div class="milestone-slot" data-slot="bow">
+                            <div class="slot-label">Bow</div>
+                            <div class="slot-options" id="milestone-bows"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="milestone-continue-btn">Continue Running! ▶</button>
+                <div class="milestone-hint">Best: ${this.bestFinishLines} miles</div>
+            </div>
+        `;
+
+        document.body.appendChild(screen);
+
+        // Populate outfit options (only owned items)
+        this.populateMilestoneOutfits();
+
+        // Show with animation
+        setTimeout(() => screen.classList.add('show'), 10);
+
+        // Continue button
+        screen.querySelector('.milestone-continue-btn').addEventListener('click', () => {
+            this.closeMilestoneScreen();
+        });
+
+        // Also allow spacebar/enter to continue
+        this.milestoneKeyHandler = (e) => {
+            if (e.code === 'Space' || e.code === 'Enter') {
+                e.preventDefault();
+                this.closeMilestoneScreen();
+            }
+        };
+        document.addEventListener('keydown', this.milestoneKeyHandler);
+    }
+
+    // Populate outfit options in milestone screen
+    populateMilestoneOutfits() {
+        const slots = ['shirt', 'overalls', 'bow'];
+        const containers = {
+            shirt: document.getElementById('milestone-shirts'),
+            overalls: document.getElementById('milestone-overalls'),
+            bow: document.getElementById('milestone-bows')
+        };
+
+        slots.forEach(slot => {
+            const container = containers[slot];
+            if (!container) return;
+
+            const items = this.cosmeticShop.getItemsBySlot(slot);
+            const equippedId = this.playerData.getEquippedItem(slot);
+
+            items.forEach(item => {
+                if (!this.playerData.isItemUnlocked(item.id)) return; // Only show owned
+
+                const option = document.createElement('div');
+                option.className = 'milestone-outfit-option';
+                if (item.id === equippedId) option.classList.add('equipped');
+
+                if (item.id.startsWith('none_')) {
+                    option.classList.add('no-clothes');
+                    option.textContent = '✕';
+                } else if (item.isRainbow) {
+                    option.classList.add('rainbow');
+                } else {
+                    option.style.backgroundColor = '#' + item.color.toString(16).padStart(6, '0');
+                }
+
+                option.addEventListener('click', () => {
+                    // Equip item
+                    this.playerData.equipItem(slot, item.id);
+                    this.audio.playEquipSound();
+
+                    // Update player appearance
+                    const colors = this.cosmeticShop.getEquippedColors();
+                    this.player.setOutfitColors(colors);
+
+                    // Update UI
+                    container.querySelectorAll('.milestone-outfit-option').forEach(opt => {
+                        opt.classList.remove('equipped');
+                    });
+                    option.classList.add('equipped');
+                });
+
+                container.appendChild(option);
+            });
+        });
+    }
+
+    // Close milestone screen and resume game with countdown
+    closeMilestoneScreen() {
+        const screen = document.getElementById('milestone-screen');
+        if (screen) {
+            screen.classList.remove('show');
+            setTimeout(() => screen.remove(), 300);
+        }
+
+        if (this.milestoneKeyHandler) {
+            document.removeEventListener('keydown', this.milestoneKeyHandler);
+            this.milestoneKeyHandler = null;
+        }
+
+        // Show countdown before resuming
+        this.showResumeCountdown();
+    }
+
+    // Show 3-2-1 countdown before resuming
+    showResumeCountdown() {
+        const countdown = document.createElement('div');
+        countdown.className = 'resume-countdown';
+        document.body.appendChild(countdown);
+
+        let count = 3;
+
+        const tick = () => {
+            if (count > 0) {
+                countdown.textContent = count;
+                countdown.classList.remove('pulse');
+                void countdown.offsetWidth; // Trigger reflow
+                countdown.classList.add('pulse');
+                this.audio.playCoinSound(); // Quick beep
+                count--;
+                setTimeout(tick, 700);
+            } else {
+                countdown.textContent = 'GO!';
+                countdown.classList.add('go');
+                this.audio.playPowerUpSound(); // Exciting sound
+
+                setTimeout(() => {
+                    countdown.remove();
+                    // Resume game
+                    this.isPaused = false;
+                    this.lastTime = performance.now();
+                }, 500);
+            }
+        };
+
+        setTimeout(tick, 300);
+    }
+
+    // Create confetti explosion at finish line
+    createFinishLineConfetti() {
+        const playerPos = this.player.getPosition();
+        const confettiCount = 50;
+        const colors = [0xFF69B4, 0xFFD700, 0x00FFFF, 0xFF6B6B, 0x98FB98, 0xDDA0DD];
+
+        for (let i = 0; i < confettiCount; i++) {
+            const geometry = new THREE.PlaneGeometry(0.15, 0.15);
+            const material = new THREE.MeshBasicMaterial({
+                color: colors[Math.floor(Math.random() * colors.length)],
+                side: THREE.DoubleSide
+            });
+            const confetti = new THREE.Mesh(geometry, material);
+
+            confetti.position.set(
+                playerPos.x + (Math.random() - 0.5) * 6,
+                3 + Math.random() * 3,
+                playerPos.z + (Math.random() - 0.5) * 4
+            );
+
+            confetti.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+
+            confetti.userData = {
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 4,
+                    Math.random() * 3 + 2,
+                    (Math.random() - 0.5) * 4
+                ),
+                rotationSpeed: new THREE.Vector3(
+                    Math.random() * 5,
+                    Math.random() * 5,
+                    Math.random() * 5
+                ),
+                lifetime: 0
+            };
+
+            this.gameScene.scene.add(confetti);
+
+            // Animate confetti
+            const animateConfetti = () => {
+                confetti.userData.lifetime += 0.016;
+                if (confetti.userData.lifetime > 2) {
+                    this.gameScene.scene.remove(confetti);
+                    geometry.dispose();
+                    material.dispose();
+                    return;
+                }
+
+                // Physics
+                confetti.userData.velocity.y -= 0.1; // Gravity
+                confetti.position.add(confetti.userData.velocity.clone().multiplyScalar(0.016));
+
+                // Rotation
+                confetti.rotation.x += confetti.userData.rotationSpeed.x * 0.016;
+                confetti.rotation.y += confetti.userData.rotationSpeed.y * 0.016;
+                confetti.rotation.z += confetti.userData.rotationSpeed.z * 0.016;
+
+                // Fade out
+                if (confetti.userData.lifetime > 1.5) {
+                    material.opacity = 1 - (confetti.userData.lifetime - 1.5) * 2;
+                    material.transparent = true;
+                }
+
+                requestAnimationFrame(animateConfetti);
+            };
+
+            requestAnimationFrame(animateConfetti);
         }
     }
 
@@ -1781,6 +2063,15 @@ class Game {
                 const sugarMultiplier = this.getSugarRushMultiplier();
                 const candyScoreBonus = meterValue * 2 * sugarMultiplier;
                 this.score += candyScoreBonus;
+            }
+        }
+
+        // Check finish line crossings - milestone rewards!
+        const finishLines = this.world.getFinishLines();
+        for (const finishLine of finishLines) {
+            if (finishLine.isCrossed) continue;
+            if (finishLine.checkCrossing(playerZ)) {
+                this.crossFinishLine(finishLine);
             }
         }
 

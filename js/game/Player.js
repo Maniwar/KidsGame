@@ -863,14 +863,14 @@ export class Player {
             this.character.position.y = startY + jumpY + 0.065;
 
             // Arms raised HIGH over head and waving!
-            // rotation.x of -3.14 (negative PI) points arms straight up
+            // rotation.x of -PI points arms straight up (from hanging down to pointing up)
             if (this.leftArm) {
-                this.leftArm.rotation.x = -3.0 + Math.sin(elapsed * 0.015) * 0.25;
-                this.leftArm.rotation.z = 0.4; // Spread outward slightly
+                this.leftArm.rotation.x = -Math.PI + Math.sin(elapsed * 0.015) * 0.25;
+                this.leftArm.rotation.z = -0.5; // Tilt outward (away from body)
             }
             if (this.rightArm) {
-                this.rightArm.rotation.x = -3.0 + Math.sin(elapsed * 0.015 + Math.PI) * 0.25;
-                this.rightArm.rotation.z = -0.4; // Spread outward slightly
+                this.rightArm.rotation.x = -Math.PI + Math.sin(elapsed * 0.015 + Math.PI) * 0.25;
+                this.rightArm.rotation.z = 0.5; // Tilt outward (away from body)
             }
 
             // Happy head bobbing

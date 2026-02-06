@@ -33,6 +33,12 @@ export class GameCamera {
             return;
         }
 
+        // If in return camera mode (spinning back during countdown)
+        if (this.isReturnCamera && this.returnCameraTarget) {
+            this.updateReturnCamera();
+            return;
+        }
+
         // If in celebration camera mode, orbit around character
         if (this.isCelebrationCamera && this.celebrationCameraTarget) {
             this.updateCelebrationCamera();
@@ -195,6 +201,7 @@ export class GameCamera {
     // Reset celebration camera back to normal gameplay position
     resetCelebrationCamera(playerPosition) {
         this.isCelebrationCamera = false;
+        this.isReturnCamera = false;
         this.celebrationCameraTarget = null;
 
         // If player position provided, snap camera to correct gameplay position
@@ -212,6 +219,74 @@ export class GameCamera {
             );
             this.camera.lookAt(lookAt);
         }
+    }
+
+    // Start spinning camera back to behind Kitty (during countdown)
+    startReturnCamera(playerPosition) {
+        this.isCelebrationCamera = false; // Stop celebration sway
+        this.isReturnCamera = true;
+        this.returnCameraTarget = playerPosition.clone();
+        this.returnCameraStartTime = performance.now();
+        this.returnCameraDuration = 2100; // Match 3-2-1 countdown timing (3 x 700ms)
+
+        // Start from in-front position (where celebration ends)
+        this.returnStartRadius = this.celebrationEndRadius || 4;
+        this.returnStartHeight = this.celebrationEndHeight || 1.5;
+
+        // End at gameplay camera position (behind and above)
+        this.returnEndRadius = 5; // Distance behind player
+        this.returnEndHeight = 5; // cameraOffset.y
+
+        // Start looking at Kitty, transition to looking ahead
+        this.returnStartLookAt = new THREE.Vector3(
+            playerPosition.x,
+            playerPosition.y + 1.0,
+            playerPosition.z
+        );
+        this.returnEndLookAt = new THREE.Vector3(
+            playerPosition.x + this.lookAtOffset.x,
+            playerPosition.y + this.lookAtOffset.y,
+            playerPosition.z + this.lookAtOffset.z
+        );
+    }
+
+    updateReturnCamera() {
+        if (!this.isReturnCamera) return false;
+
+        const elapsed = performance.now() - this.returnCameraStartTime;
+        const progress = Math.min(elapsed / this.returnCameraDuration, 1);
+
+        // Smooth easing
+        const easeInOutCubic = progress < 0.5
+            ? 4 * progress * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+        // Spin from front (PI) back to behind (0)
+        // angle: PI (in front) -> 0 (behind)
+        const angle = Math.PI * (1 - easeInOutCubic);
+        const radius = this.returnStartRadius + easeInOutCubic * (this.returnEndRadius - this.returnStartRadius);
+        const height = this.returnStartHeight + easeInOutCubic * (this.returnEndHeight - this.returnStartHeight);
+
+        const camX = this.returnCameraTarget.x + Math.sin(angle) * radius;
+        const camY = this.returnCameraTarget.y + height;
+        const camZ = this.returnCameraTarget.z + Math.cos(angle) * radius;
+
+        this.camera.position.set(camX, camY, camZ);
+
+        // Interpolate lookAt from Kitty to ahead
+        const lookAt = new THREE.Vector3().lerpVectors(
+            this.returnStartLookAt,
+            this.returnEndLookAt,
+            easeInOutCubic
+        );
+        this.camera.lookAt(lookAt);
+
+        // When complete, camera is in gameplay position
+        if (progress >= 1) {
+            this.isReturnCamera = false;
+        }
+
+        return true;
     }
 
     handleResize() {

@@ -1104,6 +1104,9 @@ class Game {
         countdown.className = 'resume-countdown';
         document.body.appendChild(countdown);
 
+        // Start camera spinning back to behind Kitty during countdown
+        this.camera.startReturnCamera(this.player.getPosition());
+
         let count = 3;
 
         const tick = () => {
@@ -1120,8 +1123,7 @@ class Game {
                 countdown.classList.add('go');
                 this.audio.playPowerUpSound(); // Exciting sound
 
-                // Reset celebration camera and animation NOW (at GO!)
-                this.camera.resetCelebrationCamera(this.player.getPosition());
+                // Stop celebration animation at GO!
                 this.player.stopCelebration();
 
                 setTimeout(() => {

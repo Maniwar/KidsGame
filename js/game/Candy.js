@@ -834,14 +834,15 @@ export class Candy {
         rind.position.set(0.07, 0, 0);
         watermelonGroup.add(rind);
 
-        // Black seeds - larger and more visible, on front face
+        // Black seeds - added as children of flesh so they rotate with it
         const seedGeometry = new THREE.SphereGeometry(0.025, 6, 6);
         const seedMaterial = new THREE.MeshStandardMaterial({
             color: 0x1a1a1a, // True black
             roughness: 0.3,
         });
 
-        // Seeds positioned on the front face (z = depth/2 + small offset)
+        // Seeds positioned in flesh's local coordinates (before rotation)
+        // Shape is in XY plane, extruded in Z. Front face is at z = depth (0.14)
         const seedPositions = [
             { x: 0.12, y: 0.06 },
             { x: 0.20, y: -0.04 },
@@ -849,27 +850,25 @@ export class Candy {
             { x: 0.25, y: 0.08 },
             { x: 0.10, y: -0.02 },
             { x: 0.22, y: 0.00 },
-            { x: 0.15, y: 0.12 },
+            { x: 0.15, y: 0.10 },
         ];
 
+        // Add seeds on front face (z = depth + tiny offset)
         seedPositions.forEach(pos => {
             const seed = new THREE.Mesh(seedGeometry, seedMaterial);
-            // Position on front face, slightly protruding
-            seed.position.set(pos.x, pos.y, 0.08);
+            seed.position.set(pos.x, pos.y, 0.15); // Just past the front face
             seed.scale.set(0.8, 1.8, 0.6); // Teardrop shape
-            seed.rotation.x = Math.PI / 6; // Tilt forward to be more visible
             seed.rotation.z = Math.random() * 0.6 - 0.3;
-            watermelonGroup.add(seed);
+            flesh.add(seed); // Add to flesh so it rotates with the slice
         });
 
-        // Also add seeds on back face
+        // Add seeds on back face (z = small negative)
         seedPositions.slice(0, 4).forEach(pos => {
             const seed = new THREE.Mesh(seedGeometry, seedMaterial);
             seed.position.set(pos.x + 0.02, pos.y - 0.02, -0.01);
             seed.scale.set(0.8, 1.8, 0.6);
-            seed.rotation.x = -Math.PI / 6;
             seed.rotation.z = Math.random() * 0.6 - 0.3;
-            watermelonGroup.add(seed);
+            flesh.add(seed);
         });
 
         this.mesh = watermelonGroup;

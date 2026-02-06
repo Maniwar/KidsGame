@@ -138,27 +138,24 @@ export class GameCamera {
         this.deathCameraCallback = null;
     }
 
-    // Celebration camera - swings around to see Kitty's face celebrating
+    // Celebration camera - spins around to see Kitty's face celebrating (like death camera)
     startCelebrationCamera(playerPosition) {
         this.isCelebrationCamera = true;
         this.celebrationCameraTarget = playerPosition.clone();
         this.celebrationCameraStartTime = performance.now();
-        this.celebrationCameraDuration = 800; // Quick swing to front
+        this.celebrationCameraDuration = 1000; // 1 second spin
 
-        // Start position (behind player in running direction)
-        this.celebrationCameraStartPos = this.camera.position.clone();
-
-        // End position: BEHIND Kitty (positive Z) to see her FACE as she faces forward
+        // End position: In front of Kitty to see her face
         this.celebrationCameraEndPos = new THREE.Vector3(
             playerPosition.x,
             playerPosition.y + 1.5, // At face height
-            playerPosition.z + 4    // Behind her (she runs in -Z direction)
+            playerPosition.z + 4    // In front (positive Z since she faces -Z)
         );
 
         // Look at Kitty's face/upper body
         this.celebrationLookAt = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.2, // Face height
+            playerPosition.y + 1.0, // Face height
             playerPosition.z
         );
     }
@@ -173,29 +170,29 @@ export class GameCamera {
         const easeOutCubic = 1 - Math.pow(1 - progress, 3);
 
         if (progress < 1) {
-            // Swing from gameplay position to in front of Kitty's face
-            // Start behind (positive Z offset), swing to face her
-            const startZ = this.celebrationCameraTarget.z + 5; // Start behind
-            const endZ = this.celebrationCameraTarget.z + 4;   // End slightly behind to see face
-            const startY = this.celebrationCameraTarget.y + 3;
-            const endY = this.celebrationCameraTarget.y + 1.5;
+            // Spin around from behind to front (like death camera)
+            const angle = Math.PI * easeOutCubic; // 0 to 180 degrees
+            const radius = 5 - easeOutCubic * 1.0; // Start far, end closer
+            const height = 3 - easeOutCubic * 1.5; // Start high, end at face level
 
-            const camZ = startZ + (endZ - startZ) * easeOutCubic;
-            const camY = startY + (endY - startY) * easeOutCubic;
+            const camX = this.celebrationCameraTarget.x + Math.sin(angle) * radius;
+            const camY = this.celebrationCameraTarget.y + height;
+            const camZ = this.celebrationCameraTarget.z + Math.cos(angle) * radius;
 
-            this.camera.position.set(this.celebrationCameraTarget.x, camY, camZ);
+            this.camera.position.set(camX, camY, camZ);
             this.camera.lookAt(this.celebrationLookAt);
         } else {
             // Gentle sway while showing celebration
             const idleTime = (elapsed - this.celebrationCameraDuration) * 0.001;
 
-            const swayX = Math.sin(idleTime * 0.8) * 0.3;
-            const swayY = Math.sin(idleTime * 0.5) * 0.1;
+            const swayX = Math.sin(idleTime * 0.8) * 0.4;
+            const swayY = Math.sin(idleTime * 0.5) * 0.15;
+            const swayZ = Math.cos(idleTime * 0.6) * 0.2;
 
             this.camera.position.set(
                 this.celebrationCameraEndPos.x + swayX,
                 this.celebrationCameraEndPos.y + swayY,
-                this.celebrationCameraEndPos.z
+                this.celebrationCameraEndPos.z + swayZ
             );
             this.camera.lookAt(this.celebrationLookAt);
         }
@@ -203,10 +200,26 @@ export class GameCamera {
         return true;
     }
 
-    // Reset celebration camera back to normal
-    resetCelebrationCamera() {
+    // Reset celebration camera back to normal gameplay position
+    resetCelebrationCamera(playerPosition) {
         this.isCelebrationCamera = false;
         this.celebrationCameraTarget = null;
+
+        // If player position provided, snap camera to correct gameplay position
+        if (playerPosition) {
+            this.camera.position.set(
+                playerPosition.x + this.cameraOffset.x,
+                playerPosition.y + this.cameraOffset.y,
+                playerPosition.z + this.cameraOffset.z
+            );
+            // Look at point ahead of player
+            const lookAt = new THREE.Vector3(
+                playerPosition.x + this.lookAtOffset.x,
+                playerPosition.y + this.lookAtOffset.y,
+                playerPosition.z + this.lookAtOffset.z
+            );
+            this.camera.lookAt(lookAt);
+        }
     }
 
     handleResize() {

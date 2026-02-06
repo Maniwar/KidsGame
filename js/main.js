@@ -1080,8 +1080,8 @@ class Game {
             this.milestoneKeyHandler = null;
         }
 
-        // Reset celebration
-        this.camera.resetCelebrationCamera();
+        // Reset celebration and camera to gameplay position
+        this.camera.resetCelebrationCamera(this.player.getPosition());
         this.player.stopCelebration();
 
         if (openShop) {

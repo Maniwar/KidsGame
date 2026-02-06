@@ -22,7 +22,7 @@ class Game {
 
         // Finish line tracking
         this.finishLinesCrossed = 0;
-        this.bestFinishLines = parseInt(localStorage.getItem('bestFinishLines') || '0');
+        this.bestFinishLines = 0; // Will be loaded from playerData after init
 
         // Input debounce for discrete actions
         this.lastJumpTime = 0;
@@ -167,6 +167,10 @@ class Game {
         try {
             await this.playerData.init();
             console.log('Player data initialized, total coins:', this.playerData.getTotalCoins());
+
+            // Load best milestones from synced data
+            this.bestFinishLines = this.playerData.getBestMilestones();
+            console.log('Best milestones loaded:', this.bestFinishLines);
 
             // Update player outfit with equipped cosmetics
             const colors = this.cosmeticShop.getEquippedColors();
@@ -939,10 +943,10 @@ class Game {
         finishLine.markCrossed();
         this.finishLinesCrossed++;
 
-        // Update best record
+        // Update best record (synced to Firebase)
         if (this.finishLinesCrossed > this.bestFinishLines) {
             this.bestFinishLines = this.finishLinesCrossed;
-            localStorage.setItem('bestFinishLines', this.bestFinishLines.toString());
+            this.playerData.updateBestMilestones(this.bestFinishLines);
         }
 
         // Award bonus coins

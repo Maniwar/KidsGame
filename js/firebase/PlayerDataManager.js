@@ -18,6 +18,7 @@ export class PlayerDataManager {
     getDefaultData() {
         return {
             totalCoins: 0,
+            bestMilestones: 0, // Best milestone count (synced across devices)
             // Default items are free: default outfit + no-clothes options + default bow
             unlockedItems: ['yellow_shirt', 'blue_overalls', 'red_bow', 'none_shirt', 'none_overalls'],
             equippedItems: {
@@ -149,6 +150,7 @@ export class PlayerDataManager {
 
             // Merge data (take the best of both)
             this.data.totalCoins = Math.max(this.data.totalCoins, remoteData.totalCoins || 0);
+            this.data.bestMilestones = Math.max(this.data.bestMilestones || 0, remoteData.bestMilestones || 0);
 
             // Merge unlocked items
             const remoteUnlocked = remoteData.unlockedItems || [];
@@ -192,8 +194,9 @@ export class PlayerDataManager {
     // Check if player has made progress worth saving
     checkHasProgress() {
         const defaults = this.getDefaultData();
-        // Has progress if coins > 0 or has more items than default
+        // Has progress if coins > 0, milestones > 0, or has more items than default
         this.hasProgress = this.data.totalCoins > 0 ||
+            (this.data.bestMilestones || 0) > 0 ||
             this.data.unlockedItems.length > defaults.unlockedItems.length;
         return this.hasProgress;
     }
@@ -253,8 +256,9 @@ export class PlayerDataManager {
 
             if (snapshot.exists()) {
                 const remoteData = snapshot.val();
-                // Merge: take the higher coin count, union of unlocked items
+                // Merge: take the higher values, union of unlocked items
                 this.data.totalCoins = Math.max(this.data.totalCoins, remoteData.totalCoins || 0);
+                this.data.bestMilestones = Math.max(this.data.bestMilestones || 0, remoteData.bestMilestones || 0);
 
                 // Merge unlocked items (union)
                 const remoteUnlocked = remoteData.unlockedItems || [];
@@ -366,6 +370,23 @@ export class PlayerDataManager {
     // Get total lifetime coins
     getTotalCoins() {
         return this.data.totalCoins;
+    }
+
+    // Get best milestones (synced across devices)
+    getBestMilestones() {
+        return this.data.bestMilestones || 0;
+    }
+
+    // Update best milestones if new value is higher
+    updateBestMilestones(count) {
+        if (count > (this.data.bestMilestones || 0)) {
+            this.data.bestMilestones = count;
+            this.hasProgress = true;
+            this.saveToFirebase();
+            this.notifyListeners();
+            return true;
+        }
+        return false;
     }
 
     // Spend coins (returns true if successful)

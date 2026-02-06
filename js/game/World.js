@@ -20,7 +20,7 @@ export class World {
 
         // Finish line configuration - progressive difficulty
         this.baseFinishLineInterval = 300; // First finish line at 300m
-        this.finishLineIntervalIncrease = 100; // Each subsequent milestone is 100m further
+        this.finishLineIntervalIncrease = 250; // Each subsequent milestone is 250m further (300, 550, 800, 1050...)
         this.nextFinishLineZ = -this.baseFinishLineInterval; // First finish line at 300m
         this.finishLineCount = 0;
 

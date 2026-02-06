@@ -827,25 +827,27 @@ export class Player {
     }
 
     // Play celebration animation (jumping and cheering at finish line)
+    // Loops continuously until stopCelebration() is called
     playCelebration() {
         if (this.isCelebrating) return;
         this.isCelebrating = true;
-        this.celebrationTimer = 0;
+        this.celebrationStartTime = performance.now();
 
-        const startY = this.position.y;
-        const jumpHeight = 1.5;
-        const duration = 800; // ms
-        const startTime = performance.now();
+        const startY = 0; // Ground level
+        const jumpHeight = 1.0;
+        const jumpDuration = 600; // ms per jump cycle
 
         const animate = () => {
-            const elapsed = performance.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
+            if (!this.isCelebrating) return; // Stop if celebration ended
 
-            // Jump arc
-            const jumpProgress = Math.sin(progress * Math.PI);
+            const elapsed = performance.now() - this.celebrationStartTime;
+
+            // Continuous jumping - loop the jump animation
+            const jumpCycle = (elapsed % jumpDuration) / jumpDuration;
+            const jumpProgress = Math.sin(jumpCycle * Math.PI);
             this.character.position.y = startY + jumpProgress * jumpHeight + 0.065;
 
-            // Arms up and waving!
+            // Arms up and waving continuously!
             if (this.leftArm) {
                 this.leftArm.rotation.x = -2.5 + Math.sin(elapsed * 0.02) * 0.3;
                 this.leftArm.rotation.z = 0.3;
@@ -866,13 +868,8 @@ export class Player {
                 this.character.rotation.y = Math.sin(elapsed * 0.012) * 0.2;
             }
 
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                // Reset pose
-                this.resetCelebrationPose();
-                this.isCelebrating = false;
-            }
+            // Keep animating while celebrating
+            requestAnimationFrame(animate);
         };
 
         requestAnimationFrame(animate);
@@ -893,8 +890,15 @@ export class Player {
             this.head.rotation.x = 0;
         }
         if (this.character) {
+            this.character.rotation.x = 0;
             this.character.rotation.y = 0;
             this.character.rotation.z = 0;
+            this.character.position.y = 0.065; // Reset to ground level
+        }
+        if (this.group) {
+            this.group.rotation.x = 0;
+            this.group.rotation.y = 0;
+            this.group.rotation.z = 0;
         }
     }
 
@@ -902,6 +906,8 @@ export class Player {
     stopCelebration() {
         this.isCelebrating = false;
         this.resetCelebrationPose();
+        // Also reset position Y to ground
+        this.position.y = 0;
     }
 
     playDeathAnimation(callback, options = {}) {

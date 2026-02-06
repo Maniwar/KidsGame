@@ -1218,3 +1218,68 @@ input:checked + .toggle-slider:before {
 .restore-status.loading {
     color: #FFD700;
 }
+
+/* Milestone Finish Line Popup */
+.milestone-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%);
+    border: 4px solid #FFFFFF;
+    border-radius: 20px;
+    padding: 25px 40px;
+    text-align: center;
+    z-index: 1000;
+    box-shadow:
+        0 0 30px rgba(255, 215, 0, 0.8),
+        0 0 60px rgba(255, 165, 0, 0.5),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
+    opacity: 0;
+    transition: all 0.3s ease-out;
+    pointer-events: none;
+}
+
+.milestone-popup.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.milestone-banner {
+    font-size: 32px;
+    font-weight: bold;
+    color: #FFFFFF;
+    text-shadow:
+        2px 2px 0 #FF6B6B,
+        -2px -2px 0 #FF6B6B,
+        2px -2px 0 #FF6B6B,
+        -2px 2px 0 #FF6B6B,
+        0 0 10px rgba(255, 107, 107, 0.8);
+    margin-bottom: 10px;
+    animation: milestoneGlow 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes milestoneGlow {
+    from { text-shadow: 2px 2px 0 #FF6B6B, -2px -2px 0 #FF6B6B, 2px -2px 0 #FF6B6B, -2px 2px 0 #FF6B6B, 0 0 10px rgba(255, 107, 107, 0.8); }
+    to { text-shadow: 2px 2px 0 #FF6B6B, -2px -2px 0 #FF6B6B, 2px -2px 0 #FF6B6B, -2px 2px 0 #FF6B6B, 0 0 25px rgba(255, 107, 107, 1); }
+}
+
+.milestone-bonus {
+    font-size: 24px;
+    font-weight: bold;
+    color: #228B22;
+    text-shadow: 1px 1px 0 #FFFFFF;
+    margin-bottom: 8px;
+}
+
+.milestone-record {
+    font-size: 16px;
+    color: #8B4513;
+    font-weight: bold;
+}
+
+/* Milestone best display in game over */
+.milestone-best {
+    color: #FFD700;
+    font-size: 0.85em;
+}

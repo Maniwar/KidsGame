@@ -20,6 +20,10 @@ class Game {
         this.candyCollected = 0;
         this.distance = 0;
 
+        // Finish line tracking
+        this.finishLinesCrossed = 0;
+        this.bestFinishLines = parseInt(localStorage.getItem('bestFinishLines') || '0');
+
         // Input debounce for discrete actions
         this.lastJumpTime = 0;
         this.lastSlideTime = 0;
@@ -552,6 +556,7 @@ class Game {
         this.coins = 0;
         this.candyCollected = 0;
         this.distance = 0;
+        this.finishLinesCrossed = 0; // Reset finish lines for new run
         this.activePowerUps.clear();
         this.coinMultiplier = 1;
         this.hasShield = false;
@@ -621,6 +626,8 @@ class Game {
         document.getElementById('final-coins').textContent = this.coins;
         document.getElementById('final-candies').textContent = this.candyCollected;
         document.getElementById('final-distance').textContent = Math.floor(this.distance) + 'm';
+        document.getElementById('final-milestones').textContent = this.finishLinesCrossed;
+        document.getElementById('best-milestones').textContent = this.bestFinishLines;
 
         // Add collected coins to lifetime total
         if (this.coins > 0) {
@@ -918,6 +925,130 @@ class Game {
             case 'magnet':
                 this.removeMagnetVisual();
                 break;
+        }
+    }
+
+    // Cross a finish line - celebration and rewards!
+    crossFinishLine(finishLine) {
+        finishLine.markCrossed();
+        this.finishLinesCrossed++;
+
+        // Update best record
+        if (this.finishLinesCrossed > this.bestFinishLines) {
+            this.bestFinishLines = this.finishLinesCrossed;
+            localStorage.setItem('bestFinishLines', this.bestFinishLines.toString());
+        }
+
+        // Award bonus coins
+        const bonusCoins = finishLine.getBonusCoins();
+        const sugarMultiplier = this.getSugarRushMultiplier();
+        this.coins += bonusCoins * sugarMultiplier;
+        this.score += bonusCoins * 10 * sugarMultiplier;
+
+        // Play celebration fanfare
+        this.audio.playFinishLineFanfare();
+
+        // Player celebration animation (jump and cheer!)
+        this.player.playCelebration();
+
+        // Show milestone popup
+        this.showMilestonePopup(finishLine.lineNumber, bonusCoins * sugarMultiplier);
+
+        // Create confetti explosion
+        this.createFinishLineConfetti();
+    }
+
+    // Show milestone achievement popup
+    showMilestonePopup(mileNumber, bonusCoins) {
+        // Create popup element
+        const popup = document.createElement('div');
+        popup.className = 'milestone-popup';
+        popup.innerHTML = `
+            <div class="milestone-banner">🏁 MILE ${mileNumber}! 🏁</div>
+            <div class="milestone-bonus">+${Math.floor(bonusCoins)} coins!</div>
+            <div class="milestone-record">Best: ${this.bestFinishLines} miles</div>
+        `;
+        document.body.appendChild(popup);
+
+        // Animate and remove
+        setTimeout(() => popup.classList.add('show'), 10);
+        setTimeout(() => {
+            popup.classList.remove('show');
+            setTimeout(() => popup.remove(), 500);
+        }, 2000);
+    }
+
+    // Create confetti explosion at finish line
+    createFinishLineConfetti() {
+        const playerPos = this.player.getPosition();
+        const confettiCount = 50;
+        const colors = [0xFF69B4, 0xFFD700, 0x00FFFF, 0xFF6B6B, 0x98FB98, 0xDDA0DD];
+
+        for (let i = 0; i < confettiCount; i++) {
+            const geometry = new THREE.PlaneGeometry(0.15, 0.15);
+            const material = new THREE.MeshBasicMaterial({
+                color: colors[Math.floor(Math.random() * colors.length)],
+                side: THREE.DoubleSide
+            });
+            const confetti = new THREE.Mesh(geometry, material);
+
+            confetti.position.set(
+                playerPos.x + (Math.random() - 0.5) * 6,
+                3 + Math.random() * 3,
+                playerPos.z + (Math.random() - 0.5) * 4
+            );
+
+            confetti.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+
+            confetti.userData = {
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 4,
+                    Math.random() * 3 + 2,
+                    (Math.random() - 0.5) * 4
+                ),
+                rotationSpeed: new THREE.Vector3(
+                    Math.random() * 5,
+                    Math.random() * 5,
+                    Math.random() * 5
+                ),
+                lifetime: 0
+            };
+
+            this.gameScene.scene.add(confetti);
+
+            // Animate confetti
+            const animateConfetti = () => {
+                confetti.userData.lifetime += 0.016;
+                if (confetti.userData.lifetime > 2) {
+                    this.gameScene.scene.remove(confetti);
+                    geometry.dispose();
+                    material.dispose();
+                    return;
+                }
+
+                // Physics
+                confetti.userData.velocity.y -= 0.1; // Gravity
+                confetti.position.add(confetti.userData.velocity.clone().multiplyScalar(0.016));
+
+                // Rotation
+                confetti.rotation.x += confetti.userData.rotationSpeed.x * 0.016;
+                confetti.rotation.y += confetti.userData.rotationSpeed.y * 0.016;
+                confetti.rotation.z += confetti.userData.rotationSpeed.z * 0.016;
+
+                // Fade out
+                if (confetti.userData.lifetime > 1.5) {
+                    material.opacity = 1 - (confetti.userData.lifetime - 1.5) * 2;
+                    material.transparent = true;
+                }
+
+                requestAnimationFrame(animateConfetti);
+            };
+
+            requestAnimationFrame(animateConfetti);
         }
     }
 
@@ -1781,6 +1912,15 @@ class Game {
                 const sugarMultiplier = this.getSugarRushMultiplier();
                 const candyScoreBonus = meterValue * 2 * sugarMultiplier;
                 this.score += candyScoreBonus;
+            }
+        }
+
+        // Check finish line crossings - milestone rewards!
+        const finishLines = this.world.getFinishLines();
+        for (const finishLine of finishLines) {
+            if (finishLine.isCrossed) continue;
+            if (finishLine.checkCrossing(playerZ)) {
+                this.crossFinishLine(finishLine);
             }
         }
 

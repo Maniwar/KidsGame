@@ -29,7 +29,7 @@ export class World {
         this.collectibleTypes = ['coin', 'blue-gem', 'pink-gem'];
         this.powerUpTypes = ['magnet', 'shield', 'speed', 'multiplier', 'flight', 'giant'];
         // Candy types - different sweets to collect!
-        this.candyTypes = ['lollipop', 'wrapped-candy', 'cupcake', 'donut', 'ice-cream', 'strawberry', 'cherry', 'cake', 'cake-slice', 'star-cookie'];
+        this.candyTypes = ['lollipop', 'wrapped-candy', 'cupcake', 'donut', 'ice-cream', 'strawberry', 'cherry', 'cake', 'cake-slice', 'star-cookie', 'watermelon'];
 
         // Generate initial chunks
         for (let i = 0; i < 3; i++) {
@@ -188,25 +188,27 @@ export class World {
                 let type;
 
                 if (candyRoll < 0.06) {
-                    type = 'star-cookie'; // 6% - jackpot candy! (doubled from 3%)
+                    type = 'star-cookie'; // 6% - jackpot candy!
                 } else if (candyRoll < 0.14) {
-                    type = 'cake'; // 8% (increased from 7%)
+                    type = 'cake'; // 8%
                 } else if (candyRoll < 0.22) {
-                    type = 'cake-slice'; // 8% (increased from 7%)
-                } else if (candyRoll < 0.32) {
+                    type = 'cake-slice'; // 8%
+                } else if (candyRoll < 0.30) {
+                    type = 'watermelon'; // 8% - refreshing!
+                } else if (candyRoll < 0.40) {
                     type = 'cupcake'; // 10%
-                } else if (candyRoll < 0.42) {
+                } else if (candyRoll < 0.50) {
                     type = 'donut'; // 10%
-                } else if (candyRoll < 0.52) {
+                } else if (candyRoll < 0.60) {
                     type = 'ice-cream'; // 10%
-                } else if (candyRoll < 0.62) {
+                } else if (candyRoll < 0.70) {
                     type = 'strawberry'; // 10%
-                } else if (candyRoll < 0.72) {
+                } else if (candyRoll < 0.80) {
                     type = 'cherry'; // 10%
-                } else if (candyRoll < 0.86) {
-                    type = 'wrapped-candy'; // 14%
+                } else if (candyRoll < 0.90) {
+                    type = 'wrapped-candy'; // 10%
                 } else {
-                    type = 'lollipop'; // 14% (most common)
+                    type = 'lollipop'; // 10%
                 }
 
                 const lane = Math.floor(Math.random() * GAME_CONFIG.NUM_LANES);

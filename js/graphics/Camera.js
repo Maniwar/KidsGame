@@ -138,7 +138,7 @@ export class GameCamera {
         this.deathCameraCallback = null;
     }
 
-    // Celebration camera - swings around to see Kitty's face celebrating
+    // Celebration camera - swings around to see Kitty celebrating (face + dance)
     startCelebrationCamera(playerPosition) {
         this.isCelebrationCamera = true;
         this.celebrationCameraTarget = playerPosition.clone();
@@ -148,17 +148,17 @@ export class GameCamera {
         // Start position (behind player)
         this.celebrationCameraStartPos = this.camera.position.clone();
 
-        // End position: in front of character, slightly lower to frame face nicely
+        // End position: in front of character, far enough to see full body dance
         this.celebrationCameraEndPos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.3, // At face height
-            playerPosition.z - 3.5  // Close up in front
+            playerPosition.y + 1.8, // Slightly above to see whole body
+            playerPosition.z - 5    // Far enough to see dance moves
         );
 
-        // Look directly at Kitty's face
+        // Look at Kitty's center/chest to frame both face and body
         this.celebrationLookAt = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.4, // Face/head height
+            playerPosition.y + 1.0, // Center of body
             playerPosition.z
         );
     }

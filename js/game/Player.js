@@ -863,9 +863,9 @@ export class Player {
                 this.head.rotation.x = Math.sin(elapsed * 0.01) * 0.1;
             }
 
-            // Body twist for excitement
+            // Body twist for excitement (oscillate around Math.PI to stay facing forward)
             if (this.character) {
-                this.character.rotation.y = Math.sin(elapsed * 0.012) * 0.2;
+                this.character.rotation.y = Math.PI + Math.sin(elapsed * 0.012) * 0.2;
             }
 
             // Keep animating while celebrating

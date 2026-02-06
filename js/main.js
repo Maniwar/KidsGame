@@ -1080,15 +1080,13 @@ class Game {
             this.milestoneKeyHandler = null;
         }
 
-        // Reset celebration and camera to gameplay position
-        this.camera.resetCelebrationCamera(this.player.getPosition());
-        this.player.stopCelebration();
-
         if (openShop) {
-            // Open shop instead of resuming
+            // Reset celebration for shop (camera stays until shop closes)
+            this.camera.resetCelebrationCamera(this.player.getPosition());
+            this.player.stopCelebration();
             this.openShop();
         } else {
-            // Show countdown before resuming
+            // Keep celebration going during countdown - reset happens at end of countdown
             this.showResumeCountdown();
         }
     }
@@ -1121,6 +1119,10 @@ class Game {
                 countdown.textContent = 'GO!';
                 countdown.classList.add('go');
                 this.audio.playPowerUpSound(); // Exciting sound
+
+                // Reset celebration camera and animation NOW (at GO!)
+                this.camera.resetCelebrationCamera(this.player.getPosition());
+                this.player.stopCelebration();
 
                 setTimeout(() => {
                     countdown.remove();

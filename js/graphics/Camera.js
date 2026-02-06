@@ -145,12 +145,11 @@ export class GameCamera {
         this.celebrationCameraStartTime = performance.now();
         this.celebrationCameraDuration = 1000; // 1 second spin
 
-        // End position: In front of Kitty to see her face
-        this.celebrationCameraEndPos = new THREE.Vector3(
-            playerPosition.x,
-            playerPosition.y + 1.5, // At face height
-            playerPosition.z + 4    // In front (positive Z since she faces -Z)
-        );
+        // Spin parameters (same as used in updateCelebrationCamera)
+        this.celebrationStartRadius = 5;
+        this.celebrationEndRadius = 4; // radius at end of spin
+        this.celebrationStartHeight = 3;
+        this.celebrationEndHeight = 1.5;
 
         // Look at Kitty's face/upper body
         this.celebrationLookAt = new THREE.Vector3(
@@ -169,33 +168,26 @@ export class GameCamera {
         // Smooth easing
         const easeOutCubic = 1 - Math.pow(1 - progress, 3);
 
-        if (progress < 1) {
-            // Spin around from behind to front (like death camera)
-            const angle = Math.PI * easeOutCubic; // 0 to 180 degrees
-            const radius = 5 - easeOutCubic * 1.0; // Start far, end closer
-            const height = 3 - easeOutCubic * 1.5; // Start high, end at face level
+        // Spin around from behind to front
+        // angle: 0 (behind) -> PI (in front)
+        const angle = Math.PI * easeOutCubic;
+        const radius = this.celebrationStartRadius - easeOutCubic * (this.celebrationStartRadius - this.celebrationEndRadius);
+        const height = this.celebrationStartHeight - easeOutCubic * (this.celebrationStartHeight - this.celebrationEndHeight);
 
-            const camX = this.celebrationCameraTarget.x + Math.sin(angle) * radius;
-            const camY = this.celebrationCameraTarget.y + height;
-            const camZ = this.celebrationCameraTarget.z + Math.cos(angle) * radius;
+        let camX = this.celebrationCameraTarget.x + Math.sin(angle) * radius;
+        let camY = this.celebrationCameraTarget.y + height;
+        let camZ = this.celebrationCameraTarget.z + Math.cos(angle) * radius;
 
-            this.camera.position.set(camX, camY, camZ);
-            this.camera.lookAt(this.celebrationLookAt);
-        } else {
-            // Gentle sway while showing celebration
+        // After spin completes, add gentle sway
+        if (progress >= 1) {
             const idleTime = (elapsed - this.celebrationCameraDuration) * 0.001;
-
-            const swayX = Math.sin(idleTime * 0.8) * 0.4;
-            const swayY = Math.sin(idleTime * 0.5) * 0.15;
-            const swayZ = Math.cos(idleTime * 0.6) * 0.2;
-
-            this.camera.position.set(
-                this.celebrationCameraEndPos.x + swayX,
-                this.celebrationCameraEndPos.y + swayY,
-                this.celebrationCameraEndPos.z + swayZ
-            );
-            this.camera.lookAt(this.celebrationLookAt);
+            camX += Math.sin(idleTime * 0.8) * 0.4;
+            camY += Math.sin(idleTime * 0.5) * 0.15;
+            camZ += Math.cos(idleTime * 0.6) * 0.2;
         }
+
+        this.camera.position.set(camX, camY, camZ);
+        this.camera.lookAt(this.celebrationLookAt);
 
         return true;
     }

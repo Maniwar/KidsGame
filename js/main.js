@@ -951,31 +951,182 @@ class Game {
         // Player celebration animation (jump and cheer!)
         this.player.playCelebration();
 
-        // Show milestone popup
-        this.showMilestonePopup(finishLine.lineNumber, bonusCoins * sugarMultiplier);
-
         // Create confetti explosion
         this.createFinishLineConfetti();
+
+        // Pause game and show milestone screen with outfit options
+        this.showMilestoneScreen(finishLine.lineNumber, bonusCoins * sugarMultiplier);
     }
 
-    // Show milestone achievement popup
-    showMilestonePopup(mileNumber, bonusCoins) {
-        // Create popup element
-        const popup = document.createElement('div');
-        popup.className = 'milestone-popup';
-        popup.innerHTML = `
-            <div class="milestone-banner">🏁 MILE ${mileNumber}! 🏁</div>
-            <div class="milestone-bonus">+${Math.floor(bonusCoins)} coins!</div>
-            <div class="milestone-record">Best: ${this.bestFinishLines} miles</div>
-        `;
-        document.body.appendChild(popup);
+    // Show milestone screen with outfit change options
+    showMilestoneScreen(mileNumber, bonusCoins) {
+        // Pause the game
+        this.isPaused = true;
 
-        // Animate and remove
-        setTimeout(() => popup.classList.add('show'), 10);
-        setTimeout(() => {
-            popup.classList.remove('show');
-            setTimeout(() => popup.remove(), 500);
-        }, 2000);
+        // Create milestone screen
+        const screen = document.createElement('div');
+        screen.id = 'milestone-screen';
+        screen.className = 'milestone-screen';
+
+        // Get current equipped items for display
+        const equipped = this.cosmeticShop.getEquippedColors();
+
+        screen.innerHTML = `
+            <div class="milestone-content">
+                <div class="milestone-header">
+                    <div class="milestone-banner">🏁 MILE ${mileNumber} COMPLETE! 🏁</div>
+                    <div class="milestone-bonus">+${Math.floor(bonusCoins)} coins!</div>
+                    <div class="milestone-total">Total: ${Math.floor(this.coins)} coins</div>
+                </div>
+
+                <div class="milestone-outfit-section">
+                    <h3>🎀 Quick Outfit Change 🎀</h3>
+                    <div class="milestone-outfit-slots">
+                        <div class="milestone-slot" data-slot="shirt">
+                            <div class="slot-label">Shirt</div>
+                            <div class="slot-options" id="milestone-shirts"></div>
+                        </div>
+                        <div class="milestone-slot" data-slot="overalls">
+                            <div class="slot-label">Overalls</div>
+                            <div class="slot-options" id="milestone-overalls"></div>
+                        </div>
+                        <div class="milestone-slot" data-slot="bow">
+                            <div class="slot-label">Bow</div>
+                            <div class="slot-options" id="milestone-bows"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="milestone-continue-btn">Continue Running! ▶</button>
+                <div class="milestone-hint">Best: ${this.bestFinishLines} miles</div>
+            </div>
+        `;
+
+        document.body.appendChild(screen);
+
+        // Populate outfit options (only owned items)
+        this.populateMilestoneOutfits();
+
+        // Show with animation
+        setTimeout(() => screen.classList.add('show'), 10);
+
+        // Continue button
+        screen.querySelector('.milestone-continue-btn').addEventListener('click', () => {
+            this.closeMilestoneScreen();
+        });
+
+        // Also allow spacebar/enter to continue
+        this.milestoneKeyHandler = (e) => {
+            if (e.code === 'Space' || e.code === 'Enter') {
+                e.preventDefault();
+                this.closeMilestoneScreen();
+            }
+        };
+        document.addEventListener('keydown', this.milestoneKeyHandler);
+    }
+
+    // Populate outfit options in milestone screen
+    populateMilestoneOutfits() {
+        const slots = ['shirt', 'overalls', 'bow'];
+        const containers = {
+            shirt: document.getElementById('milestone-shirts'),
+            overalls: document.getElementById('milestone-overalls'),
+            bow: document.getElementById('milestone-bows')
+        };
+
+        slots.forEach(slot => {
+            const container = containers[slot];
+            if (!container) return;
+
+            const items = this.cosmeticShop.getItemsBySlot(slot);
+            const equippedId = this.playerData.getEquippedItem(slot);
+
+            items.forEach(item => {
+                if (!this.playerData.isItemUnlocked(item.id)) return; // Only show owned
+
+                const option = document.createElement('div');
+                option.className = 'milestone-outfit-option';
+                if (item.id === equippedId) option.classList.add('equipped');
+
+                if (item.id.startsWith('none_')) {
+                    option.classList.add('no-clothes');
+                    option.textContent = '✕';
+                } else if (item.isRainbow) {
+                    option.classList.add('rainbow');
+                } else {
+                    option.style.backgroundColor = '#' + item.color.toString(16).padStart(6, '0');
+                }
+
+                option.addEventListener('click', () => {
+                    // Equip item
+                    this.playerData.equipItem(slot, item.id);
+                    this.audio.playEquipSound();
+
+                    // Update player appearance
+                    const colors = this.cosmeticShop.getEquippedColors();
+                    this.player.setOutfitColors(colors);
+
+                    // Update UI
+                    container.querySelectorAll('.milestone-outfit-option').forEach(opt => {
+                        opt.classList.remove('equipped');
+                    });
+                    option.classList.add('equipped');
+                });
+
+                container.appendChild(option);
+            });
+        });
+    }
+
+    // Close milestone screen and resume game with countdown
+    closeMilestoneScreen() {
+        const screen = document.getElementById('milestone-screen');
+        if (screen) {
+            screen.classList.remove('show');
+            setTimeout(() => screen.remove(), 300);
+        }
+
+        if (this.milestoneKeyHandler) {
+            document.removeEventListener('keydown', this.milestoneKeyHandler);
+            this.milestoneKeyHandler = null;
+        }
+
+        // Show countdown before resuming
+        this.showResumeCountdown();
+    }
+
+    // Show 3-2-1 countdown before resuming
+    showResumeCountdown() {
+        const countdown = document.createElement('div');
+        countdown.className = 'resume-countdown';
+        document.body.appendChild(countdown);
+
+        let count = 3;
+
+        const tick = () => {
+            if (count > 0) {
+                countdown.textContent = count;
+                countdown.classList.remove('pulse');
+                void countdown.offsetWidth; // Trigger reflow
+                countdown.classList.add('pulse');
+                this.audio.playCoinSound(); // Quick beep
+                count--;
+                setTimeout(tick, 700);
+            } else {
+                countdown.textContent = 'GO!';
+                countdown.classList.add('go');
+                this.audio.playPowerUpSound(); // Exciting sound
+
+                setTimeout(() => {
+                    countdown.remove();
+                    // Resume game
+                    this.isPaused = false;
+                    this.lastTime = performance.now();
+                }, 500);
+            }
+        };
+
+        setTimeout(tick, 300);
     }
 
     // Create confetti explosion at finish line

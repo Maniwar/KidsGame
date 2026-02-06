@@ -393,7 +393,9 @@ export class Player {
         }
 
         // Arms with shoulder joints (adjusted for smaller body)
+        // Arm geometry with pivot at TOP (shoulder) - translate geometry down
         const armGeometry = new THREE.CylinderGeometry(0.09, 0.09, 0.3, 12);
+        armGeometry.translate(0, -0.15, 0); // Move geometry so top is at pivot point
         const shoulderGeometry = new THREE.SphereGeometry(0.11, 12, 12);
         const handGeometry = new THREE.SphereGeometry(0.12, 12, 12);
 
@@ -403,15 +405,15 @@ export class Player {
         leftShoulder.castShadow = true;
         this.character.add(leftShoulder);
 
-        // Left arm
-        this.leftArm = new THREE.Mesh(armGeometry, bodyMaterial);
-        this.leftArm.position.set(-0.37, 0.44, 0);
+        // Left arm (pivot at shoulder position)
+        this.leftArm = new THREE.Mesh(armGeometry.clone(), bodyMaterial);
+        this.leftArm.position.set(-0.37, 0.55, 0); // At shoulder height
         this.leftArm.castShadow = true;
         this.character.add(this.leftArm);
 
-        // Left hand (child of arm)
+        // Left hand (child of arm, at end of arm)
         this.leftHand = new THREE.Mesh(handGeometry, bodyMaterial);
-        this.leftHand.position.y = -0.2; // At bottom of arm
+        this.leftHand.position.y = -0.32; // At bottom of arm (0.3 arm + small offset)
         this.leftHand.castShadow = true;
         this.leftArm.add(this.leftHand);
 
@@ -421,15 +423,15 @@ export class Player {
         rightShoulder.castShadow = true;
         this.character.add(rightShoulder);
 
-        // Right arm
-        this.rightArm = new THREE.Mesh(armGeometry, bodyMaterial);
-        this.rightArm.position.set(0.37, 0.44, 0);
+        // Right arm (pivot at shoulder position)
+        this.rightArm = new THREE.Mesh(armGeometry.clone(), bodyMaterial);
+        this.rightArm.position.set(0.37, 0.55, 0); // At shoulder height
         this.rightArm.castShadow = true;
         this.character.add(this.rightArm);
 
-        // Right hand (child of arm)
+        // Right hand (child of arm, at end of arm)
         this.rightHand = new THREE.Mesh(handGeometry, bodyMaterial);
-        this.rightHand.position.y = -0.2; // At bottom of arm
+        this.rightHand.position.y = -0.32; // At bottom of arm (0.3 arm + small offset)
         this.rightHand.castShadow = true;
         this.rightArm.add(this.rightHand);
 

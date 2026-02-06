@@ -676,7 +676,8 @@ export class Player {
         }
 
         // OPTIMIZED: Running animations - cached calculations for better performance
-        if (this.animationParts) {
+        // Skip running animation if celebrating (celebration has its own animation)
+        if (this.animationParts && !this.isCelebrating) {
             // Use bobOffset instead of Date.now() for better performance (already calculated above)
             const runTime = this.bobOffset * 0.5;
 

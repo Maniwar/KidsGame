@@ -788,16 +788,16 @@ export class Candy {
     createWatermelon() {
         const watermelonGroup = new THREE.Group();
 
-        // Create a triangular watermelon slice shape
+        // Create a wider watermelon slice with curved back using quadratic curve
         const sliceShape = new THREE.Shape();
-        // Triangle pointing right (like a pizza slice)
         sliceShape.moveTo(0, 0); // Point/tip
-        sliceShape.lineTo(0.28, -0.18); // Bottom right
-        sliceShape.lineTo(0.28, 0.18); // Top right
+        sliceShape.lineTo(0.35, -0.22); // Bottom right (wider)
+        // Curved back edge instead of straight line
+        sliceShape.quadraticCurveTo(0.42, 0, 0.35, 0.22); // Rounded back
         sliceShape.lineTo(0, 0); // Back to tip
 
         const extrudeSettings = {
-            depth: 0.12,
+            depth: 0.14,
             bevelEnabled: false,
         };
 
@@ -806,82 +806,75 @@ export class Candy {
         const fleshMaterial = new THREE.MeshStandardMaterial({
             color: 0xFF4757, // Bright watermelon red
             emissive: 0xFF4757,
-            emissiveIntensity: 0.15,
+            emissiveIntensity: 0.2,
             flatShading: true,
         });
         const flesh = new THREE.Mesh(fleshGeometry, fleshMaterial);
         flesh.rotation.y = Math.PI / 2;
-        flesh.position.set(0.06, 0, 0);
+        flesh.position.set(0.07, 0, 0);
         watermelonGroup.add(flesh);
 
-        // Green rind (outer curved edge)
+        // Thin green rind (curved to match flesh)
         const rindShape = new THREE.Shape();
-        rindShape.moveTo(0.26, -0.18);
-        rindShape.lineTo(0.32, -0.20);
-        rindShape.lineTo(0.32, 0.20);
-        rindShape.lineTo(0.26, 0.18);
-        rindShape.lineTo(0.26, -0.18);
+        rindShape.moveTo(0.34, -0.21);
+        rindShape.quadraticCurveTo(0.41, 0, 0.34, 0.21); // Inner curve
+        rindShape.lineTo(0.37, 0.23); // Outer edge
+        rindShape.quadraticCurveTo(0.45, 0, 0.37, -0.23); // Outer curve
+        rindShape.lineTo(0.34, -0.21);
 
         const rindGeometry = new THREE.ExtrudeGeometry(rindShape, extrudeSettings);
         const rindMaterial = new THREE.MeshStandardMaterial({
             color: 0x2ED573, // Bright green
             emissive: 0x2ED573,
-            emissiveIntensity: 0.1,
+            emissiveIntensity: 0.15,
             flatShading: true,
         });
         const rind = new THREE.Mesh(rindGeometry, rindMaterial);
         rind.rotation.y = Math.PI / 2;
-        rind.position.set(0.06, 0, 0);
+        rind.position.set(0.07, 0, 0);
         watermelonGroup.add(rind);
 
-        // Light green layer between rind and flesh
-        const lightRindShape = new THREE.Shape();
-        lightRindShape.moveTo(0.24, -0.16);
-        lightRindShape.lineTo(0.27, -0.17);
-        lightRindShape.lineTo(0.27, 0.17);
-        lightRindShape.lineTo(0.24, 0.16);
-        lightRindShape.lineTo(0.24, -0.16);
-
-        const lightRindGeometry = new THREE.ExtrudeGeometry(lightRindShape, extrudeSettings);
-        const lightRindMaterial = new THREE.MeshStandardMaterial({
-            color: 0x7BED9F, // Light green
-            flatShading: true,
-        });
-        const lightRind = new THREE.Mesh(lightRindGeometry, lightRindMaterial);
-        lightRind.rotation.y = Math.PI / 2;
-        lightRind.position.set(0.06, 0, 0);
-        watermelonGroup.add(lightRind);
-
-        // Black seeds scattered on the flesh
-        const seedGeometry = new THREE.SphereGeometry(0.02, 4, 4);
+        // Black seeds - larger and more visible, on front face
+        const seedGeometry = new THREE.SphereGeometry(0.025, 6, 6);
         const seedMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2C3E50, // Dark seed color
+            color: 0x1a1a1a, // True black
+            roughness: 0.3,
         });
 
-        // Add seeds in a pattern on both faces
+        // Seeds positioned on the front face (z = depth/2 + small offset)
         const seedPositions = [
-            { x: 0.12, y: 0.05, z: 0.07 },
-            { x: 0.18, y: -0.02, z: 0.07 },
-            { x: 0.15, y: -0.08, z: 0.07 },
-            { x: 0.20, y: 0.08, z: 0.07 },
-            { x: 0.10, y: -0.04, z: 0.07 },
-            // Back face seeds
-            { x: 0.14, y: 0.03, z: -0.01 },
-            { x: 0.19, y: -0.05, z: -0.01 },
-            { x: 0.16, y: 0.09, z: -0.01 },
+            { x: 0.12, y: 0.06 },
+            { x: 0.20, y: -0.04 },
+            { x: 0.16, y: -0.10 },
+            { x: 0.25, y: 0.08 },
+            { x: 0.10, y: -0.02 },
+            { x: 0.22, y: 0.00 },
+            { x: 0.15, y: 0.12 },
         ];
 
         seedPositions.forEach(pos => {
             const seed = new THREE.Mesh(seedGeometry, seedMaterial);
-            seed.position.set(pos.x, pos.y, pos.z);
-            seed.scale.set(1, 1.5, 0.5); // Elongate seeds
-            seed.rotation.z = Math.random() * 0.5 - 0.25; // Slight random rotation
+            // Position on front face, slightly protruding
+            seed.position.set(pos.x, pos.y, 0.08);
+            seed.scale.set(0.8, 1.8, 0.6); // Teardrop shape
+            seed.rotation.x = Math.PI / 6; // Tilt forward to be more visible
+            seed.rotation.z = Math.random() * 0.6 - 0.3;
+            watermelonGroup.add(seed);
+        });
+
+        // Also add seeds on back face
+        seedPositions.slice(0, 4).forEach(pos => {
+            const seed = new THREE.Mesh(seedGeometry, seedMaterial);
+            seed.position.set(pos.x + 0.02, pos.y - 0.02, -0.01);
+            seed.scale.set(0.8, 1.8, 0.6);
+            seed.rotation.x = -Math.PI / 6;
+            seed.rotation.z = Math.random() * 0.6 - 0.3;
             watermelonGroup.add(seed);
         });
 
         this.mesh = watermelonGroup;
         this.group.add(this.mesh);
-        this.collisionRadius = 0.35;
+        this.collisionRadius = 0.4;
     }
 
     update(deltaTime, playerZ) {

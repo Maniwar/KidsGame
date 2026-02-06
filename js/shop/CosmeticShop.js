@@ -66,6 +66,23 @@ export const COSMETIC_ITEMS = {
         price: 2000, // Uncommon
         description: 'Bright orange shirt'
     },
+    black_shirt: {
+        id: 'black_shirt',
+        name: 'Black Shirt',
+        slot: 'shirt',
+        color: 0x2F2F2F, // Dark gray/black
+        price: 3500, // Rare
+        description: 'Sleek black shirt'
+    },
+    rainbow_shirt: {
+        id: 'rainbow_shirt',
+        name: 'Rainbow Shirt',
+        slot: 'shirt',
+        color: 0xFF69B4, // Base pink (special effect handled in Player)
+        isRainbow: true,
+        price: 10000, // Legendary
+        description: 'Magical color-changing shirt!'
+    },
     none_shirt: {
         id: 'none_shirt',
         name: 'No Shirt',
@@ -130,6 +147,16 @@ export const COSMETIC_ITEMS = {
         pocketColor: 0x1F1F1F,
         price: 4000, // Rare - prestige item
         description: 'Sleek black overalls'
+    },
+    rainbow_overalls: {
+        id: 'rainbow_overalls',
+        name: 'Rainbow Overalls',
+        slot: 'overalls',
+        color: 0xFF69B4, // Base pink (special effect handled in Player)
+        pocketColor: 0x69B4FF,
+        isRainbow: true,
+        price: 10000, // Legendary
+        description: 'Magical color-changing overalls!'
     },
     none_overalls: {
         id: 'none_overalls',
@@ -354,7 +381,9 @@ export class CosmeticShop {
             overallsColor: overallsItem.color,
             pocketColor: overallsItem.pocketColor || overallsItem.color,
             bowColor: bowItem.color,
-            isRainbowBow: bowItem.isRainbow || false
+            isRainbowBow: bowItem.isRainbow || false,
+            isRainbowShirt: shirtItem.isRainbow || false,
+            isRainbowOveralls: overallsItem.isRainbow || false
         };
     }
 }

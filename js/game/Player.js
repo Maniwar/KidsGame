@@ -40,11 +40,18 @@ export class Player {
             overallsColor: 0x4169E1, // Royal blue (default)
             pocketColor: 0x3158B8,   // Darker blue (default)
             bowColor: 0xFF0000,      // Red (default)
-            isRainbowBow: false
+            isRainbowBow: false,
+            isRainbowShirt: false,
+            isRainbowOveralls: false
         };
 
-        // Rainbow bow animation state
+        // Rainbow animation state
         this.rainbowHue = 0;
+
+        // Rainbow materials for multi-color effect (bow, shirt, overalls)
+        this.rainbowBowMaterials = [];
+        this.rainbowShirtMaterials = [];
+        this.rainbowOverallsMaterials = [];
 
         // Create character
         this.createCharacter();
@@ -269,16 +276,26 @@ export class Player {
         // Bow (Hello Kitty's signature feature - big and prominent)
         const bowGroup = new THREE.Group();
 
+        // Create separate materials for each bow part (for rainbow multi-color effect)
+        const createBowPartMaterial = () => new THREE.MeshStandardMaterial({
+            color: this.outfitColors.bowColor || HELLO_KITTY_COLORS.BOW,
+            flatShading: false,
+            roughness: 0.5,
+            metalness: 0.1,
+        });
+
         // Left bow loop - spread wide
         const bowLoopGeometry = new THREE.SphereGeometry(0.32, 16, 16);
-        const leftBowLoop = new THREE.Mesh(bowLoopGeometry, this.bowMaterial);
+        const leftLoopMaterial = createBowPartMaterial();
+        const leftBowLoop = new THREE.Mesh(bowLoopGeometry, leftLoopMaterial);
         leftBowLoop.position.set(-0.27, 0, 0);
         leftBowLoop.scale.set(0.6, 1.1, 0.7);
         leftBowLoop.castShadow = true;
         bowGroup.add(leftBowLoop);
 
         // Right bow loop - spread wide
-        const rightBowLoop = new THREE.Mesh(bowLoopGeometry, this.bowMaterial);
+        const rightLoopMaterial = createBowPartMaterial();
+        const rightBowLoop = new THREE.Mesh(bowLoopGeometry, rightLoopMaterial);
         rightBowLoop.position.set(0.27, 0, 0);
         rightBowLoop.scale.set(0.6, 1.1, 0.7);
         rightBowLoop.castShadow = true;
@@ -286,24 +303,33 @@ export class Player {
 
         // Bow center knot - MUCH bigger to be visible and connect loops
         const bowCenterGeometry = new THREE.SphereGeometry(0.15, 12, 12);
-        const bowCenter = new THREE.Mesh(bowCenterGeometry, this.bowMaterial);
+        const centerMaterial = createBowPartMaterial();
+        const bowCenter = new THREE.Mesh(bowCenterGeometry, centerMaterial);
         bowCenter.scale.set(1.4, 1.2, 1.0); // Stretched wider to fill gap
         bowCenter.castShadow = true;
         bowGroup.add(bowCenter);
 
         // Bow ribbons hanging down
         const ribbonGeometry = new THREE.BoxGeometry(0.10, 0.25, 0.06);
-        const leftRibbon = new THREE.Mesh(ribbonGeometry, this.bowMaterial);
+        const leftRibbonMaterial = createBowPartMaterial();
+        const leftRibbon = new THREE.Mesh(ribbonGeometry, leftRibbonMaterial);
         leftRibbon.position.set(-0.08, -0.18, 0);
         leftRibbon.rotation.z = -0.25;
         leftRibbon.castShadow = true;
         bowGroup.add(leftRibbon);
 
-        const rightRibbon = new THREE.Mesh(ribbonGeometry, this.bowMaterial);
+        const rightRibbonMaterial = createBowPartMaterial();
+        const rightRibbon = new THREE.Mesh(ribbonGeometry, rightRibbonMaterial);
         rightRibbon.position.set(0.08, -0.18, 0);
         rightRibbon.rotation.z = 0.25;
         rightRibbon.castShadow = true;
         bowGroup.add(rightRibbon);
+
+        // Store materials for rainbow animation (order: left loop, center, right loop, left ribbon, right ribbon)
+        this.rainbowBowMaterials = [leftLoopMaterial, centerMaterial, rightLoopMaterial, leftRibbonMaterial, rightRibbonMaterial];
+        // Keep main bowMaterial reference for non-rainbow color changes
+        this.bowMaterial = leftLoopMaterial;
+        this.allBowMaterials = this.rainbowBowMaterials;
 
         bowGroup.position.set(0.35, 0.42, 0.1); // Relative to head - raised up
         // Group rotation creates diagonal look: inner loop UP, outer loop DOWN
@@ -502,12 +528,19 @@ export class Player {
             this.pocketMaterial.color.setHex(colors.pocketColor);
             this.outfitColors.pocketColor = colors.pocketColor;
         }
-        if (colors.bowColor !== undefined && this.bowMaterial) {
-            this.bowMaterial.color.setHex(colors.bowColor);
+        if (colors.bowColor !== undefined && this.allBowMaterials) {
+            // Update all bow part materials to the same color
+            this.allBowMaterials.forEach(mat => mat.color.setHex(colors.bowColor));
             this.outfitColors.bowColor = colors.bowColor;
         }
         if (colors.isRainbowBow !== undefined) {
             this.outfitColors.isRainbowBow = colors.isRainbowBow;
+        }
+        if (colors.isRainbowShirt !== undefined) {
+            this.outfitColors.isRainbowShirt = colors.isRainbowShirt;
+        }
+        if (colors.isRainbowOveralls !== undefined) {
+            this.outfitColors.isRainbowOveralls = colors.isRainbowOveralls;
         }
         // Update visibility based on "no clothes" selections
         this.updateOutfitVisibility();
@@ -541,18 +574,41 @@ export class Player {
         return { ...this.outfitColors };
     }
 
-    // Update rainbow bow color (call from update loop)
-    updateRainbowBow(deltaTime) {
-        if (!this.outfitColors.isRainbowBow || !this.bowMaterial) return;
-
+    // Update rainbow colors for all rainbow items (call from update loop)
+    updateRainbowColors(deltaTime) {
         // Cycle through hues smoothly
         this.rainbowHue = (this.rainbowHue + deltaTime * 0.5) % 1;
-        this.bowMaterial.color.setHSL(this.rainbowHue, 0.8, 0.5);
+
+        // Rainbow bow - each part gets a different hue offset
+        if (this.outfitColors.isRainbowBow && this.rainbowBowMaterials.length) {
+            const bowHueOffsets = [0, 0.15, 0.3, 0.45, 0.6];
+            this.rainbowBowMaterials.forEach((mat, i) => {
+                const hue = (this.rainbowHue + bowHueOffsets[i]) % 1;
+                mat.color.setHSL(hue, 0.85, 0.55);
+            });
+        }
+
+        // Rainbow shirt - shirt body and collar cycle with offset
+        if (this.outfitColors.isRainbowShirt && this.shirtMaterial) {
+            const shirtHue = (this.rainbowHue + 0.33) % 1; // Offset from bow
+            this.shirtMaterial.color.setHSL(shirtHue, 0.85, 0.55);
+        }
+
+        // Rainbow overalls - multiple parts with gradient offsets
+        if (this.outfitColors.isRainbowOveralls && this.overallsMaterial) {
+            const overallsHue = (this.rainbowHue + 0.66) % 1; // Offset from bow and shirt
+            this.overallsMaterial.color.setHSL(overallsHue, 0.85, 0.55);
+            // Also update pocket to complement
+            if (this.pocketMaterial) {
+                const pocketHue = (overallsHue + 0.2) % 1;
+                this.pocketMaterial.color.setHSL(pocketHue, 0.85, 0.45);
+            }
+        }
     }
 
     update(deltaTime) {
-        // Update rainbow bow animation if active
-        this.updateRainbowBow(deltaTime);
+        // Update rainbow colors for all rainbow items
+        this.updateRainbowColors(deltaTime);
 
         // Move forward automatically
         this.position.z -= this.speed * deltaTime;

@@ -803,6 +803,14 @@ export class Candy {
 
         // Red watermelon flesh
         const fleshGeometry = new THREE.ExtrudeGeometry(sliceShape, extrudeSettings);
+
+        // PERFORMANCE FIX: Center geometry on its bounding box so rotation pivot is at visual center
+        // (was rotating around the tip because shape started at origin)
+        fleshGeometry.computeBoundingBox();
+        const fleshCenter = new THREE.Vector3();
+        fleshGeometry.boundingBox.getCenter(fleshCenter);
+        fleshGeometry.translate(-fleshCenter.x, -fleshCenter.y, -fleshCenter.z);
+
         const fleshMaterial = new THREE.MeshStandardMaterial({
             color: 0xFF4757, // Bright watermelon red
             emissive: 0xFF4757,
@@ -811,7 +819,7 @@ export class Candy {
         });
         const flesh = new THREE.Mesh(fleshGeometry, fleshMaterial);
         flesh.rotation.y = Math.PI / 2;
-        flesh.position.set(0.07, 0, 0);
+        flesh.position.set(0, 0, 0); // Centered now - no offset needed
         watermelonGroup.add(flesh);
 
         // Thin green rind (curved to match flesh)
@@ -823,6 +831,9 @@ export class Candy {
         rindShape.lineTo(0.34, -0.21);
 
         const rindGeometry = new THREE.ExtrudeGeometry(rindShape, extrudeSettings);
+        // Use same center offset as flesh so rind stays aligned
+        rindGeometry.translate(-fleshCenter.x, -fleshCenter.y, -fleshCenter.z);
+
         const rindMaterial = new THREE.MeshStandardMaterial({
             color: 0x2ED573, // Bright green
             emissive: 0x2ED573,
@@ -831,7 +842,7 @@ export class Candy {
         });
         const rind = new THREE.Mesh(rindGeometry, rindMaterial);
         rind.rotation.y = Math.PI / 2;
-        rind.position.set(0.07, 0, 0);
+        rind.position.set(0, 0, 0); // Centered now - no offset needed
         watermelonGroup.add(rind);
 
         // Black seeds - small and flat against the flesh
@@ -841,7 +852,7 @@ export class Candy {
             roughness: 0.3,
         });
 
-        // Seeds positioned in flesh's local coordinates (before rotation)
+        // Seeds positioned in flesh's local coordinates (adjusted for centered geometry)
         // Shape is in XY plane, extruded in Z. Front face is at z = depth (0.14)
         const seedPositions = [
             { x: 0.12, y: 0.06 },
@@ -853,10 +864,14 @@ export class Candy {
             { x: 0.15, y: 0.10 },
         ];
 
+        // Seed Z positions adjusted for centered geometry
+        const frontZ = 0.14 - fleshCenter.z;
+        const backZ = 0.0 - fleshCenter.z;
+
         // Add seeds on front face - flush with surface
         seedPositions.forEach(pos => {
             const seed = new THREE.Mesh(seedGeometry, seedMaterial);
-            seed.position.set(pos.x, pos.y, 0.14); // Flush with front face
+            seed.position.set(pos.x - fleshCenter.x, pos.y - fleshCenter.y, frontZ);
             seed.scale.set(0.6, 1.2, 0.3); // Flatter teardrop
             seed.rotation.z = Math.random() * 0.6 - 0.3;
             flesh.add(seed);
@@ -865,7 +880,7 @@ export class Candy {
         // Add seeds on back face
         seedPositions.slice(0, 4).forEach(pos => {
             const seed = new THREE.Mesh(seedGeometry, seedMaterial);
-            seed.position.set(pos.x + 0.02, pos.y - 0.02, 0.0);
+            seed.position.set(pos.x + 0.02 - fleshCenter.x, pos.y - 0.02 - fleshCenter.y, backZ);
             seed.scale.set(0.6, 1.2, 0.3);
             seed.rotation.z = Math.random() * 0.6 - 0.3;
             flesh.add(seed);

@@ -894,7 +894,14 @@ export class Player {
         }
         if (this.character) {
             this.character.rotation.y = 0;
+            this.character.rotation.z = 0;
         }
+    }
+
+    // Force stop celebration and reset pose (called when resuming game)
+    stopCelebration() {
+        this.isCelebrating = false;
+        this.resetCelebrationPose();
     }
 
     playDeathAnimation(callback, options = {}) {

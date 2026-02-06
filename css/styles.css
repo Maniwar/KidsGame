@@ -1284,20 +1284,22 @@ input:checked + .toggle-slider:before {
     font-size: 0.85em;
 }
 
-/* Milestone Screen (pause screen with outfit change) */
+/* Milestone Screen - compact panel at bottom, see celebration above */
 .milestone-screen {
     position: fixed;
-    top: 0;
+    bottom: 0;
     left: 0;
     width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
+    height: auto;
+    max-height: 35%;
+    background: transparent;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-end;
     z-index: 1000;
     opacity: 0;
     transition: opacity 0.3s ease;
+    pointer-events: none;
 }
 
 .milestone-screen.show {
@@ -1305,55 +1307,55 @@ input:checked + .toggle-slider:before {
 }
 
 .milestone-content {
-    background: linear-gradient(135deg, #FFB7C5 0%, #FF69B4 100%);
-    border: 4px solid #FFFFFF;
-    border-radius: 20px;
-    padding: 25px 35px;
+    background: linear-gradient(135deg, rgba(255, 183, 197, 0.95) 0%, rgba(255, 105, 180, 0.95) 100%);
+    border: 3px solid #FFFFFF;
+    border-radius: 20px 20px 0 0;
+    padding: 15px 25px 20px;
     text-align: center;
-    max-width: 90%;
-    max-height: 90%;
-    overflow-y: auto;
-    box-shadow: 0 0 40px rgba(255, 105, 180, 0.6);
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 -5px 30px rgba(255, 105, 180, 0.5);
+    pointer-events: auto;
 }
 
 .milestone-header {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 
 .milestone-header .milestone-banner {
-    font-size: 28px;
-    margin-bottom: 10px;
+    font-size: 22px;
+    margin-bottom: 5px;
 }
 
 .milestone-header .milestone-bonus {
-    font-size: 22px;
+    font-size: 18px;
     color: #228B22;
     text-shadow: 1px 1px 0 #FFFFFF;
 }
 
 .milestone-header .milestone-total {
-    font-size: 16px;
+    font-size: 14px;
     color: #FFFFFF;
-    margin-top: 5px;
+    margin-top: 3px;
 }
 
 .milestone-outfit-section {
     background: rgba(255, 255, 255, 0.3);
-    border-radius: 15px;
-    padding: 15px;
-    margin: 15px 0;
+    border-radius: 12px;
+    padding: 10px;
+    margin: 10px 0;
 }
 
 .milestone-outfit-section h3 {
     color: #FFFFFF;
-    margin-bottom: 15px;
-    font-size: 18px;
+    margin-bottom: 10px;
+    font-size: 14px;
 }
 
 .milestone-outfit-slots {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 15px;
     flex-wrap: wrap;
 }
 
@@ -1364,22 +1366,22 @@ input:checked + .toggle-slider:before {
 .slot-label {
     color: #FFFFFF;
     font-weight: bold;
-    margin-bottom: 8px;
-    font-size: 14px;
+    margin-bottom: 5px;
+    font-size: 12px;
 }
 
 .slot-options {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
     justify-content: center;
 }
 
 .milestone-outfit-option {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    border: 3px solid rgba(255, 255, 255, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.5);
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
@@ -1394,14 +1396,14 @@ input:checked + .toggle-slider:before {
 
 .milestone-outfit-option.equipped {
     border-color: #FFD700;
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
 }
 
 .milestone-outfit-option.no-clothes {
     background: #FFFFFF;
     color: #FF6B6B;
     font-weight: bold;
-    font-size: 18px;
+    font-size: 14px;
 }
 
 .milestone-outfit-option.rainbow {
@@ -1414,25 +1416,25 @@ input:checked + .toggle-slider:before {
     background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
     color: white;
     border: none;
-    padding: 15px 40px;
-    font-size: 20px;
+    padding: 10px 30px;
+    font-size: 16px;
     font-weight: bold;
-    border-radius: 30px;
+    border-radius: 25px;
     cursor: pointer;
-    margin-top: 15px;
-    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+    margin-top: 10px;
+    box-shadow: 0 3px 12px rgba(76, 175, 80, 0.4);
     transition: all 0.2s ease;
 }
 
 .milestone-continue-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+    box-shadow: 0 5px 15px rgba(76, 175, 80, 0.6);
 }
 
 .milestone-hint {
     color: rgba(255, 255, 255, 0.8);
-    font-size: 14px;
-    margin-top: 10px;
+    font-size: 12px;
+    margin-top: 8px;
 }
 
 /* Resume Countdown */

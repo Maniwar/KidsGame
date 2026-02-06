@@ -948,6 +948,10 @@ class Game {
         // Play celebration fanfare
         this.audio.playFinishLineFanfare();
 
+        // Start celebration camera - swings around to see Kitty
+        const playerPos = this.player.getPosition();
+        this.camera.startCelebrationCamera(playerPos);
+
         // Player celebration animation (jump and cheer!)
         this.player.playCelebration();
 
@@ -1097,6 +1101,10 @@ class Game {
 
     // Show 3-2-1 countdown before resuming
     showResumeCountdown() {
+        // Reset celebration camera and player pose before countdown starts
+        this.camera.resetCelebrationCamera();
+        this.player.stopCelebration(); // Force reset player rotation/pose
+
         const countdown = document.createElement('div');
         countdown.className = 'resume-countdown';
         document.body.appendChild(countdown);
@@ -2952,6 +2960,14 @@ class Game {
             this.player.updateBlink(deltaTime);
             // Knocked out animation (rubbing head, shaking head)
             this.player.updateKnockedOutAnimation(deltaTime);
+        }
+
+        // Update celebration camera during milestone screen
+        // This ensures we can see Kitty celebrating while the popup is shown
+        if (this.camera.isCelebrationCamera) {
+            this.camera.update(this.player.getPosition());
+            // Keep Hello Kitty blinking during celebration
+            this.player.updateBlink(deltaTime);
         }
 
         // Render scene

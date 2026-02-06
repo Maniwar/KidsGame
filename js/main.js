@@ -962,57 +962,36 @@ class Game {
         this.showMilestoneScreen(finishLine.lineNumber, bonusCoins * sugarMultiplier);
     }
 
-    // Show milestone screen with outfit change options
+    // Show milestone screen - compact with Shop button
     showMilestoneScreen(mileNumber, bonusCoins) {
         // Pause the game
         this.isPaused = true;
 
-        // Create milestone screen
+        // Create compact milestone screen
         const screen = document.createElement('div');
         screen.id = 'milestone-screen';
         screen.className = 'milestone-screen';
 
-        // Get current equipped items for display
-        const equipped = this.cosmeticShop.getEquippedColors();
-
         screen.innerHTML = `
             <div class="milestone-content">
-                <div class="milestone-header">
-                    <div class="milestone-banner">🏁 MILE ${mileNumber} COMPLETE! 🏁</div>
-                    <div class="milestone-bonus">+${Math.floor(bonusCoins)} coins!</div>
-                    <div class="milestone-total">Total: ${Math.floor(this.coins)} coins</div>
+                <div class="milestone-banner">🏁 MILE ${mileNumber}! 🏁</div>
+                <div class="milestone-bonus">+${Math.floor(bonusCoins)} coins</div>
+                <div class="milestone-buttons">
+                    <button class="milestone-shop-btn">🛍️ Shop</button>
+                    <button class="milestone-continue-btn">▶ Go!</button>
                 </div>
-
-                <div class="milestone-outfit-section">
-                    <h3>🎀 Quick Outfit Change 🎀</h3>
-                    <div class="milestone-outfit-slots">
-                        <div class="milestone-slot" data-slot="shirt">
-                            <div class="slot-label">Shirt</div>
-                            <div class="slot-options" id="milestone-shirts"></div>
-                        </div>
-                        <div class="milestone-slot" data-slot="overalls">
-                            <div class="slot-label">Overalls</div>
-                            <div class="slot-options" id="milestone-overalls"></div>
-                        </div>
-                        <div class="milestone-slot" data-slot="bow">
-                            <div class="slot-label">Bow</div>
-                            <div class="slot-options" id="milestone-bows"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <button class="milestone-continue-btn">Continue Running! ▶</button>
-                <div class="milestone-hint">Best: ${this.bestFinishLines} miles</div>
             </div>
         `;
 
         document.body.appendChild(screen);
 
-        // Populate outfit options (only owned items)
-        this.populateMilestoneOutfits();
-
         // Show with animation
         setTimeout(() => screen.classList.add('show'), 10);
+
+        // Shop button - opens the shop
+        screen.querySelector('.milestone-shop-btn').addEventListener('click', () => {
+            this.closeMilestoneScreen(true); // Pass true to open shop after
+        });
 
         // Continue button
         screen.querySelector('.milestone-continue-btn').addEventListener('click', () => {
@@ -1082,8 +1061,8 @@ class Game {
         });
     }
 
-    // Close milestone screen and resume game with countdown
-    closeMilestoneScreen() {
+    // Close milestone screen and resume game with countdown (or open shop)
+    closeMilestoneScreen(openShop = false) {
         const screen = document.getElementById('milestone-screen');
         if (screen) {
             screen.classList.remove('show');
@@ -1095,16 +1074,21 @@ class Game {
             this.milestoneKeyHandler = null;
         }
 
-        // Show countdown before resuming
-        this.showResumeCountdown();
+        // Reset celebration
+        this.camera.resetCelebrationCamera();
+        this.player.stopCelebration();
+
+        if (openShop) {
+            // Open shop instead of resuming
+            this.openShop();
+        } else {
+            // Show countdown before resuming
+            this.showResumeCountdown();
+        }
     }
 
     // Show 3-2-1 countdown before resuming
     showResumeCountdown() {
-        // Reset celebration camera and player pose before countdown starts
-        this.camera.resetCelebrationCamera();
-        this.player.stopCelebration(); // Force reset player rotation/pose
-
         const countdown = document.createElement('div');
         countdown.className = 'resume-countdown';
         document.body.appendChild(countdown);

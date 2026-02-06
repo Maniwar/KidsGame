@@ -138,27 +138,27 @@ export class GameCamera {
         this.deathCameraCallback = null;
     }
 
-    // Celebration camera - swings around to see Kitty celebrating (face + dance)
+    // Celebration camera - swings around to see Kitty's face celebrating
     startCelebrationCamera(playerPosition) {
         this.isCelebrationCamera = true;
         this.celebrationCameraTarget = playerPosition.clone();
         this.celebrationCameraStartTime = performance.now();
         this.celebrationCameraDuration = 800; // Quick swing to front
 
-        // Start position (behind player)
+        // Start position (behind player in running direction)
         this.celebrationCameraStartPos = this.camera.position.clone();
 
-        // End position: in front of character, far enough to see full body dance
+        // End position: BEHIND Kitty (positive Z) to see her FACE as she faces forward
         this.celebrationCameraEndPos = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.8, // Slightly above to see whole body
-            playerPosition.z - 5    // Far enough to see dance moves
+            playerPosition.y + 1.5, // At face height
+            playerPosition.z + 4    // Behind her (she runs in -Z direction)
         );
 
-        // Look at Kitty's center/chest to frame both face and body
+        // Look at Kitty's face/upper body
         this.celebrationLookAt = new THREE.Vector3(
             playerPosition.x,
-            playerPosition.y + 1.0, // Center of body
+            playerPosition.y + 1.2, // Face height
             playerPosition.z
         );
     }
@@ -173,16 +173,17 @@ export class GameCamera {
         const easeOutCubic = 1 - Math.pow(1 - progress, 3);
 
         if (progress < 1) {
-            // Swing around from behind to front
-            const angle = Math.PI * easeOutCubic; // 0 to 180 degrees
-            const radius = 5 - easeOutCubic * 1.0; // Start far, end closer
-            const height = 3 - easeOutCubic * 1.5; // Start high, end at face level
+            // Swing from gameplay position to in front of Kitty's face
+            // Start behind (positive Z offset), swing to face her
+            const startZ = this.celebrationCameraTarget.z + 5; // Start behind
+            const endZ = this.celebrationCameraTarget.z + 4;   // End slightly behind to see face
+            const startY = this.celebrationCameraTarget.y + 3;
+            const endY = this.celebrationCameraTarget.y + 1.5;
 
-            const camX = this.celebrationCameraTarget.x + Math.sin(angle) * radius;
-            const camY = this.celebrationCameraTarget.y + height;
-            const camZ = this.celebrationCameraTarget.z + Math.cos(angle) * radius;
+            const camZ = startZ + (endZ - startZ) * easeOutCubic;
+            const camY = startY + (endY - startY) * easeOutCubic;
 
-            this.camera.position.set(camX, camY, camZ);
+            this.camera.position.set(this.celebrationCameraTarget.x, camY, camZ);
             this.camera.lookAt(this.celebrationLookAt);
         } else {
             // Gentle sway while showing celebration

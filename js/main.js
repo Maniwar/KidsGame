@@ -2961,14 +2961,18 @@ class Game {
             this.player.updateBlink(deltaTime);
             // Knocked out animation (rubbing head, shaking head)
             this.player.updateKnockedOutAnimation(deltaTime);
+            // Keep rainbow animation going on game over screen
+            this.player.updateRainbowColors(deltaTime);
         }
 
         // Update celebration camera during milestone screen
         // This ensures we can see Kitty celebrating while the popup is shown
-        if (this.camera.isCelebrationCamera) {
+        if (this.camera.isCelebrationCamera || this.camera.isReturnCamera) {
             this.camera.update(this.player.getPosition());
             // Keep Hello Kitty blinking during celebration
             this.player.updateBlink(deltaTime);
+            // Keep rainbow animation going during celebration
+            this.player.updateRainbowColors(deltaTime);
         }
 
         // Render scene

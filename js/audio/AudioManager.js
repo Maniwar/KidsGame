@@ -70,12 +70,22 @@ export class AudioManager {
         // Melody rest patterns per section (1 = play, 0 = rest)
         // Creates breathing room and musical phrasing
         this.melodyRestPatterns = {
-            intro:  [1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0],  // Very sparse, breathing
-            verseA: [1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0],  // Play 3, rest 1, play 2, rest 2 (repeating riff shape)
-            verseB: [1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1],  // Syncopated rests, offbeat pickup
-            chorus: [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0],  // Strong phrases with 2-beat breaks
-            bridge: [1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0],  // Spacious, contemplative
-            outro:  [1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0]   // Fading out, lots of silence
+            intro:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0],  // Very sparse, long gaps
+            verseA: [1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0],  // Call (3) - rest (3) - response (4) - rest (3) - pickup
+            verseB: [1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],  // Short phrases with long gaps
+            chorus: [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],  // Strong 4-note phrase, 5-note phrase, 4 beats rest
+            bridge: [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  // Very sparse, contemplative
+            outro:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]   // Almost silent
+        };
+
+        // Arpeggio rest patterns - also need breathing room
+        this.arpeggioRestPatterns = {
+            intro:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // No arpeggio in intro
+            verseA: [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1],  // Fills gaps where melody rests
+            verseB: [0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1],  // Alternates with melody
+            chorus: [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0],  // Response to melody phrases
+            bridge: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // Silent - melody only for contrast
+            outro:  [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]   // Sparse echoes
         };
 
         // Riff repetition: sections where the first 4-beat phrase repeats
@@ -281,6 +291,9 @@ export class AudioManager {
             const totalBeats = Object.values(this.songStructure).reduce((a, b) => a + b, 0);
             if (this.currentBeat >= totalBeats) {
                 this.currentBeat = 0;
+                // Clear melody cache so next cycle generates fresh melodies
+                this.melodyCache = {};
+                this.melodyCacheKeys = [];
             }
         }
     }
@@ -313,18 +326,19 @@ export class AudioManager {
             }
         }
 
-        // Play chord arpeggio (except in intro)
-        if (section !== 'intro') {
+        // Play chord arpeggio with rest pattern (not every beat)
+        const arpPattern = this.arpeggioRestPatterns[section] || this.arpeggioRestPatterns.verseA;
+        if (arpPattern[sectionBeat % arpPattern.length] === 1) {
             this.playChordArpeggio(currentChord, sectionBeat, beatTime);
         }
 
-        // Play bass note (on beats 1 and 3 of each bar)
-        if (this.currentBeat % 2 === 0) {
+        // Play bass note (on beats 1 and 3 of each bar, skip bridge for contrast)
+        if (this.currentBeat % 2 === 0 && section !== 'bridge') {
             this.playBassNote(currentChord.root, beatTime);
         }
 
-        // Play percussion (except in intro and outro)
-        if (section !== 'intro' && section !== 'outro') {
+        // Play percussion (skip intro, outro, and bridge for dynamic contrast)
+        if (section !== 'intro' && section !== 'outro' && section !== 'bridge') {
             this.playPercussion(sectionBeat % 16, beatTime);
         }
 

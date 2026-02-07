@@ -38,7 +38,7 @@ export class FinishLine {
         for (let x = 0; x < canvas.width; x += squareSize) {
             for (let y = 0; y < canvas.height; y += squareSize) {
                 const isWhite = ((x / squareSize) + (y / squareSize)) % 2 === 0;
-                ctx.fillStyle = isWhite ? '#FFFFFF' : '#222222';
+                ctx.fillStyle = isWhite ? '#FFFFFF' : '#FF0000';
                 ctx.fillRect(x, y, squareSize, squareSize);
             }
         }

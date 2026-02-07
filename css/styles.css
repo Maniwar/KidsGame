@@ -1486,16 +1486,18 @@ input:checked + .toggle-slider:before {
     font-size: 0.85em;
 }
 
-/* Milestone Screen - tiny transparent bar at bottom */
+/* Milestone Screen - compact bar at bottom */
 .milestone-screen {
     position: fixed;
-    bottom: 20px;
+    bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
+    width: auto;
+    max-width: 95vw;
 }
 
 .milestone-screen.show {
@@ -1506,13 +1508,16 @@ input:checked + .toggle-slider:before {
     background: rgba(255, 105, 180, 0.8);
     border: 2px solid #FFFFFF;
     border-radius: 15px;
-    padding: 10px 20px;
+    padding: 10px 15px;
     text-align: center;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     pointer-events: auto;
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     align-items: center;
-    gap: 15px;
+    gap: 8px 12px;
+    max-width: 95vw;
 }
 
 .milestone-content .milestone-banner {
@@ -1532,6 +1537,7 @@ input:checked + .toggle-slider:before {
 .milestone-buttons {
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .milestone-shop-btn {
@@ -1573,17 +1579,19 @@ input:checked + .toggle-slider:before {
     background: linear-gradient(135deg, #AB47BC 0%, #8E24AA 100%);
     color: white;
     border: none;
-    padding: 8px 15px;
-    font-size: 13px;
+    padding: 6px 12px;
+    font-size: 12px;
     font-weight: bold;
     border-radius: 20px;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     animation: mysteryBoxPulse 1.5s ease-in-out infinite;
+    width: 100%;
+    justify-content: center;
 }
 
 .milestone-mystery-btn:hover {
@@ -1598,7 +1606,7 @@ input:checked + .toggle-slider:before {
 }
 
 .milestone-mystery-btn .mystery-remaining {
-    font-size: 11px;
+    font-size: 10px;
     opacity: 0.8;
 }
 

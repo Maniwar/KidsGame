@@ -1096,26 +1096,27 @@ export class AudioManager {
             const freq = this.noteFrequencies[chord[noteIdx]];
 
             if (freq) {
-                // Gentle arpeggio note
+                // Arpeggio chime note
                 const osc = this.context.createOscillator();
                 const gain = this.context.createGain();
                 osc.type = 'sine';
-                osc.frequency.value = freq * 2; // Octave up for soft chime
+                osc.frequency.value = freq * 2; // Octave up for chime
 
                 const noteDur = beatDur * 0.8;
                 gain.gain.setValueAtTime(0, time);
-                gain.gain.linearRampToValueAtTime(0.025, time + 0.05);
-                gain.gain.setValueAtTime(0.025, time + noteDur * 0.5);
+                gain.gain.linearRampToValueAtTime(0.09, time + 0.05);
+                gain.gain.setValueAtTime(0.09, time + noteDur * 0.5);
                 gain.gain.linearRampToValueAtTime(0, time + noteDur);
 
                 osc.connect(gain);
-                gain.connect(this._reverbSend);  // Heavy reverb for dreamy feel
-                gain.connect(this._arpPanner);
+                gain.connect(this._reverbSend);
+                // Connect directly to masterGain (musicGain is faded to 0)
+                gain.connect(this.masterGain);
 
                 osc.start(time);
                 osc.stop(time + noteDur);
 
-                // Soft pad on downbeat of each chord
+                // Pad chord on downbeat
                 if (beat % 4 === 0) {
                     for (let i = 0; i < chord.length; i++) {
                         const padFreq = this.noteFrequencies[chord[i]];
@@ -1126,12 +1127,12 @@ export class AudioManager {
                         padOsc.frequency.value = padFreq;
                         const padDur = beatDur * 3.5;
                         padGain.gain.setValueAtTime(0, time);
-                        padGain.gain.linearRampToValueAtTime(0.012, time + 0.3);
-                        padGain.gain.setValueAtTime(0.012, time + padDur * 0.6);
+                        padGain.gain.linearRampToValueAtTime(0.04, time + 0.3);
+                        padGain.gain.setValueAtTime(0.04, time + padDur * 0.6);
                         padGain.gain.linearRampToValueAtTime(0, time + padDur);
                         padOsc.connect(padGain);
                         padGain.connect(this._reverbSend);
-                        padGain.connect(this._bassPanner);
+                        padGain.connect(this.masterGain);
                         padOsc.start(time);
                         padOsc.stop(time + padDur);
                     }

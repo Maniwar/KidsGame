@@ -11,7 +11,7 @@ export class AudioManager {
         this.musicScheduler = null;
         this.schedulerInterval = null;
         this.currentBeat = 0;
-        this.tempo = 144; // BPM - lively and fun from the start
+        this.tempo = 160; // BPM - upbeat and energetic
         this.beatDuration = 60 / this.tempo; // seconds per beat
 
         // Settings
@@ -85,24 +85,24 @@ export class AudioManager {
         };
 
         // Melody rest patterns per section (1 = play, 0 = rest)
-        // Creates breathing room and musical phrasing
+        // Designed so melody + arpeggio together always have something playing
         this.melodyRestPatterns = {
-            intro:  [1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1],  // Upbeat, gets player moving
-            verseA: [1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1],  // Lively call-response
-            verseB: [1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1],  // Flowing phrases
-            chorus: [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1],  // Dense and catchy
-            bridge: [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0],  // Rhythmic contrast
-            outro:  [1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0]   // Winding down
+            intro:  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Full melody from the start
+            verseA: [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],  // Lively, brief breaths
+            verseB: [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1],  // Flowing phrases
+            chorus: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Non-stop hook
+            bridge: [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],  // Rhythmic but present
+            outro:  [1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0]   // Gradual wind down
         };
 
-        // Arpeggio rest patterns - fills gaps and adds harmonic sparkle
+        // Arpeggio rest patterns - fills melody gaps and adds harmonic sparkle
         this.arpeggioRestPatterns = {
-            intro:  [0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  // Light sparkle from the start
-            verseA: [0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0],  // Fills gaps where melody rests
-            verseB: [0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0],  // Alternates with melody
-            chorus: [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],  // Response to melody phrases
-            bridge: [1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],  // Arpeggios carry the bridge
-            outro:  [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]   // Sparse echoes
+            intro:  [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0],  // Sparkle accents
+            verseA: [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  // Fills melody rests
+            verseB: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0],  // Fills melody rests
+            chorus: [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],  // Rhythmic shimmer
+            bridge: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Fills melody gaps
+            outro:  [0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1]   // Takes over from melody
         };
 
         // C Major Pentatonic scale (no semitones - perfect for melodies)
@@ -1087,6 +1087,85 @@ export class AudioManager {
         }, 550);
     }
 
+    // Gentle game over ambient music - slow minor arpeggios with reverb
+    startGameOverMusic() {
+        if (!this.isInitialized) return;
+        this.stopGameOverMusic(); // Clean up any existing
+
+        // Gentle Am → F → C → G progression (bittersweet, not depressing)
+        const chords = [
+            ['A3', 'C4', 'E4'],  // Am
+            ['F3', 'A3', 'C4'],  // F
+            ['C3', 'E3', 'G3'],  // C
+            ['G3', 'B3', 'D4'],  // G
+        ];
+
+        let beat = 0;
+        const tempo = 72; // Slow, reflective tempo
+        const beatDur = 60 / tempo;
+
+        this._gameOverInterval = setInterval(() => {
+            if (!this.context) return;
+            const time = this.context.currentTime;
+            const chordIdx = Math.floor(beat / 4) % chords.length;
+            const chord = chords[chordIdx];
+            const noteIdx = beat % chord.length;
+            const freq = this.noteFrequencies[chord[noteIdx]];
+
+            if (freq) {
+                // Gentle arpeggio note
+                const osc = this.context.createOscillator();
+                const gain = this.context.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq * 2; // Octave up for soft chime
+
+                const noteDur = beatDur * 0.8;
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(0.025, time + 0.05);
+                gain.gain.setValueAtTime(0.025, time + noteDur * 0.5);
+                gain.gain.linearRampToValueAtTime(0, time + noteDur);
+
+                osc.connect(gain);
+                gain.connect(this._reverbSend);  // Heavy reverb for dreamy feel
+                gain.connect(this._arpPanner);
+
+                osc.start(time);
+                osc.stop(time + noteDur);
+
+                // Soft pad on downbeat of each chord
+                if (beat % 4 === 0) {
+                    for (let i = 0; i < chord.length; i++) {
+                        const padFreq = this.noteFrequencies[chord[i]];
+                        if (!padFreq) continue;
+                        const padOsc = this.context.createOscillator();
+                        const padGain = this.context.createGain();
+                        padOsc.type = 'sine';
+                        padOsc.frequency.value = padFreq;
+                        const padDur = beatDur * 3.5;
+                        padGain.gain.setValueAtTime(0, time);
+                        padGain.gain.linearRampToValueAtTime(0.012, time + 0.3);
+                        padGain.gain.setValueAtTime(0.012, time + padDur * 0.6);
+                        padGain.gain.linearRampToValueAtTime(0, time + padDur);
+                        padOsc.connect(padGain);
+                        padGain.connect(this._reverbSend);
+                        padGain.connect(this._bassPanner);
+                        padOsc.start(time);
+                        padOsc.stop(time + padDur);
+                    }
+                }
+            }
+
+            beat++;
+        }, beatDur * 1000);
+    }
+
+    stopGameOverMusic() {
+        if (this._gameOverInterval) {
+            clearInterval(this._gameOverInterval);
+            this._gameOverInterval = null;
+        }
+    }
+
     // Set Sugar Rush level for dynamic music layers (called by game)
     setSugarRushLevel(level) {
         const prevLevel = this.sugarRushLevel;
@@ -1669,13 +1748,13 @@ export class AudioManager {
 
     // Dynamically adjust music tempo based on game speed
     setTempo(newTempo) {
-        // Clamp tempo between 100 and 180 BPM for playability
-        this.tempo = Math.max(100, Math.min(180, newTempo));
+        // Clamp tempo between 120 and 200 BPM for playability
+        this.tempo = Math.max(120, Math.min(200, newTempo));
         this.beatDuration = 60 / this.tempo;
 
         // Open dynamic filter with tempo (higher tempo = brighter sound)
         if (this._musicFilter && this.sugarRushLevel === 0) {
-            const progress = (this.tempo - 100) / 80; // 0 at 100bpm, 1 at 180bpm
+            const progress = (this.tempo - 120) / 80; // 0 at 120bpm, 1 at 200bpm
             const freq = 6000 + progress * 8000; // 6000Hz → 14000Hz
             this._musicFilter.frequency.setTargetAtTime(freq, this.context.currentTime, 0.3);
             this._filterBaseFreq = freq;

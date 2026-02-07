@@ -985,11 +985,14 @@ export class Candy {
     dispose() {
         this.isActive = false;
         this.scene.remove(this.group);
+        const sprinkleMats = sharedSprinkleMaterials ? new Set(sharedSprinkleMaterials) : null;
         this.group.traverse((child) => {
             if (child.geometry && child.geometry !== getSharedLollipopStickGeo() && child.geometry !== getSharedSprinkleGeo()) {
                 child.geometry.dispose();
             }
             if (child.material) {
+                // Skip shared sprinkle materials
+                if (sprinkleMats && sprinkleMats.has(child.material)) return;
                 child.material.dispose();
             }
         });

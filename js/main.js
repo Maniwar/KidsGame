@@ -11,6 +11,21 @@ import { LeaderboardManager } from './firebase/LeaderboardManager.js';
 import { PlayerDataManager } from './firebase/PlayerDataManager.js';
 import { CosmeticShop } from './shop/CosmeticShop.js';
 
+// PERFORMANCE: Pre-computed HSL→hex LUT for rainbow effects (eliminates per-frame trig)
+const HUE_LUT_SIZE = 64;
+const HUE_HEX_LUT = new Uint32Array(HUE_LUT_SIZE);
+const HUE_HEX_LUT_BRIGHT = new Uint32Array(HUE_LUT_SIZE);
+{
+    const c = new THREE.Color();
+    for (let i = 0; i < HUE_LUT_SIZE; i++) {
+        const hue = i / HUE_LUT_SIZE;
+        c.setHSL(hue, 1, 0.6);
+        HUE_HEX_LUT[i] = c.getHex();
+        c.setHSL(hue, 1, 0.8);
+        HUE_HEX_LUT_BRIGHT[i] = c.getHex();
+    }
+}
+
 class Game {
     constructor() {
         this.isRunning = false;
@@ -779,8 +794,7 @@ class Game {
                 this.attractCandies(deltaTime);
             }
 
-            // Update meter UI to show decay
-            this.animateCandyMeter();
+            // Meter UI updated by throttled HUD update (updateCandyMeterHUD)
         } else if (this.sugarRushCooldown <= 0 && this.candyMeter > 0) {
             // Level 0 decay - meter drains even when building up!
             // Candy spawns ~0.4/sec collectible, avg value ~18 = ~7/sec max gain
@@ -788,9 +802,6 @@ class Game {
             const level0DecayRate = 4;
             this.candyMeter -= level0DecayRate * deltaTime;
             if (this.candyMeter < 0) this.candyMeter = 0;
-
-            // Update meter UI to show decay
-            this.animateCandyMeter();
         }
 
         // Update Sugar Rush cooldown
@@ -1380,8 +1391,8 @@ class Game {
 
         this.candyMeter += value;
 
-        // Trigger candy meter UI animation
-        this.animateCandyMeter();
+        // Trigger candy meter UI animation (pulse on collect)
+        this.animateCandyMeter(true);
 
         // Check if meter is full
         if (this.candyMeter >= this.candyMeterMax) {
@@ -1742,15 +1753,18 @@ class Game {
         }
     }
 
-    animateCandyMeter() {
-        const meterFill = document.getElementById('candy-meter-fill');
+    // PERFORMANCE: Use cached DOM element, only pulse on candy collect (not decay)
+    animateCandyMeter(pulse) {
+        const meterFill = this.domElements.candyMeterFill;
         if (meterFill) {
             const percent = Math.min((this.candyMeter / this.candyMeterMax) * 100, 100);
             meterFill.style.width = `${percent}%`;
 
-            // Pulse animation on collect
-            meterFill.classList.add('candy-pulse');
-            setTimeout(() => meterFill.classList.remove('candy-pulse'), 300);
+            // Only pulse on candy collect, not on per-frame decay
+            if (pulse) {
+                meterFill.classList.add('candy-pulse');
+                setTimeout(() => meterFill.classList.remove('candy-pulse'), 300);
+            }
         }
     }
 
@@ -1949,9 +1963,9 @@ class Game {
             // Spawn trail particle every few frames using particle pool
             if (Math.random() < 0.3) {
                 const playerPos = this.player.getPosition();
-                const hue = (time % 1000) / 1000;
-                this._tempColor.setHSL(hue, 1, 0.5);
-                const particle = this.getParticleFromPool(this._tempColor.getHex());
+                // PERFORMANCE: LUT lookup instead of setHSL
+                const hueIdx = Math.floor(((time % 1000) / 1000) * HUE_LUT_SIZE) % HUE_LUT_SIZE;
+                const particle = this.getParticleFromPool(HUE_HEX_LUT[hueIdx]);
 
                 if (particle) {
                     particle.position.copy(playerPos);
@@ -1980,24 +1994,24 @@ class Game {
 
         // Animate Sugar Rush aura (rainbow color cycle!)
         if (this.sugarRushAura && this.isSugarRush) {
-            const hue = (time * 0.002) % 1;
-            this.sugarRushAura.material.color.setHSL(hue, 1, 0.6);
+            // PERFORMANCE: Use LUT instead of setHSL (eliminates trig)
+            const hueIdx = Math.floor(((time * 0.002) % 1) * HUE_LUT_SIZE) % HUE_LUT_SIZE;
+            this.sugarRushAura.material.color.setHex(HUE_HEX_LUT[hueIdx]);
             this.sugarRushAura.rotation.y += deltaTime * 2;
 
             // Pulsing size
             const pulse = 1 + Math.sin(time * 0.008) * 0.15;
             this.sugarRushAura.scale.set(pulse, pulse, pulse);
 
-            // Spawn DRAMATIC rainbow trail particles - multiple per frame!
+            // Spawn rainbow trail particles
             const playerPos = this.player.getPosition();
 
-            // Spawn 3-5 particles per frame for a thick, visible ribbon trail
-            const particlesToSpawn = 3 + Math.floor(Math.random() * 3);
+            // PERFORMANCE: Reduced from 3-5 to 2-3 particles/frame (still visually rich)
+            const particlesToSpawn = 2 + Math.floor(Math.random() * 2);
             for (let i = 0; i < particlesToSpawn; i++) {
-                // Rainbow colors cycling through spectrum
-                const trailHue = ((time * 0.003) + (i * 0.15)) % 1;
-                this._tempColor.setHSL(trailHue, 1, 0.6);
-                const particle = this.getParticleFromPool(this._tempColor.getHex());
+                // PERFORMANCE: LUT lookup instead of setHSL
+                const trailIdx = Math.floor((((time * 0.003) + (i * 0.15)) % 1) * HUE_LUT_SIZE) % HUE_LUT_SIZE;
+                const particle = this.getParticleFromPool(HUE_HEX_LUT[trailIdx]);
 
                 if (particle) {
                     // Spread particles in a wider area behind player for ribbon effect
@@ -2028,9 +2042,9 @@ class Game {
 
             // Also spawn some sparkle stars in the trail
             if (Math.random() < 0.3) {
-                const sparkleHue = Math.random();
-                this._tempColor.setHSL(sparkleHue, 1, 0.8);
-                const sparkle = this.getParticleFromPool(this._tempColor.getHex());
+                // PERFORMANCE: LUT lookup instead of setHSL
+                const sparkleIdx = Math.floor(Math.random() * HUE_LUT_SIZE);
+                const sparkle = this.getParticleFromPool(HUE_HEX_LUT_BRIGHT[sparkleIdx]);
 
                 if (sparkle) {
                     sparkle.position.set(
@@ -3069,13 +3083,17 @@ class Game {
         return null; // Pool exhausted
     }
 
-    // PERFORMANCE: Return particle to pool
+    // PERFORMANCE: Return particle to pool (swap-and-pop, no splice)
     returnParticleToPool(particle) {
         particle.userData.active = false;
         particle.visible = false;
         const idx = this.activeParticles.indexOf(particle);
         if (idx !== -1) {
-            this.activeParticles.splice(idx, 1);
+            const last = this.activeParticles.length - 1;
+            if (idx !== last) {
+                this.activeParticles[idx] = this.activeParticles[last];
+            }
+            this.activeParticles.pop();
         }
     }
 

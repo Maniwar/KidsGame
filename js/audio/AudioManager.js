@@ -221,6 +221,25 @@ export class AudioManager {
             (h) => h.map((n, i) => i % 2 === 0 ? n + 1 : n), // Alternate lift (shimmer)
         ];
 
+        // === DYNAMIC INSTRUMENT PALETTES ===
+        // Each "instrument" defines how to synthesize a note:
+        // oscType, filterType, filterFreqMult, filterQ, attack shape
+        // These rotate per section and per song cycle so the sound changes dynamically
+        this.melodyInstruments = [
+            { name: 'warmSine',     osc: 'sine',     filter: null,      attack: 'smooth' },
+            { name: 'softSquare',   osc: 'square',   filter: 'lowpass', filterMult: 2.0, filterQ: 0.5, attack: 'smooth' },
+            { name: 'melloSaw',     osc: 'sawtooth', filter: 'lowpass', filterMult: 1.5, filterQ: 0.7, attack: 'smooth' },
+            { name: 'pluck',        osc: 'sawtooth', filter: 'lowpass', filterMult: 4.0, filterQ: 2.0, attack: 'pluck' },
+            { name: 'organSine',    osc: 'sine',     filter: null,      attack: 'organ' },
+        ];
+        this.responseInstruments = [
+            { name: 'clarinet',     osc: 'square',   filter: 'lowpass', filterMult: 2.5, filterQ: 1.0, attack: 'smooth' },
+            { name: 'flute',        osc: 'sine',     filter: null,      attack: 'breathy' },
+            { name: 'reedy',        osc: 'sawtooth', filter: 'lowpass', filterMult: 2.0, filterQ: 1.5, attack: 'smooth' },
+            { name: 'bellSine',     osc: 'sine',     filter: null,      attack: 'pluck' },
+            { name: 'warmSquare',   osc: 'square',   filter: 'lowpass', filterMult: 1.8, filterQ: 0.5, attack: 'smooth' },
+        ];
+
         // Rhythm patterns (1 = play, 0 = rest)
         this.rhythmPatterns = {
             kick:       [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],  // Four-on-the-floor
@@ -369,9 +388,18 @@ export class AudioManager {
     }
 
     playBackgroundMusic() {
-        if (!this.isInitialized || this.isMusicPlaying || !this.musicEnabled) return;
+        if (!this.isInitialized || !this.musicEnabled) return;
 
-        // MEMORY: Clear any lingering scheduler from previous session (race with fade-out timeout)
+        // Cancel any pending stop cleanup that would kill our new session
+        if (this._stopTimeout) {
+            clearTimeout(this._stopTimeout);
+            this._stopTimeout = null;
+        }
+
+        // Force-reset state so we can restart even if previous stop is mid-fade
+        this.isMusicPlaying = false;
+
+        // Clear any lingering scheduler from previous session
         if (this.schedulerInterval) {
             clearInterval(this.schedulerInterval);
             this.schedulerInterval = null;
@@ -524,6 +552,86 @@ export class AudioManager {
         if (this.sugarRushLevel > 0 && section !== 'intro') {
             this._playSugarRushLayers(sectionBeat % 16, beatTime, chordIndex);
         }
+    }
+
+    // === Dynamic Instrument System ===
+
+    // Pick a melody instrument based on section + song cycle
+    _getMelodyInstrument(section) {
+        const sectionIdx = Object.keys(this.songStructure).indexOf(section);
+        const seed = this.songCycle * 13 + sectionIdx * 3;
+        const idx = Math.floor(this._seededRandom(seed) * this.melodyInstruments.length);
+        return this.melodyInstruments[idx];
+    }
+
+    // Pick a response instrument (always different from current melody instrument)
+    _getResponseInstrument(section) {
+        const sectionIdx = Object.keys(this.songStructure).indexOf(section);
+        const seed = this.songCycle * 17 + sectionIdx * 5 + 99;
+        const idx = Math.floor(this._seededRandom(seed) * this.responseInstruments.length);
+        return this.responseInstruments[idx];
+    }
+
+    // Play a note using an instrument definition - returns {osc, gain} for caller to manage
+    _playInstrumentNote(instrument, freq, peakVol, duration, time, pannerNode) {
+        const osc = this.context.createOscillator();
+        const gain = this.context.createGain();
+
+        osc.type = instrument.osc;
+        osc.frequency.value = freq;
+
+        // Apply filter if instrument has one
+        let outputNode = osc;
+        if (instrument.filter) {
+            const filter = this.context.createBiquadFilter();
+            filter.type = instrument.filter;
+            filter.frequency.value = freq * (instrument.filterMult || 2);
+            filter.Q.value = instrument.filterQ || 1;
+
+            // Pluck attack: filter sweep from high to low
+            if (instrument.attack === 'pluck') {
+                filter.frequency.setValueAtTime(freq * 8, time);
+                filter.frequency.exponentialRampToValueAtTime(freq * (instrument.filterMult || 2), time + 0.08);
+            }
+
+            osc.connect(filter);
+            outputNode = filter;
+        }
+
+        // Envelope shape based on attack type
+        if (instrument.attack === 'pluck') {
+            // Sharp attack, fast decay - like a plucked string
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(peakVol, time + 0.005);
+            gain.gain.exponentialRampToValueAtTime(peakVol * 0.3, time + duration * 0.2);
+            gain.gain.linearRampToValueAtTime(0, time + duration);
+        } else if (instrument.attack === 'organ') {
+            // Instant on, sustain, quick release - like an organ
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(peakVol, time + 0.005);
+            gain.gain.setValueAtTime(peakVol * 0.9, time + duration * 0.8);
+            gain.gain.linearRampToValueAtTime(0, time + duration);
+        } else if (instrument.attack === 'breathy') {
+            // Slow attack with breath noise feel
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(peakVol * 0.5, time + 0.04);
+            gain.gain.linearRampToValueAtTime(peakVol, time + 0.1);
+            gain.gain.setValueAtTime(peakVol * 0.8, time + duration * 0.7);
+            gain.gain.linearRampToValueAtTime(0, time + duration);
+        } else {
+            // Smooth (default) - gentle attack and release
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(peakVol, time + 0.02);
+            gain.gain.setValueAtTime(peakVol * 0.8, time + duration * 0.6);
+            gain.gain.linearRampToValueAtTime(0, time + duration);
+        }
+
+        outputNode.connect(gain);
+        gain.connect(pannerNode);
+        gain.connect(this._reverbSend);
+
+        osc.start(time);
+        osc.stop(time + duration);
     }
 
     // === Procedural Melody Generation ===
@@ -725,66 +833,21 @@ export class AudioManager {
         const sustainLevel = importance > 1.3 ? 0.08 : (noteDuration > this.beatDuration ? 0.07 : 0.05);
         const sustainEnd = noteDuration * 0.75;
 
-        // Per-section melody timbre - different voices for variety
-        // Verse A: warm sine (gentle, mellow)
-        // Verse B: triangle (brighter, building energy)
-        // Chorus: triangle + sine warmth (full, rich lead)
-        // Bridge: sine (reflective drop-back)
-        // Intro/Outro: triangle (neutral)
-        const melodyTimbre = (section === 'verseA' || section === 'bridge')
-            ? 'sine' : 'triangle';
+        // === DYNAMIC MELODY INSTRUMENT ===
+        // Instrument changes per section AND per song cycle
         const isChorusMelody = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
-        const unisonTimbre = isChorusMelody
-            ? 'sine' : melodyTimbre; // Chorus mixes timbres for richness
+        const melodyInst = this._getMelodyInstrument(section);
 
-        // Melody volume: quieter in verses, full in chorus
+        // Melody volume: quieter overall - shares space with response voice
         const sectionVolMap = {
-            intro: 0.06, verseA: 0.06, verseB: 0.07,
-            chorus: 0.08, bridge: 0.055, outro: 0.05
+            intro: 0.05, verseA: 0.05, verseB: 0.055, verseA2: 0.05,
+            chorus: 0.06, chorus2: 0.065, chorus3: 0.065,
+            bridge: 0.045, outro: 0.04
         };
-        const melodyPeak = sectionVolMap[section] || 0.07;
+        const melodyPeak = sectionVolMap[section] || 0.055;
 
-        // Main melody oscillator
-        const osc = this.context.createOscillator();
-        const gain = this.context.createGain();
-
-        osc.type = melodyTimbre;
-        osc.frequency.value = playFreq;
-
-        gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(melodyPeak, time + attackTime);
-        gain.gain.linearRampToValueAtTime(sustainLevel, time + attackTime + decayTime);
-        gain.gain.setValueAtTime(sustainLevel, time + sustainEnd);
-        gain.gain.linearRampToValueAtTime(0, time + noteDuration);
-
-        osc.connect(gain);
-        gain.connect(this._melodyPanner);   // Stereo positioned
-        gain.connect(this._reverbSend);     // Send to reverb
-
-        osc.start(time);
-        osc.stop(time + noteDuration);
-
-        // Detuned unison oscillator - different timbre in chorus for warmth
-        const osc2 = this.context.createOscillator();
-        const gain2 = this.context.createGain();
-
-        osc2.type = unisonTimbre;
-        osc2.frequency.value = playFreq * 1.003; // +5 cents detune for shimmer
-
-        // Unison louder in chorus for fuller sound
-        const unisonLevel = isChorusMelody ? 0.045 : 0.03;
-        gain2.gain.setValueAtTime(0, time);
-        gain2.gain.linearRampToValueAtTime(unisonLevel, time + attackTime);
-        gain2.gain.linearRampToValueAtTime(sustainLevel * 0.45, time + attackTime + decayTime);
-        gain2.gain.setValueAtTime(sustainLevel * 0.45, time + sustainEnd);
-        gain2.gain.linearRampToValueAtTime(0, time + noteDuration);
-
-        osc2.connect(gain2);
-        // PERFORMANCE: Use shared panner, skip reverb for unison (main voice has it)
-        gain2.connect(this._unisonPanner);
-
-        osc2.start(time);
-        osc2.stop(time + noteDuration);
+        // Play main melody note with dynamically selected instrument
+        this._playInstrumentNote(melodyInst, playFreq, melodyPeak, noteDuration, time, this._melodyPanner);
 
         // Sugar Rush level 2+: octave doubling for extra brightness
         if (this.sugarRushLevel >= 2) {
@@ -1332,48 +1395,9 @@ export class AudioManager {
         };
         const peakVol = isChorus ? 0.065 : (volumeMap[section] || 0.05);
 
-        // Main response oscillator - filtered square wave (warm, reedy, distinct from melody)
-        const osc = this.context.createOscillator();
-        const gain = this.context.createGain();
-        const filter = this.context.createBiquadFilter();
-
-        osc.type = 'square';
-        osc.frequency.value = responseFreq;
-
-        // Low-pass filter to soften the square wave into a warm clarinet-like tone
-        filter.type = 'lowpass';
-        filter.frequency.value = responseFreq * 2.5;
-        filter.Q.value = 1;
-
-        gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(peakVol, time + 0.02);
-        gain.gain.setValueAtTime(peakVol * 0.8, time + noteDur * 0.6);
-        gain.gain.linearRampToValueAtTime(0, time + noteDur);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(this._unisonPanner); // Opposite side from melody
-        gain.connect(this._reverbSend);
-
-        osc.start(time);
-        osc.stop(time + noteDur);
-
-        // Soft sine sub-layer for body (blends the square wave nicely)
-        const sub = this.context.createOscillator();
-        const subGain = this.context.createGain();
-
-        sub.type = 'sine';
-        sub.frequency.value = responseFreq;
-
-        subGain.gain.setValueAtTime(0, time);
-        subGain.gain.linearRampToValueAtTime(peakVol * 0.5, time + 0.02);
-        subGain.gain.linearRampToValueAtTime(0, time + noteDur * 0.8);
-
-        sub.connect(subGain);
-        subGain.connect(this._unisonPanner);
-
-        sub.start(time);
-        sub.stop(time + noteDur);
+        // Play response note with dynamically selected instrument
+        const responseInst = this._getResponseInstrument(section);
+        this._playInstrumentNote(responseInst, responseFreq, peakVol, noteDur, time, this._unisonPanner);
     }
 
     // Synth pad for Sugar Rush level 3 - adds harmonic fullness
@@ -1494,8 +1518,9 @@ export class AudioManager {
             this.musicGain.gain.linearRampToValueAtTime(0, now + 0.5);
         }
 
-        // Stop scheduler after fade completes
-        setTimeout(() => {
+        // Stop scheduler after fade completes (tracked so playBackgroundMusic can cancel)
+        this._stopTimeout = setTimeout(() => {
+            this._stopTimeout = null;
             this.isMusicPlaying = false;
             if (this.schedulerInterval) {
                 clearInterval(this.schedulerInterval);

@@ -106,6 +106,15 @@ export class AudioManager {
             outro: 8       // 2 bars - resolve to tonic
         };
 
+        // PERFORMANCE: Pre-compute total beats and beat→section lookup
+        this.totalBeats = Object.values(this.songStructure).reduce((a, b) => a + b, 0);
+        this._sectionLookup = [];
+        for (const [name, duration] of Object.entries(this.songStructure)) {
+            const start = this._sectionLookup.length > 0
+                ? this._sectionLookup[this._sectionLookup.length - 1].end : 0;
+            this._sectionLookup.push({ name, start, end: start + duration });
+        }
+
         // Procedural melody generation (replaces hard-coded patterns)
         this.melodyCache = {}; // Cache generated melodies
         this.melodyCacheKeys = []; // Track insertion order for LRU eviction
@@ -139,6 +148,7 @@ export class AudioManager {
         this._arpPanner = null;
         this._bassPanner = null;
         this._percPanner = null;
+        this._unisonPanner = null;
 
         // Reverb send (set in init)
         this._reverbSend = null;
@@ -191,6 +201,11 @@ export class AudioManager {
             this._percPanner = this.context.createStereoPanner();
             this._percPanner.pan.value = 0.0; // Center
             this._percPanner.connect(this.musicGain);
+
+            // Shared unison panner (opposite side from melody for stereo width)
+            this._unisonPanner = this.context.createStereoPanner();
+            this._unisonPanner.pan.value = -0.2;
+            this._unisonPanner.connect(this.musicGain);
 
             // Reverb send bus - convolver with procedurally generated impulse response
             this._reverbGain = this.context.createGain();
@@ -288,8 +303,7 @@ export class AudioManager {
             this.currentBeat++;
 
             // Loop back to start after song ends
-            const totalBeats = Object.values(this.songStructure).reduce((a, b) => a + b, 0);
-            if (this.currentBeat >= totalBeats) {
+            if (this.currentBeat >= this.totalBeats) {
                 this.currentBeat = 0;
                 // Clear melody cache so next cycle generates fresh melodies
                 this.melodyCache = {};
@@ -299,18 +313,17 @@ export class AudioManager {
     }
 
     scheduleBeat(beatTime) {
-        // Determine which section we're in
+        // PERFORMANCE: Use pre-computed lookup instead of Object.entries() per beat
         let section = 'intro';
         let sectionBeat = this.currentBeat;
-        let totalBeats = 0;
 
-        for (const [sectionName, duration] of Object.entries(this.songStructure)) {
-            if (this.currentBeat < totalBeats + duration) {
-                section = sectionName;
-                sectionBeat = this.currentBeat - totalBeats;
+        for (let i = 0; i < this._sectionLookup.length; i++) {
+            const s = this._sectionLookup[i];
+            if (this.currentBeat < s.end) {
+                section = s.name;
+                sectionBeat = this.currentBeat - s.start;
                 break;
             }
-            totalBeats += duration;
         }
 
         // Get current chord (changes every 4 beats)
@@ -671,12 +684,8 @@ export class AudioManager {
         gain2.gain.linearRampToValueAtTime(0, time + noteDuration);
 
         osc2.connect(gain2);
-        // Pan unison voice opposite to main for stereo width
-        const unisonPanner = this.context.createStereoPanner();
-        unisonPanner.pan.value = -0.2; // Opposite side from melody
-        gain2.connect(unisonPanner);
-        unisonPanner.connect(this.musicGain);
-        gain2.connect(this._reverbSend);
+        // PERFORMANCE: Use shared panner, skip reverb for unison (main voice has it)
+        gain2.connect(this._unisonPanner);
 
         osc2.start(time);
         osc2.stop(time + noteDuration);
@@ -696,8 +705,8 @@ export class AudioManager {
             octGain.gain.linearRampToValueAtTime(0, time + noteDuration);
 
             octOsc.connect(octGain);
+            // PERFORMANCE: Skip reverb for octave (main voice has it)
             octGain.connect(this._melodyPanner);
-            octGain.connect(this._reverbSend);
 
             octOsc.start(time);
             octOsc.stop(time + noteDuration);
@@ -995,8 +1004,8 @@ export class AudioManager {
             gain.gain.linearRampToValueAtTime(0, time + padDuration);
 
             osc.connect(gain);
+            // PERFORMANCE: Skip reverb for pad (reduces convolver load)
             gain.connect(this._arpPanner);
-            gain.connect(this._reverbSend);
 
             osc.start(time);
             osc.stop(time + padDuration);

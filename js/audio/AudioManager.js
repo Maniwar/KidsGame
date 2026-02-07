@@ -98,25 +98,38 @@ export class AudioManager {
             outro: 'shortLong'       // Build to resolution
         };
 
-        // Melody rest patterns per section (1 = play, 0 = rest)
-        // Designed so melody + arpeggio together always have something playing
+        // === CALL-AND-RESPONSE SYSTEM ===
+        // Melody "calls" then response voice "answers" with different timbre
+        // Creates musical conversation instead of one instrument dominating
+
+        // Melody (call) rest patterns per section (1 = play, 0 = rest)
         this.melodyRestPatterns = {
-            intro:  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Full melody from the start
-            verseA: [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],  // Lively, brief breaths
-            verseB: [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1],  // Flowing phrases
-            chorus: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Non-stop hook
-            bridge: [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],  // Rhythmic but present
-            outro:  [1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0]   // Gradual wind down
+            intro:  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Solo melody intro
+            verseA: [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0],  // Call: 2 on, 2 off
+            verseB: [1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0],  // Longer calls
+            chorus: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Full melody (voices merge)
+            bridge: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],  // Tight alternation
+            outro:  [1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]   // Melody fades away
         };
 
-        // Arpeggio rest patterns - fills melody gaps and adds harmonic sparkle
+        // Response voice rest patterns - answers where melody rests
+        this.responseRestPatterns = {
+            intro:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // Silent (melody solo)
+            verseA: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],  // Answer: fills melody gaps
+            verseB: [0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1],  // Shorter answers
+            chorus: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],  // Interleaved with melody
+            bridge: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],  // Tight back-and-forth
+            outro:  [0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]   // Response takes over
+        };
+
+        // Arpeggio rest patterns - sparkle throughout, heavier in chorus
         this.arpeggioRestPatterns = {
-            intro:  [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0],  // Sparkle accents
-            verseA: [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  // Fills melody rests
-            verseB: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0],  // Fills melody rests
-            chorus: [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],  // Rhythmic shimmer
-            bridge: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Fills melody gaps
-            outro:  [0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1]   // Takes over from melody
+            intro:  [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Light sparkle
+            verseA: [1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1],  // Steady shimmer
+            verseB: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],  // 8th note sparkle
+            chorus: [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],  // Dense harmonic bed
+            bridge: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Sparse, open
+            outro:  [1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   // Fills the space
         };
 
         // C Major Pentatonic scale (no semitones - perfect for melodies)
@@ -467,9 +480,10 @@ export class AudioManager {
             this._playChordPad(currentChord, beatTime);
         }
 
-        // Chorus: countermelody for call-and-response richness
-        if (section === 'chorus') {
-            this._playCountermelody(currentChord, sectionBeat, beatTime);
+        // Response voice - answers melody with different timbre (all sections)
+        const responsePattern = this.responseRestPatterns[section] || this.responseRestPatterns.verseA;
+        if (responsePattern[sectionBeat % responsePattern.length] === 1) {
+            this._playResponseNote(section, sectionBeat, currentChord, beatTime);
         }
 
         // Section transitions - sweeps and crashes for smooth flow
@@ -639,15 +653,33 @@ export class AudioManager {
         const sustainLevel = importance > 1.3 ? 0.08 : (noteDuration > this.beatDuration ? 0.07 : 0.05);
         const sustainEnd = noteDuration * 0.75;
 
-        // Main melody oscillator - triangle wave for soft, pleasant tone
+        // Per-section melody timbre - different voices for variety
+        // Verse A: warm sine (gentle, mellow)
+        // Verse B: triangle (brighter, building energy)
+        // Chorus: triangle + sine warmth (full, rich lead)
+        // Bridge: sine (reflective drop-back)
+        // Intro/Outro: triangle (neutral)
+        const melodyTimbre = (section === 'verseA' || section === 'bridge')
+            ? 'sine' : 'triangle';
+        const unisonTimbre = (section === 'chorus')
+            ? 'sine' : melodyTimbre; // Chorus mixes timbres for richness
+
+        // Melody volume: quieter in verses, full in chorus
+        const sectionVolMap = {
+            intro: 0.06, verseA: 0.06, verseB: 0.07,
+            chorus: 0.08, bridge: 0.055, outro: 0.05
+        };
+        const melodyPeak = sectionVolMap[section] || 0.07;
+
+        // Main melody oscillator
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
 
-        osc.type = 'triangle';
+        osc.type = melodyTimbre;
         osc.frequency.value = freq;
 
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.08, time + attackTime);
+        gain.gain.linearRampToValueAtTime(melodyPeak, time + attackTime);
         gain.gain.linearRampToValueAtTime(sustainLevel, time + attackTime + decayTime);
         gain.gain.setValueAtTime(sustainLevel, time + sustainEnd);
         gain.gain.linearRampToValueAtTime(0, time + noteDuration);
@@ -659,16 +691,17 @@ export class AudioManager {
         osc.start(time);
         osc.stop(time + noteDuration);
 
-        // Detuned unison oscillator - adds warmth and width (chorus effect)
+        // Detuned unison oscillator - different timbre in chorus for warmth
         const osc2 = this.context.createOscillator();
         const gain2 = this.context.createGain();
 
-        osc2.type = 'triangle';
+        osc2.type = unisonTimbre;
         osc2.frequency.value = freq * 1.003; // +5 cents detune for shimmer
 
-        // Slightly lower volume than main voice
+        // Unison louder in chorus for fuller sound
+        const unisonLevel = section === 'chorus' ? 0.045 : 0.03;
         gain2.gain.setValueAtTime(0, time);
-        gain2.gain.linearRampToValueAtTime(0.035, time + attackTime);
+        gain2.gain.linearRampToValueAtTime(unisonLevel, time + attackTime);
         gain2.gain.linearRampToValueAtTime(sustainLevel * 0.45, time + attackTime + decayTime);
         gain2.gain.setValueAtTime(sustainLevel * 0.45, time + sustainEnd);
         gain2.gain.linearRampToValueAtTime(0, time + noteDuration);
@@ -724,10 +757,14 @@ export class AudioManager {
         osc.type = 'sine'; // Pure tone for harmony
         osc.frequency.value = freq;
 
+        // Arpeggio louder in chorus for dense harmonic bed
+        const arpPeak = section === 'chorus' ? 0.045 : 0.04;
+        const arpSustain = section === 'chorus' ? 0.035 : 0.03;
+
         // ADSR envelope scaled to arpeggio duration
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.03, time + 0.01);
-        gain.gain.linearRampToValueAtTime(0.025, time + arpeggioDuration * 0.3);
+        gain.gain.linearRampToValueAtTime(arpPeak, time + 0.01);
+        gain.gain.linearRampToValueAtTime(arpSustain, time + arpeggioDuration * 0.3);
         gain.gain.linearRampToValueAtTime(0, time + arpeggioDuration);
 
         osc.connect(gain);
@@ -1148,39 +1185,70 @@ export class AudioManager {
         }
     }
 
-    // Countermelody for chorus - plays chord tones in a lower register
-    // Creates call-and-response feel with the main melody
-    _playCountermelody(chord, beat, time) {
-        // Play on offbeats (beats 1 and 3) to interleave with melody
-        if (beat % 2 !== 1) return;
-
-        // Cycle through chord tones in a pattern: root, fifth, third
-        const noteOrder = [0, 2, 1];
-        const noteIdx = noteOrder[Math.floor(beat / 2) % noteOrder.length];
+    // Response voice - answers the melody call with a different timbre
+    // Uses chord-aware notes and a warm filtered square wave for contrast
+    _playResponseNote(section, beat, chord, time) {
+        // Pick a chord tone that creates a good response
+        // Pattern: root → fifth → third → octave root (ascending through chord)
+        const responseOrder = [0, 2, 1, 0];
+        const noteIdx = responseOrder[beat % responseOrder.length];
         const note = chord.notes[noteIdx] || chord.notes[0];
         const freq = this.noteFrequencies[note];
         if (!freq) return;
 
-        const noteDur = this.beatDuration * 0.6;
+        // Response plays one octave up for brightness
+        const responseFreq = freq * 2;
+        const noteDur = this.beatDuration * 0.7;
 
-        // Warm sine tone in the mid register
+        // Volume varies by section - louder in chorus where it duets with melody
+        const volumeMap = {
+            verseA: 0.055, verseB: 0.06, chorus: 0.065,
+            bridge: 0.05, outro: 0.05, intro: 0.04
+        };
+        const peakVol = volumeMap[section] || 0.05;
+
+        // Main response oscillator - filtered square wave (warm, reedy, distinct from melody)
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
+        const filter = this.context.createBiquadFilter();
 
-        osc.type = 'sine';
-        osc.frequency.value = freq * 2; // One octave up from chord register
+        osc.type = 'square';
+        osc.frequency.value = responseFreq;
+
+        // Low-pass filter to soften the square wave into a warm clarinet-like tone
+        filter.type = 'lowpass';
+        filter.frequency.value = responseFreq * 2.5;
+        filter.Q.value = 1;
 
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.04, time + 0.02);
-        gain.gain.setValueAtTime(0.035, time + noteDur * 0.5);
+        gain.gain.linearRampToValueAtTime(peakVol, time + 0.02);
+        gain.gain.setValueAtTime(peakVol * 0.8, time + noteDur * 0.6);
         gain.gain.linearRampToValueAtTime(0, time + noteDur);
 
-        osc.connect(gain);
+        osc.connect(filter);
+        filter.connect(gain);
         gain.connect(this._unisonPanner); // Opposite side from melody
         gain.connect(this._reverbSend);
 
         osc.start(time);
         osc.stop(time + noteDur);
+
+        // Soft sine sub-layer for body (blends the square wave nicely)
+        const sub = this.context.createOscillator();
+        const subGain = this.context.createGain();
+
+        sub.type = 'sine';
+        sub.frequency.value = responseFreq;
+
+        subGain.gain.setValueAtTime(0, time);
+        subGain.gain.linearRampToValueAtTime(peakVol * 0.5, time + 0.02);
+        subGain.gain.linearRampToValueAtTime(0, time + noteDur * 0.8);
+
+        sub.connect(subGain);
+        subGain.connect(this._unisonPanner);
+
+        sub.start(time);
+        sub.stop(time + noteDur);
     }
 
     // Synth pad for Sugar Rush level 3 - adds harmonic fullness

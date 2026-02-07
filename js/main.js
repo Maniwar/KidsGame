@@ -94,6 +94,7 @@ class Game {
         this.particlePool = [];
         this.activeParticles = [];
         this.maxPoolSize = 200; // Increased for Sugar Rush particle bursts
+        this.nextFreeParticle = 0; // PERFORMANCE: Free-list index for O(1) pool lookup
 
         // PERFORMANCE: Shared geometries and materials for particles
         this.sharedParticleGeo = null;
@@ -3083,40 +3084,45 @@ class Game {
         this.sharedParticleGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
         this.sharedSpeedTrailGeo = new THREE.SphereGeometry(0.15, 6, 6);
 
-        // Pre-create particle pool
+        // Pre-create particle pool with free-list chain
         for (let i = 0; i < this.maxPoolSize; i++) {
             const particle = new THREE.Mesh(
                 this.sharedParticleGeo,
                 new THREE.MeshBasicMaterial({ transparent: true, opacity: 1 })
             );
             particle.visible = false;
-            particle.userData = { active: false, velocity: { x: 0, y: 0, z: 0 }, life: 0, maxLife: 0 };
+            particle.userData = { active: false, velocity: { x: 0, y: 0, z: 0 }, life: 0, maxLife: 0, poolIndex: i, nextFree: i + 1 };
             this.particlePool.push(particle);
             this.gameScene.getScene().add(particle);
         }
-    }
-
-    // PERFORMANCE: Get particle from pool instead of creating new one
-    getParticleFromPool(color) {
-        for (let i = 0; i < this.particlePool.length; i++) {
-            const p = this.particlePool[i];
-            if (!p.userData.active) {
-                p.userData.active = true;
-                p.visible = true;
-                p.material.color.setHex(color);
-                p.material.opacity = 1;
-                p.scale.set(1, 1, 1);
-                this.activeParticles.push(p);
-                return p;
-            }
+        // Last particle points to sentinel
+        if (this.maxPoolSize > 0) {
+            this.particlePool[this.maxPoolSize - 1].userData.nextFree = -1;
         }
-        return null; // Pool exhausted
+        this.nextFreeParticle = 0;
     }
 
-    // PERFORMANCE: Return particle to pool (swap-and-pop, no splice)
+    // PERFORMANCE: Get particle from pool using O(1) free-list (no linear scan)
+    getParticleFromPool(color) {
+        if (this.nextFreeParticle === -1) return null; // Pool exhausted
+        const p = this.particlePool[this.nextFreeParticle];
+        this.nextFreeParticle = p.userData.nextFree;
+        p.userData.active = true;
+        p.visible = true;
+        p.material.color.setHex(color);
+        p.material.opacity = 1;
+        p.scale.set(1, 1, 1);
+        this.activeParticles.push(p);
+        return p;
+    }
+
+    // PERFORMANCE: Return particle to pool (swap-and-pop + free-list chain)
     returnParticleToPool(particle) {
         particle.userData.active = false;
         particle.visible = false;
+        // Push back onto free-list head
+        particle.userData.nextFree = this.nextFreeParticle;
+        this.nextFreeParticle = particle.userData.poolIndex;
         const idx = this.activeParticles.indexOf(particle);
         if (idx !== -1) {
             const last = this.activeParticles.length - 1;
@@ -3175,7 +3181,7 @@ class Game {
         // PERFORMANCE: Update screen shake in main loop (not recursive RAF)
         this._updateScreenShake(deltaTime);
 
-        // Update queued animations (floating text, etc.)
+        // PERFORMANCE: Update queued animations with swap-and-pop (avoids splice shift)
         for (let i = this.animations.length - 1; i >= 0; i--) {
             const anim = this.animations[i];
             anim.elapsed += deltaTime * 1000; // Convert to ms for compatibility
@@ -3184,7 +3190,11 @@ class Game {
             if (anim.update(progress, deltaTime)) {
                 // Animation complete
                 if (anim.onComplete) anim.onComplete();
-                this.animations.splice(i, 1);
+                const last = this.animations.length - 1;
+                if (i !== last) {
+                    this.animations[i] = this.animations[last];
+                }
+                this.animations.pop();
             }
         }
     }

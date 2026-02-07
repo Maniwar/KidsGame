@@ -63,6 +63,27 @@ export class GameScene {
         this.sharedGeometries.flower = new THREE.SphereGeometry(0.08, 6, 6);
         this.sharedGeometries.cloudSphere = new THREE.SphereGeometry(1, 6, 6);
 
+        // PERFORMANCE: Shared ground segment plane geometry and material (avoids creating new ones per segment)
+        this.sharedGeometries.segmentPlane = null; // Lazy-init since groundSegmentLength needed
+        this.sharedMaterials.segmentPlane = new THREE.MeshStandardMaterial({
+            color: COLORS.PRIMARY_PINK,
+            roughness: 0.8,
+            metalness: 0.1,
+        });
+
+        // PERFORMANCE: Shared window geometry and material for buildings
+        this.sharedMaterials.buildingWindow = new THREE.MeshStandardMaterial({
+            color: 0x87CEEB,
+            emissive: 0x87CEEB,
+            emissiveIntensity: 0.3
+        });
+        this.sharedMaterials.sideWindow = new THREE.MeshStandardMaterial({
+            color: 0x87CEEB,
+            emissive: 0x87CEEB,
+            emissiveIntensity: 0.4
+        });
+        this.sharedGeometries.sideWindow = new THREE.BoxGeometry(0.8, 1.2, 0.1);
+
         // Shared materials (will clone and modify color as needed)
         this.sharedMaterials.lampPost = new THREE.MeshStandardMaterial({ color: 0x696969, flatShading: true });
         this.sharedMaterials.trunk = new THREE.MeshStandardMaterial({ color: 0x8B4513, flatShading: true });
@@ -146,7 +167,8 @@ export class GameScene {
 
     createSkyGradient() {
         // Create a large sphere for sky gradient
-        const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+        // PERFORMANCE: Reduced from 32 to 16 segments (invisible at this distance)
+        const skyGeometry = new THREE.SphereGeometry(500, 16, 16);
         const skyMaterial = new THREE.ShaderMaterial({
             vertexShader: `
                 varying vec3 vWorldPosition;
@@ -186,6 +208,9 @@ export class GameScene {
         this.ground.position.y = 0;
         this.ground.position.z = -10000; // EXTENDED: Center it even further ahead
         this.ground.receiveShadow = true;
+        // PERFORMANCE: Ground never moves, skip per-frame matrix recalculation
+        this.ground.matrixAutoUpdate = false;
+        this.ground.updateMatrix();
         this.scene.add(this.ground);
 
         // Sidewalks (also very long)
@@ -202,15 +227,12 @@ export class GameScene {
         const segmentGroup = new THREE.Group();
         const endZ = startZ - this.groundSegmentLength;
 
-        // Main ground - clean pink road surface (unique per segment due to size)
-        const segmentPlaneGeometry = new THREE.PlaneGeometry(8, this.groundSegmentLength);
-        const segmentPlaneMaterial = new THREE.MeshStandardMaterial({
-            color: COLORS.PRIMARY_PINK,
-            roughness: 0.8,
-            metalness: 0.1,
-        });
+        // PERFORMANCE: Use shared geometry and material (all segments same size)
+        if (!this.sharedGeometries.segmentPlane) {
+            this.sharedGeometries.segmentPlane = new THREE.PlaneGeometry(8, this.groundSegmentLength);
+        }
 
-        const segmentPlane = new THREE.Mesh(segmentPlaneGeometry, segmentPlaneMaterial);
+        const segmentPlane = new THREE.Mesh(this.sharedGeometries.segmentPlane, this.sharedMaterials.segmentPlane);
         segmentPlane.rotation.x = -Math.PI / 2;
         segmentPlane.position.y = 0.005;
         segmentPlane.position.z = startZ - this.groundSegmentLength / 2;
@@ -350,11 +372,17 @@ export class GameScene {
         const leftSidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
         leftSidewalk.position.set(-6, 0.05, -10000);
         leftSidewalk.receiveShadow = true;
+        // PERFORMANCE: Static object - skip per-frame matrix recalculation
+        leftSidewalk.matrixAutoUpdate = false;
+        leftSidewalk.updateMatrix();
         this.scene.add(leftSidewalk);
 
         const rightSidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
         rightSidewalk.position.set(6, 0.05, -10000);
         rightSidewalk.receiveShadow = true;
+        // PERFORMANCE: Static object - skip per-frame matrix recalculation
+        rightSidewalk.matrixAutoUpdate = false;
+        rightSidewalk.updateMatrix();
         this.scene.add(rightSidewalk);
 
         // GREEN GRASS STRIPS - where buildings sit (earth/nature strip instead of pink)
@@ -370,6 +398,9 @@ export class GameScene {
         leftGrassStrip.rotation.x = -Math.PI / 2;
         leftGrassStrip.position.set(-58, 0.02, -10000); // Positioned beyond sidewalk
         leftGrassStrip.receiveShadow = true;
+        // PERFORMANCE: Static object - skip per-frame matrix recalculation
+        leftGrassStrip.matrixAutoUpdate = false;
+        leftGrassStrip.updateMatrix();
         this.scene.add(leftGrassStrip);
 
         // Right grass strip (beyond right sidewalk)
@@ -377,6 +408,9 @@ export class GameScene {
         rightGrassStrip.rotation.x = -Math.PI / 2;
         rightGrassStrip.position.set(58, 0.02, -10000); // Positioned beyond sidewalk
         rightGrassStrip.receiveShadow = true;
+        // PERFORMANCE: Static object - skip per-frame matrix recalculation
+        rightGrassStrip.matrixAutoUpdate = false;
+        rightGrassStrip.updateMatrix();
         this.scene.add(rightGrassStrip);
 
         // Concrete sections are now added per segment in spawnGroundSegment()
@@ -556,12 +590,8 @@ export class GameScene {
             group.add(roof);
         }
 
-        // Windows - scaled to building dimensions, starting above ground floor
-        const windowMaterial = new THREE.MeshStandardMaterial({
-            color: 0x87CEEB,
-            emissive: 0x87CEEB,
-            emissiveIntensity: 0.3
-        });
+        // PERFORMANCE: Use shared window material (same across all buildings)
+        const windowMaterial = this.sharedMaterials.buildingWindow;
 
         // Calculate window grid - windows start above ground floor (2.5 units up from bottom)
         const groundFloorHeight = 2.5; // Height reserved for doors/awnings
@@ -590,13 +620,9 @@ export class GameScene {
             }
         }
 
-        // Ground floor side windows (shared material)
-        const sideWindowMat = new THREE.MeshStandardMaterial({
-            color: 0x87CEEB,
-            emissive: 0x87CEEB,
-            emissiveIntensity: 0.4
-        });
-        const sideWindowGeo = new THREE.BoxGeometry(0.8, 1.2, 0.1);
+        // PERFORMANCE: Use shared side window material and geometry
+        const sideWindowMat = this.sharedMaterials.sideWindow;
+        const sideWindowGeo = this.sharedGeometries.sideWindow;
 
         // Style-specific decorations
         if (style === 'shop' || style === 'supermarket') {
@@ -1898,32 +1924,28 @@ export class GameScene {
             this.createMovingObject(playerZ);
         }
 
-        // Update existing moving objects
-        this.movingObjects.forEach(obj => {
+        // PERFORMANCE: Use indexed for-loop instead of forEach (avoids closure overhead)
+        for (let i = 0, len = this.movingObjects.length; i < len; i++) {
+            const obj = this.movingObjects[i];
             // Move toward player (positive Z direction)
             obj.position.z += obj.userData.speed * deltaTime;
             obj.userData.animTime += deltaTime * 5;
 
             // Animate based on type
-            if (obj.userData.type === 'bird' && obj.userData.leftWing) {
+            const objType = obj.userData.type;
+            if (objType === 'bird' && obj.userData.leftWing) {
                 const flapAmount = Math.sin(obj.userData.animTime * 10) * 0.4;
                 obj.userData.leftWing.rotation.z = flapAmount;
                 obj.userData.rightWing.rotation.z = -flapAmount;
-            }
-
-            if (obj.userData.type === 'butterfly' && obj.userData.leftWing) {
+            } else if (objType === 'butterfly' && obj.userData.leftWing) {
                 const flapAmount = Math.sin(obj.userData.animTime * 8) * 0.6;
                 obj.userData.leftWing.rotation.y = Math.PI / 6 + flapAmount;
                 obj.userData.rightWing.rotation.y = -Math.PI / 6 - flapAmount;
-            }
-
-            if (obj.userData.type === 'balloon') {
+            } else if (objType === 'balloon') {
                 // Gentle bobbing
                 obj.position.y += Math.sin(obj.userData.animTime * 2) * deltaTime * 0.5;
                 obj.rotation.y += deltaTime * 0.3;
-            }
-
-            if (obj.userData.type === 'leaf') {
+            } else if (objType === 'leaf') {
                 // Spinning and swaying
                 obj.rotation.z += deltaTime * 3;
                 obj.position.x += Math.sin(obj.userData.animTime * 3) * deltaTime * obj.userData.wobble;
@@ -1932,7 +1954,7 @@ export class GameScene {
             // Wobble side to side for all
             const wobble = Math.sin(obj.userData.animTime * 2) * 0.3;
             obj.position.x += wobble * deltaTime * 0.2;
-        });
+        }
 
         // PERFORMANCE: In-place removal instead of filter()
         for (let i = this.movingObjects.length - 1; i >= 0; i--) {
@@ -1960,36 +1982,34 @@ export class GameScene {
             this.createSidewalkCharacter(spawnZ);
         }
 
-        // Update existing characters
-        this.sidewalkCharacters.forEach(character => {
+        // PERFORMANCE: Use indexed for-loop instead of forEach (avoids closure overhead)
+        for (let i = 0, len = this.sidewalkCharacters.length; i < len; i++) {
+            const character = this.sidewalkCharacters[i];
             // Move along sidewalk
             character.position.z += character.userData.direction * character.userData.speed * deltaTime;
             character.userData.animTime += deltaTime * 3;
 
             // Animate based on type
-            if (character.userData.type === 'bird' && character.userData.leftWing) {
+            const charType = character.userData.type;
+            if (charType === 'bird' && character.userData.leftWing) {
                 const flapAmount = Math.sin(character.userData.animTime * 10) * 0.3;
                 character.userData.leftWing.rotation.z = flapAmount;
                 character.userData.rightWing.rotation.z = -flapAmount;
 
                 // Bobbing flight
                 character.position.y = 0.5 + Math.sin(character.userData.animTime * 5) * 0.2;
-            }
-
-            if (character.userData.type === 'butterfly' && character.userData.leftWing) {
+            } else if (charType === 'butterfly' && character.userData.leftWing) {
                 const flapAmount = Math.sin(character.userData.animTime * 8) * 0.5;
                 character.userData.leftWing.rotation.y = Math.PI / 6 + flapAmount;
                 character.userData.rightWing.rotation.y = -Math.PI / 6 - flapAmount;
 
                 // Gentle floating
                 character.position.y = 1 + Math.sin(character.userData.animTime * 3) * 0.3;
-            }
-
-            // Gentle bobbing for walking characters
-            if (character.userData.type !== 'bird' && character.userData.type !== 'butterfly') {
+            } else {
+                // Gentle bobbing for walking characters
                 character.rotation.y = Math.sin(character.userData.animTime * 2) * 0.1;
             }
-        });
+        }
 
         // PERFORMANCE: In-place removal instead of filter()
         for (let i = this.sidewalkCharacters.length - 1; i >= 0; i--) {

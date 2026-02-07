@@ -5,6 +5,19 @@ import { COLORS, GAME_CONFIG } from '../utils/Constants.js';
 let sharedLollipopStickGeo = null;
 let sharedSprinkleGeo = null;
 
+// PERFORMANCE: Shared sprinkle materials (reused across all donuts)
+const SPRINKLE_COLORS = [0xFF69B4, 0xFFD700, 0x87CEEB, 0x98FB98, 0xFFB347, 0xDDA0DD];
+let sharedSprinkleMaterials = null;
+
+function getSharedSprinkleMaterials() {
+    if (!sharedSprinkleMaterials) {
+        sharedSprinkleMaterials = SPRINKLE_COLORS.map(color =>
+            new THREE.MeshStandardMaterial({ color })
+        );
+    }
+    return sharedSprinkleMaterials;
+}
+
 function getSharedLollipopStickGeo() {
     if (!sharedLollipopStickGeo) {
         sharedLollipopStickGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.6, 6);
@@ -354,13 +367,10 @@ export class Candy {
         frosting.position.y = 0.05;
         donutGroup.add(frosting);
 
-        // Colorful sprinkles!
-        const sprinkleColors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0x98FB98, 0xFFB347, 0xDDA0DD];
+        // PERFORMANCE: Use shared sprinkle materials (no new material per sprinkle)
+        const sprinkleMats = getSharedSprinkleMaterials();
         for (let i = 0; i < 12; i++) {
-            const sprinkleMat = new THREE.MeshStandardMaterial({
-                color: sprinkleColors[i % sprinkleColors.length],
-            });
-            const sprinkle = new THREE.Mesh(getSharedSprinkleGeo(), sprinkleMat);
+            const sprinkle = new THREE.Mesh(getSharedSprinkleGeo(), sprinkleMats[i % sprinkleMats.length]);
 
             const angle = (i / 12) * Math.PI * 2;
             const radius = 0.12 + Math.random() * 0.08;

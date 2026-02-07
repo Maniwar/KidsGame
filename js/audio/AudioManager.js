@@ -94,7 +94,10 @@ export class AudioManager {
             verseA: 'standard',      // Steady, establishes groove
             verseB: 'syncopated',    // More interesting rhythm
             chorus: 'driving',       // Energetic, memorable
+            verseA2: 'syncopated',   // Return verse with different rhythm
+            chorus2: 'driving',      // Hook returns
             bridge: 'longShort',     // Bouncy contrast
+            chorus3: 'driving',      // Final chorus
             outro: 'shortLong'       // Build to resolution
         };
 
@@ -104,32 +107,41 @@ export class AudioManager {
 
         // Melody (call) rest patterns per section (1 = play, 0 = rest)
         this.melodyRestPatterns = {
-            intro:  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Solo melody intro
-            verseA: [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0],  // Call: 2 on, 2 off
-            verseB: [1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0],  // Longer calls
-            chorus: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Full melody (voices merge)
-            bridge: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],  // Tight alternation
-            outro:  [1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]   // Melody fades away
+            intro:   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Solo melody intro
+            verseA:  [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0],  // Call: 2 on, 2 off
+            verseB:  [1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0],  // Longer calls
+            chorus:  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Full melody (voices merge)
+            verseA2: [1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1],  // Shifted call pattern
+            chorus2: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Full melody
+            bridge:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],  // Tight alternation
+            chorus3: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Full final chorus
+            outro:   [1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]   // Melody fades away
         };
 
         // Response voice rest patterns - answers where melody rests
         this.responseRestPatterns = {
-            intro:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // Silent (melody solo)
-            verseA: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],  // Answer: fills melody gaps
-            verseB: [0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1],  // Shorter answers
-            chorus: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],  // Interleaved with melody
-            bridge: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],  // Tight back-and-forth
-            outro:  [0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]   // Response takes over
+            intro:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // Silent (melody solo)
+            verseA:  [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],  // Answer: fills melody gaps
+            verseB:  [0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1],  // Shorter answers
+            chorus:  [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],  // Interleaved with melody
+            verseA2: [0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0],  // Different answer rhythm
+            chorus2: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],  // Same chorus feel
+            bridge:  [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],  // Tight back-and-forth
+            chorus3: [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],  // Both play heavy
+            outro:   [0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]   // Response takes over
         };
 
         // Arpeggio rest patterns - sparkle throughout, heavier in chorus
         this.arpeggioRestPatterns = {
-            intro:  [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Light sparkle
-            verseA: [1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1],  // Steady shimmer
-            verseB: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],  // 8th note sparkle
-            chorus: [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],  // Dense harmonic bed
-            bridge: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Sparse, open
-            outro:  [1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   // Fills the space
+            intro:   [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Light sparkle
+            verseA:  [1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1],  // Steady shimmer
+            verseB:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],  // 8th note sparkle
+            chorus:  [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],  // Dense harmonic bed
+            verseA2: [0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0],  // Offset from verse A
+            chorus2: [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],  // Even denser
+            bridge:  [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Sparse, open
+            chorus3: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Full blast
+            outro:   [1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   // Fills the space
         };
 
         // C Major Pentatonic scale (no semitones - perfect for melodies)
@@ -137,13 +149,17 @@ export class AudioManager {
         this.pentatonicScale = ['C5', 'D5', 'E5', 'G5', 'A5', 'C6', 'D6', 'E6'];
 
         // Song structure (in beats, 4/4 time)
+        // Full pop song form: ~50 seconds at 160 BPM (was ~24s)
         this.songStructure = {
-            intro: 4,      // 1 bar - quick pickup
-            verseA: 16,    // 4 bars - establish melody
+            intro: 8,      // 2 bars - build anticipation
+            verseA: 16,    // 4 bars - establish melody (call-response)
             verseB: 16,    // 4 bars - develop melody
-            chorus: 16,    // 4 bars - catchy hook
-            bridge: 8,     // 2 bars - variation
-            outro: 4       // 1 bar - resolve to tonic
+            chorus: 16,    // 4 bars - catchy hook (voices merge)
+            verseA2: 16,   // 4 bars - verse returns with new melody
+            chorus2: 16,   // 4 bars - hook returns bigger
+            bridge: 16,    // 4 bars - variation/contrast
+            chorus3: 16,   // 4 bars - final chorus
+            outro: 8       // 2 bars - resolve
         };
 
         // PERFORMANCE: Pre-compute total beats and beat→section lookup
@@ -182,12 +198,15 @@ export class AudioManager {
         // Chorus is HIGHER than verse (proven across all catchy pop music)
         // pentatonicScale: C5=0, D5=1, E5=2, G5=3, A5=4, C6=5, D6=6, E6=7
         this.sectionBases = {
-            intro: 2,   // E5 - bright, inviting
-            verseA: 0,  // C5 - home base (lower energy)
-            verseB: 1,  // D5 - slight lift
-            chorus: 3,  // G5 - HIGH register = excitement!
-            bridge: 1,  // D5 - reflective
-            outro: 0,   // C5 - return home
+            intro: 2,    // E5 - bright, inviting
+            verseA: 0,   // C5 - home base (lower energy)
+            verseB: 1,   // D5 - slight lift
+            chorus: 3,   // G5 - HIGH register = excitement!
+            verseA2: 1,  // D5 - verse returns slightly higher
+            chorus2: 4,  // A5 - even higher for bigger chorus
+            bridge: 2,   // E5 - reflective but bright
+            chorus3: 3,  // G5 - final chorus
+            outro: 0,    // C5 - return home
         };
 
         // How to develop the hook across bars
@@ -431,15 +450,15 @@ export class AudioManager {
             this.playChordArpeggio(currentChord, sectionBeat, beatTime, section);
         }
 
-        // Bass: half-note pattern (root+fifth) for most sections
-        // Walking bass ONLY in chorus for maximum energy contrast
+        // Bass: varies by section for dynamic contrast
+        const isChorusSection = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
         const beatInBar = this.currentBeat % 4;
         if (section === 'intro' || section === 'outro') {
             // Light: root on downbeat only
             if (beatInBar === 0) {
                 this.playBassNote(currentChord.root, beatTime);
             }
-        } else if (section === 'chorus') {
+        } else if (isChorusSection) {
             // Full walking bass in chorus = peak energy
             const nextChordIndex = (chordIndex + 1) % this.chordProgression.length;
             const nextChord = this.chordProgression[nextChordIndex];
@@ -470,13 +489,13 @@ export class AudioManager {
             this.playPercussion(sectionBeat % 16, beatTime, section);
         }
 
-        // Verse B: light pad to build energy toward chorus
-        if (section === 'verseB' && sectionBeat % 4 === 0) {
+        // Verse B / verseA2: light pad to build energy toward chorus
+        if ((section === 'verseB' || section === 'verseA2') && sectionBeat % 4 === 0) {
             this._playLightPad(currentChord, beatTime);
         }
 
-        // Chorus: add sustained chord pad for fullness
-        if (section === 'chorus' && sectionBeat % 4 === 0) {
+        // All chorus sections: add sustained chord pad for fullness
+        if (isChorusSection && sectionBeat % 4 === 0) {
             this._playChordPad(currentChord, beatTime);
         }
 
@@ -509,37 +528,66 @@ export class AudioManager {
 
     // === Procedural Melody Generation ===
 
+    // Simple seeded random for reproducible-within-cycle but different-across-cycles
+    _seededRandom(seed) {
+        const x = Math.sin(seed * 9301 + 49297) * 49297;
+        return x - Math.floor(x);
+    }
+
     generateMelody(section, length) {
-        // Hook-based melody with AABA phrase structure
-        // The brain loves: hear it, hear it AGAIN, hear variation, hear original
-        // Same hook across all sections but at different pitch ranges
-        const hookIdx = this.songCycle % this.hookShapes.length;
+        // Each section in each cycle gets a UNIQUE melody by combining:
+        // 1. Random hook selection (not sequential)
+        // 2. Random development choices per bar
+        // 3. Random note mutations for surprise
+        // 4. Different base pitch offsets per cycle
+
+        const sectionSeed = this.songCycle * 7 + Object.keys(this.songStructure).indexOf(section);
+
+        // Pick hook randomly based on cycle + section (not just sequential)
+        const hookIdx = Math.floor(this._seededRandom(sectionSeed) * this.hookShapes.length);
         const hook = this.hookShapes[hookIdx];
-        const base = this.sectionBases[section] || 0;
+
+        // Vary the base pitch per cycle for register variety
+        const baseShift = Math.floor(this._seededRandom(sectionSeed + 100) * 3) - 1; // -1, 0, or 1
+        const base = Math.max(0, (this.sectionBases[section] || 0) + baseShift);
         const scaleLen = this.pentatonicScale.length;
 
         const melody = [];
         const barsNeeded = Math.ceil(length / 4);
 
+        // Randomly choose phrase structure: AABA, ABAB, ABCA, AABC
+        const structureRoll = this._seededRandom(sectionSeed + 200);
+        let phraseStructure;
+        if (structureRoll < 0.3) phraseStructure = [0, 0, 1, 0];       // AABA (classic)
+        else if (structureRoll < 0.5) phraseStructure = [0, 1, 0, 1];  // ABAB (alternating)
+        else if (structureRoll < 0.7) phraseStructure = [0, 1, 2, 0];  // ABCA (journey)
+        else phraseStructure = [0, 0, 1, 2];                           // AABC (build)
+
         for (let bar = 0; bar < barsNeeded && melody.length < length; bar++) {
-            // AABA: bars 0,1,3 = original hook, bar 2 = development
-            // This gives maximum recognition with just enough surprise
+            const structIdx = phraseStructure[bar % phraseStructure.length];
             let notes;
-            if (bar === 2 && barsNeeded >= 4) {
-                // Bar 3 of a 4-bar section: develop for variety
-                const devIdx = (this.songCycle + 1) % this.hookDevelopments.length;
-                notes = this.hookDevelopments[devIdx](hook);
-            } else if (bar === 1 && barsNeeded >= 3) {
-                // Bar 2: slight development (step up for energy)
-                notes = this.hookDevelopments[1](hook);
+
+            if (structIdx === 0) {
+                // Original hook
+                notes = hook.slice();
             } else {
-                // Bars 1 and 4: original hook (recognition!)
-                notes = hook;
+                // Pick a random development for this bar
+                const devSeed = sectionSeed + bar * 31 + structIdx * 17;
+                const devIdx = Math.floor(this._seededRandom(devSeed) * this.hookDevelopments.length);
+                notes = this.hookDevelopments[devIdx](hook);
             }
 
-            // Map hook offsets to actual scale indices at the section's pitch range
+            // Apply per-note mutations for micro-variation (20% chance per note)
             for (let i = 0; i < notes.length && melody.length < length; i++) {
-                const rawIdx = base + notes[i];
+                let rawIdx = base + notes[i];
+                const mutationRoll = this._seededRandom(sectionSeed + melody.length * 13 + i * 7);
+
+                if (mutationRoll < 0.1) {
+                    rawIdx += 1; // Step up surprise
+                } else if (mutationRoll < 0.2) {
+                    rawIdx -= 1; // Step down surprise
+                }
+
                 melody.push(Math.max(0, Math.min(scaleLen - 1, rawIdx)));
             }
         }
@@ -642,6 +690,30 @@ export class AudioManager {
 
         if (!freq) return;
 
+        // === ORNAMENTS: Add life with grace notes, octave jumps, bends ===
+        const ornamentRoll = this._seededRandom(this.songCycle * 1000 + this.currentBeat * 7);
+        let playFreq = freq;
+
+        // 12% chance: grace note (quick note before the main note)
+        if (ornamentRoll < 0.12 && section !== 'intro') {
+            const graceFreq = freq * (ornamentRoll < 0.06 ? 1.125 : 0.89); // Step up or down
+            const graceOsc = this.context.createOscillator();
+            const graceGain = this.context.createGain();
+            graceOsc.type = 'sine';
+            graceOsc.frequency.value = graceFreq;
+            const graceDur = this.beatDuration * 0.12;
+            graceGain.gain.setValueAtTime(0.04, time);
+            graceGain.gain.linearRampToValueAtTime(0, time + graceDur);
+            graceOsc.connect(graceGain);
+            graceGain.connect(this._melodyPanner);
+            graceOsc.start(time);
+            graceOsc.stop(time + graceDur);
+        }
+        // 8% chance: octave jump (play note an octave higher for excitement)
+        else if (ornamentRoll < 0.20 && (section === 'chorus' || section === 'chorus2' || section === 'chorus3')) {
+            playFreq = freq * 2;
+        }
+
         // Get varied note duration based on section, rhythm, AND harmonic importance
         // Chord tones and resolution notes are held longer per music theory
         const noteDuration = this.getNoteDuration(section, beat, note, chordIndex);
@@ -661,7 +733,8 @@ export class AudioManager {
         // Intro/Outro: triangle (neutral)
         const melodyTimbre = (section === 'verseA' || section === 'bridge')
             ? 'sine' : 'triangle';
-        const unisonTimbre = (section === 'chorus')
+        const isChorusMelody = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
+        const unisonTimbre = isChorusMelody
             ? 'sine' : melodyTimbre; // Chorus mixes timbres for richness
 
         // Melody volume: quieter in verses, full in chorus
@@ -676,7 +749,7 @@ export class AudioManager {
         const gain = this.context.createGain();
 
         osc.type = melodyTimbre;
-        osc.frequency.value = freq;
+        osc.frequency.value = playFreq;
 
         gain.gain.setValueAtTime(0, time);
         gain.gain.linearRampToValueAtTime(melodyPeak, time + attackTime);
@@ -696,10 +769,10 @@ export class AudioManager {
         const gain2 = this.context.createGain();
 
         osc2.type = unisonTimbre;
-        osc2.frequency.value = freq * 1.003; // +5 cents detune for shimmer
+        osc2.frequency.value = playFreq * 1.003; // +5 cents detune for shimmer
 
         // Unison louder in chorus for fuller sound
-        const unisonLevel = section === 'chorus' ? 0.045 : 0.03;
+        const unisonLevel = isChorusMelody ? 0.045 : 0.03;
         gain2.gain.setValueAtTime(0, time);
         gain2.gain.linearRampToValueAtTime(unisonLevel, time + attackTime);
         gain2.gain.linearRampToValueAtTime(sustainLevel * 0.45, time + attackTime + decayTime);
@@ -737,9 +810,21 @@ export class AudioManager {
     }
 
     playChordArpeggio(chord, beat, time, section = 'verseA') {
-        // Play chord notes in sequence (arpeggio) following circle of fifths voicing
-        const noteIndex = beat % chord.notes.length;
-        const note = chord.notes[noteIndex];
+        // Arpeggio direction varies per song cycle for freshness
+        // Up (0,1,2), Down (2,1,0), Pendulum (0,2,1), Random per beat
+        const directionRoll = this._seededRandom(this.songCycle * 11);
+        let noteIndex;
+        if (directionRoll < 0.35) {
+            noteIndex = beat % chord.notes.length; // Up
+        } else if (directionRoll < 0.6) {
+            noteIndex = (chord.notes.length - 1) - (beat % chord.notes.length); // Down
+        } else if (directionRoll < 0.85) {
+            const cycle = [0, 2, 1, 2]; // Pendulum
+            noteIndex = cycle[beat % cycle.length];
+        } else {
+            noteIndex = Math.floor(this._seededRandom(beat * 7 + this.songCycle) * chord.notes.length);
+        }
+        const note = chord.notes[noteIndex] || chord.notes[0];
         const freq = this.noteFrequencies[note];
 
         if (!freq) return;
@@ -758,8 +843,9 @@ export class AudioManager {
         osc.frequency.value = freq;
 
         // Arpeggio louder in chorus for dense harmonic bed
-        const arpPeak = section === 'chorus' ? 0.045 : 0.04;
-        const arpSustain = section === 'chorus' ? 0.035 : 0.03;
+        const isChorusArp = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
+        const arpPeak = isChorusArp ? 0.045 : 0.04;
+        const arpSustain = isChorusArp ? 0.035 : 0.03;
 
         // ADSR envelope scaled to arpeggio duration
         gain.gain.setValueAtTime(0, time);
@@ -775,14 +861,14 @@ export class AudioManager {
         osc.stop(time + arpeggioDuration);
 
         // Chorus/bridge: add octave-up shimmer layer for sparkle
-        if (section === 'chorus' || section === 'bridge') {
+        if (isChorusArp || section === 'bridge') {
             const shimmer = this.context.createOscillator();
             const shimmerGain = this.context.createGain();
 
             shimmer.type = 'sine';
             shimmer.frequency.value = freq * 2; // Octave up
 
-            const shimmerLevel = section === 'chorus' ? 0.02 : 0.012;
+            const shimmerLevel = isChorusArp ? 0.02 : 0.012;
             shimmerGain.gain.setValueAtTime(0, time);
             shimmerGain.gain.linearRampToValueAtTime(shimmerLevel, time + 0.01);
             shimmerGain.gain.linearRampToValueAtTime(0, time + arpeggioDuration * 0.8);
@@ -894,23 +980,53 @@ export class AudioManager {
     playPercussion(beat, time, section = 'verseA') {
         const beatIndex = beat % 16;
 
-        // Snare fill on last 2 beats of every 4-bar phrase (beats 14-15)
-        // Creates energy and signals the phrase boundary
+        // Randomized fills on last 2 beats of every phrase
         if (beatIndex >= 14) {
-            this.playSnare(time);
-            // Double-tap snare on the very last beat for a proper fill
-            if (beatIndex === 15) {
-                this.playSnare(time + this.beatDuration * 0.33);
-                this.playSnare(time + this.beatDuration * 0.66);
+            const fillSeed = this._seededRandom(this.songCycle * 100 + this.currentBeat);
+
+            if (fillSeed < 0.3) {
+                // Fill type 1: Classic snare roll
+                this.playSnare(time);
+                if (beatIndex === 15) {
+                    this.playSnare(time + this.beatDuration * 0.33);
+                    this.playSnare(time + this.beatDuration * 0.66);
+                }
+            } else if (fillSeed < 0.55) {
+                // Fill type 2: Tom-like descending kick + snare
+                this.playKick(time);
+                this.playSnare(time + this.beatDuration * 0.5);
+                if (beatIndex === 15) {
+                    this.playSnare(time + this.beatDuration * 0.25);
+                    this.playKick(time + this.beatDuration * 0.75);
+                }
+            } else if (fillSeed < 0.8) {
+                // Fill type 3: Rapid hi-hat crescendo
+                this.playHiHat(time);
+                this._playOpenHiHat(time + this.beatDuration * 0.25);
+                this.playHiHat(time + this.beatDuration * 0.5);
+                if (beatIndex === 15) {
+                    this.playSnare(time);
+                    this._playOpenHiHat(time + this.beatDuration * 0.5);
+                }
+            } else {
+                // Fill type 4: Syncopated snare+kick combo
+                this.playSnare(time);
+                this.playKick(time + this.beatDuration * 0.25);
+                if (beatIndex === 15) {
+                    this.playSnare(time + this.beatDuration * 0.33);
+                    this.playSnare(time + this.beatDuration * 0.5);
+                    this.playKick(time + this.beatDuration * 0.75);
+                }
             }
             this.playHiHat(time);
             return;
         }
 
         // Select kick pattern based on section for groove variety
-        const kickPattern = section === 'chorus'
+        const isChorusPerc = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
+        const kickPattern = isChorusPerc
             ? this.rhythmPatterns.kickGroove   // Syncopated groove for chorus energy
-            : section === 'verseB'
+            : (section === 'verseB' || section === 'verseA2')
                 ? this.rhythmPatterns.kickBouncy // Bouncy feel for verse B
                 : this.rhythmPatterns.kick;      // Solid four-on-the-floor for verse A
 
@@ -930,7 +1046,7 @@ export class AudioManager {
         }
 
         // Hi-hat with open hat accents in chorus for energy
-        if (section === 'chorus' && this.rhythmPatterns.hihatOpen[beatIndex]) {
+        if (isChorusPerc && this.rhythmPatterns.hihatOpen[beatIndex]) {
             this._playOpenHiHat(time);
         } else {
             this.playHiHat(time);
@@ -1188,24 +1304,33 @@ export class AudioManager {
     // Response voice - answers the melody call with a different timbre
     // Uses chord-aware notes and a warm filtered square wave for contrast
     _playResponseNote(section, beat, chord, time) {
-        // Pick a chord tone that creates a good response
-        // Pattern: root → fifth → third → octave root (ascending through chord)
-        const responseOrder = [0, 2, 1, 0];
+        // Multiple response patterns that rotate per song cycle for variety
+        const responseOrders = [
+            [0, 2, 1, 0],  // root → fifth → third → root
+            [2, 1, 0, 2],  // fifth → third → root → fifth
+            [1, 0, 2, 1],  // third → root → fifth → third
+            [0, 1, 2, 0],  // ascending through chord
+            [2, 0, 1, 2],  // fifth → root → third (skip pattern)
+        ];
+        const orderIdx = this.songCycle % responseOrders.length;
+        const responseOrder = responseOrders[orderIdx];
         const noteIdx = responseOrder[beat % responseOrder.length];
         const note = chord.notes[noteIdx] || chord.notes[0];
         const freq = this.noteFrequencies[note];
         if (!freq) return;
 
-        // Response plays one octave up for brightness
-        const responseFreq = freq * 2;
-        const noteDur = this.beatDuration * 0.7;
+        // Response register varies per cycle: octave up or same register
+        const registerRoll = this._seededRandom(this.songCycle * 50 + 7);
+        const responseFreq = registerRoll < 0.6 ? freq * 2 : freq;
+        const noteDur = this.beatDuration * (0.5 + this._seededRandom(this.songCycle * 30 + beat) * 0.4);
 
         // Volume varies by section - louder in chorus where it duets with melody
+        const isChorus = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
         const volumeMap = {
-            verseA: 0.055, verseB: 0.06, chorus: 0.065,
+            verseA: 0.055, verseB: 0.06, verseA2: 0.055,
             bridge: 0.05, outro: 0.05, intro: 0.04
         };
-        const peakVol = volumeMap[section] || 0.05;
+        const peakVol = isChorus ? 0.065 : (volumeMap[section] || 0.05);
 
         // Main response oscillator - filtered square wave (warm, reedy, distinct from melody)
         const osc = this.context.createOscillator();

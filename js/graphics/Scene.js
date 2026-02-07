@@ -215,8 +215,8 @@ export class GameScene {
         // Sidewalks (also very long)
         this.createSidewalks();
 
-        // Create initial ground segments (lane markers) - optimized count for better FPS
-        for (let i = 0; i < 20; i++) { // EXTENDED: More initial segments
+        // Create initial ground segments (lane markers) - 12 covers 1800m (spawn range is 1500m)
+        for (let i = 0; i < 12; i++) {
             this.spawnGroundSegment(this.nextGroundSegmentZ);
             this.nextGroundSegmentZ -= this.groundSegmentLength;
         }
@@ -356,6 +356,13 @@ export class GameScene {
 
         segmentGroup.userData.startZ = startZ;
         segmentGroup.userData.endZ = endZ;
+
+        // PERFORMANCE: Ground segments never move after placement - skip per-frame matrix recalc
+        segmentGroup.traverse((child) => {
+            child.matrixAutoUpdate = false;
+            child.updateMatrix();
+        });
+
         this.scene.add(segmentGroup);
         this.groundSegments.push(segmentGroup);
     }
@@ -505,6 +512,8 @@ export class GameScene {
         const leftBuilding = this.createBuilding(leftX, adjustedHeight / 2, z, type.width, adjustedHeight, type.depth, type.color, type.roofType, type.style);
         leftBuilding.userData.side = 'left';
         leftBuilding.userData.zPos = z;
+        // PERFORMANCE: Buildings never move - skip per-frame matrix recalc
+        leftBuilding.traverse((child) => { child.matrixAutoUpdate = false; child.updateMatrix(); });
         this.buildings.push(leftBuilding);
 
         // Create different building on right side for variety
@@ -519,6 +528,7 @@ export class GameScene {
         const rightBuilding = this.createBuilding(rightX, rightAdjustedHeight / 2, z, rightType.width, rightAdjustedHeight, rightType.depth, rightType.color, rightType.roofType, rightType.style);
         rightBuilding.userData.side = 'right';
         rightBuilding.userData.zPos = z;
+        rightBuilding.traverse((child) => { child.matrixAutoUpdate = false; child.updateMatrix(); });
         this.buildings.push(rightBuilding);
 
         // Add special decorations at higher progression levels
@@ -1046,9 +1056,9 @@ export class GameScene {
             this.sky.position.z = playerZ;
         }
 
-        // FIXED: Spawn segments MUCH further ahead and more aggressively to prevent pink wall gaps
+        // Spawn segments ahead - 1500 units is plenty (camera far plane is 1000)
         let segmentsSpawned = 0;
-        while (playerZ - this.nextGroundSegmentZ < 5000 && segmentsSpawned < 3) {
+        while (playerZ - this.nextGroundSegmentZ < 1500 && segmentsSpawned < 3) {
             this.spawnGroundSegment(this.nextGroundSegmentZ);
             this.nextGroundSegmentZ -= this.groundSegmentLength;
             segmentsSpawned++;
@@ -1069,8 +1079,8 @@ export class GameScene {
             }
         }
 
-        // Spawn new buildings ahead of player (spawn when within 1000 units for far camera view)
-        while (playerZ - this.nextBuildingZ < 1000) {
+        // Spawn new buildings ahead of player (600 units covers camera far plane)
+        while (playerZ - this.nextBuildingZ < 600) {
             this.spawnBuilding(this.nextBuildingZ);
             this.nextBuildingZ -= this.buildingSpacing;
         }
@@ -2096,8 +2106,8 @@ export class GameScene {
         this.nextLampZ = -100;
         this.nextTreeZ = -100;
 
-        // Regenerate initial ground segments (optimized for FPS)
-        for (let i = 0; i < 20; i++) {
+        // Regenerate initial ground segments - 12 covers spawn range of 1500m
+        for (let i = 0; i < 12; i++) {
             this.spawnGroundSegment(this.nextGroundSegmentZ);
             this.nextGroundSegmentZ -= this.groundSegmentLength;
         }

@@ -369,9 +369,18 @@ export class AudioManager {
     }
 
     playBackgroundMusic() {
-        if (!this.isInitialized || this.isMusicPlaying || !this.musicEnabled) return;
+        if (!this.isInitialized || !this.musicEnabled) return;
 
-        // MEMORY: Clear any lingering scheduler from previous session (race with fade-out timeout)
+        // Cancel any pending stop cleanup that would kill our new session
+        if (this._stopTimeout) {
+            clearTimeout(this._stopTimeout);
+            this._stopTimeout = null;
+        }
+
+        // Force-reset state so we can restart even if previous stop is mid-fade
+        this.isMusicPlaying = false;
+
+        // Clear any lingering scheduler from previous session
         if (this.schedulerInterval) {
             clearInterval(this.schedulerInterval);
             this.schedulerInterval = null;
@@ -725,30 +734,24 @@ export class AudioManager {
         const sustainLevel = importance > 1.3 ? 0.08 : (noteDuration > this.beatDuration ? 0.07 : 0.05);
         const sustainEnd = noteDuration * 0.75;
 
-        // Per-section melody timbre - different voices for variety
-        // Verse A: warm sine (gentle, mellow)
-        // Verse B: triangle (brighter, building energy)
-        // Chorus: triangle + sine warmth (full, rich lead)
-        // Bridge: sine (reflective drop-back)
-        // Intro/Outro: triangle (neutral)
-        const melodyTimbre = (section === 'verseA' || section === 'bridge')
-            ? 'sine' : 'triangle';
+        // === MELODY TIMBRE: Sine base + filtered harmonic layer ===
+        // NO triangle wave - that causes the "whistle" sound
+        // Instead: warm sine + soft filtered sawtooth for harmonic richness
         const isChorusMelody = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
-        const unisonTimbre = isChorusMelody
-            ? 'sine' : melodyTimbre; // Chorus mixes timbres for richness
 
-        // Melody volume: quieter in verses, full in chorus
+        // Melody volume: quieter overall - shares space with response voice
         const sectionVolMap = {
-            intro: 0.06, verseA: 0.06, verseB: 0.07,
-            chorus: 0.08, bridge: 0.055, outro: 0.05
+            intro: 0.05, verseA: 0.05, verseB: 0.055, verseA2: 0.05,
+            chorus: 0.06, chorus2: 0.065, chorus3: 0.065,
+            bridge: 0.045, outro: 0.04
         };
-        const melodyPeak = sectionVolMap[section] || 0.07;
+        const melodyPeak = sectionVolMap[section] || 0.055;
 
-        // Main melody oscillator
+        // Main melody oscillator - pure sine (warm, not whistly)
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
 
-        osc.type = melodyTimbre;
+        osc.type = 'sine';
         osc.frequency.value = playFreq;
 
         gain.gain.setValueAtTime(0, time);
@@ -768,11 +771,11 @@ export class AudioManager {
         const osc2 = this.context.createOscillator();
         const gain2 = this.context.createGain();
 
-        osc2.type = unisonTimbre;
+        osc2.type = 'sine';
         osc2.frequency.value = playFreq * 1.003; // +5 cents detune for shimmer
 
         // Unison louder in chorus for fuller sound
-        const unisonLevel = isChorusMelody ? 0.045 : 0.03;
+        const unisonLevel = isChorusMelody ? 0.035 : 0.02;
         gain2.gain.setValueAtTime(0, time);
         gain2.gain.linearRampToValueAtTime(unisonLevel, time + attackTime);
         gain2.gain.linearRampToValueAtTime(sustainLevel * 0.45, time + attackTime + decayTime);
@@ -785,6 +788,35 @@ export class AudioManager {
 
         osc2.start(time);
         osc2.stop(time + noteDuration);
+
+        // Warm harmonic layer - filtered sawtooth for body (not whistle)
+        // Only in active sections for dynamic build
+        if (section !== 'intro' && section !== 'outro') {
+            const harmOsc = this.context.createOscillator();
+            const harmGain = this.context.createGain();
+            const melFilter = this.context.createBiquadFilter();
+
+            harmOsc.type = 'sawtooth';
+            harmOsc.frequency.value = playFreq;
+
+            // Lowpass removes harsh upper harmonics - keeps warmth, kills whistle
+            melFilter.type = 'lowpass';
+            melFilter.frequency.value = isChorusMelody ? playFreq * 3 : playFreq * 2;
+            melFilter.Q.value = 0.5;
+
+            const harmLevel = isChorusMelody ? 0.025 : 0.015;
+            harmGain.gain.setValueAtTime(0, time);
+            harmGain.gain.linearRampToValueAtTime(harmLevel, time + attackTime);
+            harmGain.gain.linearRampToValueAtTime(harmLevel * 0.6, time + sustainEnd);
+            harmGain.gain.linearRampToValueAtTime(0, time + noteDuration);
+
+            harmOsc.connect(melFilter);
+            melFilter.connect(harmGain);
+            harmGain.connect(this._unisonPanner);
+
+            harmOsc.start(time);
+            harmOsc.stop(time + noteDuration);
+        }
 
         // Sugar Rush level 2+: octave doubling for extra brightness
         if (this.sugarRushLevel >= 2) {
@@ -1494,8 +1526,9 @@ export class AudioManager {
             this.musicGain.gain.linearRampToValueAtTime(0, now + 0.5);
         }
 
-        // Stop scheduler after fade completes
-        setTimeout(() => {
+        // Stop scheduler after fade completes (tracked so playBackgroundMusic can cancel)
+        this._stopTimeout = setTimeout(() => {
+            this._stopTimeout = null;
             this.isMusicPlaying = false;
             if (this.schedulerInterval) {
                 clearInterval(this.schedulerInterval);

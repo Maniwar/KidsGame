@@ -1084,7 +1084,7 @@ export class AudioManager {
         ];
 
         let beat = 0;
-        const tempo = 72; // Slow, reflective tempo
+        const tempo = 110; // Upbeat reflective tempo
         const beatDur = 60 / tempo;
 
         this._gameOverInterval = setInterval(() => {

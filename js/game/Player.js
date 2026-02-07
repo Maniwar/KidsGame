@@ -671,7 +671,7 @@ export class Player {
 
         // Smoothly move to target lane
         if (Math.abs(this.position.x - this.targetX) > 0.01) {
-            const lerpSpeed = 10; // Higher = faster lane change
+            const lerpSpeed = 15; // Snappy lane changes
             this.position.x += (this.targetX - this.position.x) * lerpSpeed * deltaTime;
         } else {
             this.position.x = this.targetX;

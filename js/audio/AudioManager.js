@@ -11,7 +11,7 @@ export class AudioManager {
         this.musicScheduler = null;
         this.schedulerInterval = null;
         this.currentBeat = 0;
-        this.tempo = 128; // BPM - upbeat but not too fast
+        this.tempo = 144; // BPM - lively and fun from the start
         this.beatDuration = 60 / this.tempo; // seconds per beat
 
         // Settings
@@ -51,40 +51,40 @@ export class AudioManager {
             // Quarter notes (1 beat), half notes (2 beats), eighth notes (0.5 beats), whole notes (4 beats)
             standard: [1, 1, 1, 1],                    // Even quarter notes
             syncopated: [1.5, 0.5, 1, 1],              // Syncopated feel
-            longShort: [2, 1, 0.5, 0.5],               // Long-short pattern
+            longShort: [1, 0.5, 0.5, 1],               // Bouncy pattern
             shortLong: [0.5, 0.5, 1, 2],               // Build to longer note
-            waltz: [2, 1, 1],                          // Waltz-like emphasis
+            waltz: [1.5, 0.5, 1],                      // Waltz-like emphasis
             driving: [0.5, 0.5, 0.5, 0.5, 1, 1]        // Energetic eighth notes
         };
 
         // Map sections to rhythm patterns
         this.sectionRhythms = {
-            intro: 'longShort',      // Gentle, spacious opening
+            intro: 'standard',       // Get going right away
             verseA: 'standard',      // Steady, establishes groove
             verseB: 'syncopated',    // More interesting rhythm
             chorus: 'driving',       // Energetic, memorable
-            bridge: 'waltz',         // Different feel for contrast
+            bridge: 'longShort',     // Bouncy contrast
             outro: 'shortLong'       // Build to resolution
         };
 
         // Melody rest patterns per section (1 = play, 0 = rest)
         // Creates breathing room and musical phrasing
         this.melodyRestPatterns = {
-            intro:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0],  // Very sparse, long gaps
-            verseA: [1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0],  // Call (3) - rest (3) - response (4) - rest (3) - pickup
-            verseB: [1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],  // Short phrases with long gaps
-            chorus: [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],  // Strong 4-note phrase, 5-note phrase, 4 beats rest
-            bridge: [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  // Very sparse, contemplative
-            outro:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]   // Almost silent
+            intro:  [1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1],  // Upbeat, gets player moving
+            verseA: [1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1],  // Lively call-response
+            verseB: [1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1],  // Flowing phrases
+            chorus: [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1],  // Dense and catchy
+            bridge: [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0],  // Rhythmic contrast
+            outro:  [1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0]   // Winding down
         };
 
-        // Arpeggio rest patterns - also need breathing room
+        // Arpeggio rest patterns - fills gaps and adds harmonic sparkle
         this.arpeggioRestPatterns = {
-            intro:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // No arpeggio in intro
-            verseA: [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1],  // Fills gaps where melody rests
-            verseB: [0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1],  // Alternates with melody
-            chorus: [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0],  // Response to melody phrases
-            bridge: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // Silent - melody only for contrast
+            intro:  [0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  // Light sparkle from the start
+            verseA: [0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0],  // Fills gaps where melody rests
+            verseB: [0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0],  // Alternates with melody
+            chorus: [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],  // Response to melody phrases
+            bridge: [1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],  // Arpeggios carry the bridge
             outro:  [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]   // Sparse echoes
         };
 
@@ -98,12 +98,12 @@ export class AudioManager {
 
         // Song structure (in beats, 4/4 time)
         this.songStructure = {
-            intro: 8,      // 2 bars
+            intro: 4,      // 1 bar - quick pickup
             verseA: 16,    // 4 bars - establish melody
             verseB: 16,    // 4 bars - develop melody
             chorus: 16,    // 4 bars - catchy hook
             bridge: 8,     // 2 bars - variation
-            outro: 8       // 2 bars - resolve to tonic
+            outro: 4       // 1 bar - resolve to tonic
         };
 
         // PERFORMANCE: Pre-compute total beats and beat→section lookup
@@ -156,7 +156,7 @@ export class AudioManager {
 
         // Dynamic filter on music bus (set in init)
         this._musicFilter = null;
-        this._filterBaseFreq = 3500; // Opens with speed
+        this._filterBaseFreq = 6000; // Bright from the start
 
         // Music ducking state
         this._duckTimeout = null;
@@ -278,9 +278,9 @@ export class AudioManager {
         this.currentBeat = 0;
         this.nextBeatTime = this.context.currentTime;
 
-        // Fade in music over 1 second for smooth entrance
+        // Quick fade in - get the music going fast
         this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
-        this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, this.context.currentTime + 1.0);
+        this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, this.context.currentTime + 0.3);
 
         // Start the music scheduler - checks frequently but only schedules when needed
         this.schedulerInterval = setInterval(() => {
@@ -331,12 +331,10 @@ export class AudioManager {
         const currentChord = this.chordProgression[chordIndex];
 
         // Play melody with rest pattern (creates breathing room and phrasing)
-        if (section !== 'intro' || this.currentBeat >= 4) {
-            const restPattern = this.melodyRestPatterns[section] || this.melodyRestPatterns.verseA;
-            const patternBeat = sectionBeat % restPattern.length;
-            if (restPattern[patternBeat] === 1) {
-                this.playMelodyNote(section, sectionBeat, beatTime);
-            }
+        const restPattern = this.melodyRestPatterns[section] || this.melodyRestPatterns.verseA;
+        const patternBeat = sectionBeat % restPattern.length;
+        if (restPattern[patternBeat] === 1) {
+            this.playMelodyNote(section, sectionBeat, beatTime);
         }
 
         // Play chord arpeggio with rest pattern (not every beat)
@@ -345,13 +343,13 @@ export class AudioManager {
             this.playChordArpeggio(currentChord, sectionBeat, beatTime);
         }
 
-        // Play bass note (on beats 1 and 3 of each bar, skip bridge for contrast)
-        if (this.currentBeat % 2 === 0 && section !== 'bridge') {
+        // Play bass note (on beats 1 and 3 of each bar)
+        if (this.currentBeat % 2 === 0) {
             this.playBassNote(currentChord.root, beatTime);
         }
 
-        // Play percussion (skip intro, outro, and bridge for dynamic contrast)
-        if (section !== 'intro' && section !== 'outro' && section !== 'bridge') {
+        // Play percussion (skip outro for contrast at the end)
+        if (section !== 'outro') {
             this.playPercussion(sectionBeat % 16, beatTime);
         }
 
@@ -808,10 +806,8 @@ export class AudioManager {
             this.playSnare(time);
         }
 
-        // Hi-hat (every other beat for subtlety)
-        if (beatIndex % 2 === 0) {
-            this.playHiHat(time);
-        }
+        // Hi-hat (every beat for driving energy)
+        this.playHiHat(time);
     }
 
     playKick(time) {
@@ -1630,7 +1626,7 @@ export class AudioManager {
         // Open dynamic filter with tempo (higher tempo = brighter sound)
         if (this._musicFilter && this.sugarRushLevel === 0) {
             const progress = (this.tempo - 100) / 80; // 0 at 100bpm, 1 at 180bpm
-            const freq = 3500 + progress * 8000; // 3500Hz → 11500Hz
+            const freq = 6000 + progress * 8000; // 6000Hz → 14000Hz
             this._musicFilter.frequency.setTargetAtTime(freq, this.context.currentTime, 0.3);
             this._filterBaseFreq = freq;
         }

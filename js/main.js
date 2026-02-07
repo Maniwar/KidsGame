@@ -11,6 +11,21 @@ import { LeaderboardManager } from './firebase/LeaderboardManager.js';
 import { PlayerDataManager } from './firebase/PlayerDataManager.js';
 import { CosmeticShop } from './shop/CosmeticShop.js';
 
+// PERFORMANCE: Pre-computed HSL→hex LUT for rainbow effects (eliminates per-frame trig)
+const HUE_LUT_SIZE = 64;
+const HUE_HEX_LUT = new Uint32Array(HUE_LUT_SIZE);
+const HUE_HEX_LUT_BRIGHT = new Uint32Array(HUE_LUT_SIZE);
+{
+    const c = new THREE.Color();
+    for (let i = 0; i < HUE_LUT_SIZE; i++) {
+        const hue = i / HUE_LUT_SIZE;
+        c.setHSL(hue, 1, 0.6);
+        HUE_HEX_LUT[i] = c.getHex();
+        c.setHSL(hue, 1, 0.8);
+        HUE_HEX_LUT_BRIGHT[i] = c.getHex();
+    }
+}
+
 class Game {
     constructor() {
         this.isRunning = false;
@@ -89,6 +104,14 @@ class Game {
 
         // PERFORMANCE: Animation queue (replaces separate RAF callbacks)
         this.animations = [];
+
+        // PERFORMANCE: Confetti pool (replaces per-piece RAF callbacks)
+        this.activeConfetti = [];
+        this._confettiGeo = null;
+        this._confettiMats = null;
+
+        // PERFORMANCE: Screen shake state (replaces recursive RAF)
+        this._shakeState = null;
 
         // Persistent dizzy stars for death animation (orbit until restart)
         this.dizzyStars = [];
@@ -278,6 +301,18 @@ class Game {
         // Settings back button
         document.getElementById('settings-back-button').addEventListener('click', () => {
             document.getElementById('settings-panel').classList.remove('active');
+            document.getElementById('start-screen').classList.add('active');
+        });
+
+        // Tips button
+        document.getElementById('tips-button').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('tips-screen').classList.add('active');
+        });
+
+        // Tips back button
+        document.getElementById('tips-back-button').addEventListener('click', () => {
+            document.getElementById('tips-screen').classList.remove('active');
             document.getElementById('start-screen').classList.add('active');
         });
 
@@ -552,6 +587,13 @@ class Game {
         // Clear animation queue
         this.animations = [];
 
+        // PERFORMANCE: Clean up active confetti
+        for (let i = this.activeConfetti.length - 1; i >= 0; i--) {
+            this.gameScene.scene.remove(this.activeConfetti[i]);
+        }
+        this.activeConfetti.length = 0;
+        this._shakeState = null;
+
         // Clean up any lingering speed trail particles (legacy cleanup)
         if (this.speedTrailParticles) {
             this.speedTrailParticles.forEach(p => {
@@ -752,8 +794,7 @@ class Game {
                 this.attractCandies(deltaTime);
             }
 
-            // Update meter UI to show decay
-            this.animateCandyMeter();
+            // Meter UI updated by throttled HUD update (updateCandyMeterHUD)
         } else if (this.sugarRushCooldown <= 0 && this.candyMeter > 0) {
             // Level 0 decay - meter drains even when building up!
             // Candy spawns ~0.4/sec collectible, avg value ~18 = ~7/sec max gain
@@ -761,9 +802,6 @@ class Game {
             const level0DecayRate = 4;
             this.candyMeter -= level0DecayRate * deltaTime;
             if (this.candyMeter < 0) this.candyMeter = 0;
-
-            // Update meter UI to show decay
-            this.animateCandyMeter();
         }
 
         // Update Sugar Rush cooldown
@@ -1143,19 +1181,26 @@ class Game {
         setTimeout(tick, 300);
     }
 
-    // Create confetti explosion at finish line
+    // PERFORMANCE: Shared confetti geometry + materials (created once, reused)
+    _getConfettiResources() {
+        if (!this._confettiGeo) {
+            this._confettiGeo = new THREE.PlaneGeometry(0.15, 0.15);
+            const colors = [0xFF69B4, 0xFFD700, 0x00FFFF, 0xFF6B6B, 0x98FB98, 0xDDA0DD];
+            this._confettiMats = colors.map(c => new THREE.MeshBasicMaterial({
+                color: c, side: THREE.DoubleSide, transparent: true
+            }));
+        }
+        return { geo: this._confettiGeo, mats: this._confettiMats };
+    }
+
+    // Create confetti explosion at finish line (integrated into main loop)
     createFinishLineConfetti() {
         const playerPos = this.player.getPosition();
         const confettiCount = 50;
-        const colors = [0xFF69B4, 0xFFD700, 0x00FFFF, 0xFF6B6B, 0x98FB98, 0xDDA0DD];
+        const { geo, mats } = this._getConfettiResources();
 
         for (let i = 0; i < confettiCount; i++) {
-            const geometry = new THREE.PlaneGeometry(0.15, 0.15);
-            const material = new THREE.MeshBasicMaterial({
-                color: colors[Math.floor(Math.random() * colors.length)],
-                side: THREE.DoubleSide
-            });
-            const confetti = new THREE.Mesh(geometry, material);
+            const confetti = new THREE.Mesh(geo, mats[i % mats.length]);
 
             confetti.position.set(
                 playerPos.x + (Math.random() - 0.5) * 6,
@@ -1170,50 +1215,48 @@ class Game {
             );
 
             confetti.userData = {
-                velocity: new THREE.Vector3(
-                    (Math.random() - 0.5) * 4,
-                    Math.random() * 3 + 2,
-                    (Math.random() - 0.5) * 4
-                ),
-                rotationSpeed: new THREE.Vector3(
-                    Math.random() * 5,
-                    Math.random() * 5,
-                    Math.random() * 5
-                ),
+                vx: (Math.random() - 0.5) * 4,
+                vy: Math.random() * 3 + 2,
+                vz: (Math.random() - 0.5) * 4,
+                rx: Math.random() * 5,
+                ry: Math.random() * 5,
+                rz: Math.random() * 5,
                 lifetime: 0
             };
 
             this.gameScene.scene.add(confetti);
+            this.activeConfetti.push(confetti);
+        }
+    }
 
-            // Animate confetti
-            const animateConfetti = () => {
-                confetti.userData.lifetime += 0.016;
-                if (confetti.userData.lifetime > 2) {
-                    this.gameScene.scene.remove(confetti);
-                    geometry.dispose();
-                    material.dispose();
-                    return;
-                }
+    // PERFORMANCE: Update all confetti in main loop (no per-piece RAF)
+    updateConfetti(deltaTime) {
+        for (let i = this.activeConfetti.length - 1; i >= 0; i--) {
+            const c = this.activeConfetti[i];
+            const ud = c.userData;
+            ud.lifetime += deltaTime;
 
-                // Physics
-                confetti.userData.velocity.y -= 0.1; // Gravity
-                confetti.position.add(confetti.userData.velocity.clone().multiplyScalar(0.016));
+            if (ud.lifetime > 2) {
+                this.gameScene.scene.remove(c);
+                this.activeConfetti.splice(i, 1);
+                continue;
+            }
 
-                // Rotation
-                confetti.rotation.x += confetti.userData.rotationSpeed.x * 0.016;
-                confetti.rotation.y += confetti.userData.rotationSpeed.y * 0.016;
-                confetti.rotation.z += confetti.userData.rotationSpeed.z * 0.016;
+            // Gravity + position (no clone/Vector3 allocation)
+            ud.vy -= 6 * deltaTime;
+            c.position.x += ud.vx * deltaTime;
+            c.position.y += ud.vy * deltaTime;
+            c.position.z += ud.vz * deltaTime;
 
-                // Fade out
-                if (confetti.userData.lifetime > 1.5) {
-                    material.opacity = 1 - (confetti.userData.lifetime - 1.5) * 2;
-                    material.transparent = true;
-                }
+            // Rotation
+            c.rotation.x += ud.rx * deltaTime;
+            c.rotation.y += ud.ry * deltaTime;
+            c.rotation.z += ud.rz * deltaTime;
 
-                requestAnimationFrame(animateConfetti);
-            };
-
-            requestAnimationFrame(animateConfetti);
+            // Fade out in last 0.5s
+            if (ud.lifetime > 1.5) {
+                c.material.opacity = 1 - (ud.lifetime - 1.5) * 2;
+            }
         }
     }
 
@@ -1348,8 +1391,8 @@ class Game {
 
         this.candyMeter += value;
 
-        // Trigger candy meter UI animation
-        this.animateCandyMeter();
+        // Trigger candy meter UI animation (pulse on collect)
+        this.animateCandyMeter(true);
 
         // Check if meter is full
         if (this.candyMeter >= this.candyMeterMax) {
@@ -1710,15 +1753,18 @@ class Game {
         }
     }
 
-    animateCandyMeter() {
-        const meterFill = document.getElementById('candy-meter-fill');
+    // PERFORMANCE: Use cached DOM element, only pulse on candy collect (not decay)
+    animateCandyMeter(pulse) {
+        const meterFill = this.domElements.candyMeterFill;
         if (meterFill) {
             const percent = Math.min((this.candyMeter / this.candyMeterMax) * 100, 100);
             meterFill.style.width = `${percent}%`;
 
-            // Pulse animation on collect
-            meterFill.classList.add('candy-pulse');
-            setTimeout(() => meterFill.classList.remove('candy-pulse'), 300);
+            // Only pulse on candy collect, not on per-frame decay
+            if (pulse) {
+                meterFill.classList.add('candy-pulse');
+                setTimeout(() => meterFill.classList.remove('candy-pulse'), 300);
+            }
         }
     }
 
@@ -1917,9 +1963,9 @@ class Game {
             // Spawn trail particle every few frames using particle pool
             if (Math.random() < 0.3) {
                 const playerPos = this.player.getPosition();
-                const hue = (time % 1000) / 1000;
-                this._tempColor.setHSL(hue, 1, 0.5);
-                const particle = this.getParticleFromPool(this._tempColor.getHex());
+                // PERFORMANCE: LUT lookup instead of setHSL
+                const hueIdx = Math.floor(((time % 1000) / 1000) * HUE_LUT_SIZE) % HUE_LUT_SIZE;
+                const particle = this.getParticleFromPool(HUE_HEX_LUT[hueIdx]);
 
                 if (particle) {
                     particle.position.copy(playerPos);
@@ -1948,24 +1994,24 @@ class Game {
 
         // Animate Sugar Rush aura (rainbow color cycle!)
         if (this.sugarRushAura && this.isSugarRush) {
-            const hue = (time * 0.002) % 1;
-            this.sugarRushAura.material.color.setHSL(hue, 1, 0.6);
+            // PERFORMANCE: Use LUT instead of setHSL (eliminates trig)
+            const hueIdx = Math.floor(((time * 0.002) % 1) * HUE_LUT_SIZE) % HUE_LUT_SIZE;
+            this.sugarRushAura.material.color.setHex(HUE_HEX_LUT[hueIdx]);
             this.sugarRushAura.rotation.y += deltaTime * 2;
 
             // Pulsing size
             const pulse = 1 + Math.sin(time * 0.008) * 0.15;
             this.sugarRushAura.scale.set(pulse, pulse, pulse);
 
-            // Spawn DRAMATIC rainbow trail particles - multiple per frame!
+            // Spawn rainbow trail particles
             const playerPos = this.player.getPosition();
 
-            // Spawn 3-5 particles per frame for a thick, visible ribbon trail
-            const particlesToSpawn = 3 + Math.floor(Math.random() * 3);
+            // PERFORMANCE: Reduced from 3-5 to 2-3 particles/frame (still visually rich)
+            const particlesToSpawn = 2 + Math.floor(Math.random() * 2);
             for (let i = 0; i < particlesToSpawn; i++) {
-                // Rainbow colors cycling through spectrum
-                const trailHue = ((time * 0.003) + (i * 0.15)) % 1;
-                this._tempColor.setHSL(trailHue, 1, 0.6);
-                const particle = this.getParticleFromPool(this._tempColor.getHex());
+                // PERFORMANCE: LUT lookup instead of setHSL
+                const trailIdx = Math.floor((((time * 0.003) + (i * 0.15)) % 1) * HUE_LUT_SIZE) % HUE_LUT_SIZE;
+                const particle = this.getParticleFromPool(HUE_HEX_LUT[trailIdx]);
 
                 if (particle) {
                     // Spread particles in a wider area behind player for ribbon effect
@@ -1996,9 +2042,9 @@ class Game {
 
             // Also spawn some sparkle stars in the trail
             if (Math.random() < 0.3) {
-                const sparkleHue = Math.random();
-                this._tempColor.setHSL(sparkleHue, 1, 0.8);
-                const sparkle = this.getParticleFromPool(this._tempColor.getHex());
+                // PERFORMANCE: LUT lookup instead of setHSL
+                const sparkleIdx = Math.floor(Math.random() * HUE_LUT_SIZE);
+                const sparkle = this.getParticleFromPool(HUE_HEX_LUT_BRIGHT[sparkleIdx]);
 
                 if (sparkle) {
                     sparkle.position.set(
@@ -3037,13 +3083,17 @@ class Game {
         return null; // Pool exhausted
     }
 
-    // PERFORMANCE: Return particle to pool
+    // PERFORMANCE: Return particle to pool (swap-and-pop, no splice)
     returnParticleToPool(particle) {
         particle.userData.active = false;
         particle.visible = false;
         const idx = this.activeParticles.indexOf(particle);
         if (idx !== -1) {
-            this.activeParticles.splice(idx, 1);
+            const last = this.activeParticles.length - 1;
+            if (idx !== last) {
+                this.activeParticles[idx] = this.activeParticles[last];
+            }
+            this.activeParticles.pop();
         }
     }
 
@@ -3087,7 +3137,15 @@ class Game {
             }
         }
 
-        // Update queued animations (screen shake, floating text, etc.)
+        // PERFORMANCE: Update confetti in main loop (not per-piece RAF)
+        if (this.activeConfetti.length > 0) {
+            this.updateConfetti(deltaTime);
+        }
+
+        // PERFORMANCE: Update screen shake in main loop (not recursive RAF)
+        this._updateScreenShake(deltaTime);
+
+        // Update queued animations (floating text, etc.)
         for (let i = this.animations.length - 1; i >= 0; i--) {
             const anim = this.animations[i];
             anim.elapsed += deltaTime * 1000; // Convert to ms for compatibility
@@ -3178,29 +3236,32 @@ class Game {
         this.dizzyStarsStartTime = performance.now();
     }
 
+    // PERFORMANCE: Use for-loop instead of forEach
     updateDizzyStars() {
-        if (this.dizzyStars.length === 0) return;
+        const len = this.dizzyStars.length;
+        if (len === 0) return;
 
         const elapsed = (performance.now() - this.dizzyStarsStartTime) * 0.003;
         const playerPos = this.player.getPosition();
+        const centerY = playerPos.y + 1.8;
+        const orbitRadius = 0.6;
+        const cosE = Math.cos(elapsed * 2);
+        const rotY = elapsed * 3;
+        const rotZ = elapsed * 2;
 
-        // Update orbit center to follow player (in case of death animation movement)
-        const centerY = playerPos.y + 1.8; // Above head
-
-        this.dizzyStars.forEach((star, i) => {
+        for (let i = 0; i < len; i++) {
+            const star = this.dizzyStars[i];
             const angle = elapsed + star.userData.orbitOffset;
-            const orbitRadius = 0.6;
 
             star.position.set(
                 playerPos.x + Math.cos(angle) * orbitRadius,
-                centerY + Math.sin(elapsed * 2 + i) * 0.15, // Bobbing
+                centerY + Math.sin(elapsed * 2 + i) * 0.15,
                 playerPos.z + Math.sin(angle) * orbitRadius
             );
 
-            // Spin the stars
-            star.rotation.y = elapsed * 3;
-            star.rotation.z = elapsed * 2;
-        });
+            star.rotation.y = rotY;
+            star.rotation.z = rotZ;
+        }
     }
 
     cleanupDizzyStars() {
@@ -3236,30 +3297,33 @@ class Game {
         });
     }
 
+    // PERFORMANCE: Screen shake integrated into main loop (no recursive RAF)
     screenShake() {
         const camera = this.camera.getCamera();
-        const originalPosition = camera.position.clone();
-        const intensity = 0.3;
-        const duration = 400;
-        const startTime = performance.now();
-
-        const shake = () => {
-            const elapsed = performance.now() - startTime;
-            const progress = elapsed / duration;
-
-            if (progress < 1) {
-                // Decreasing intensity shake
-                const currentIntensity = intensity * (1 - progress);
-                camera.position.x = originalPosition.x + (Math.random() - 0.5) * currentIntensity;
-                camera.position.y = originalPosition.y + (Math.random() - 0.5) * currentIntensity;
-                requestAnimationFrame(shake);
-            } else {
-                // Reset camera position
-                camera.position.copy(originalPosition);
-            }
+        this._shakeState = {
+            origX: camera.position.x,
+            origY: camera.position.y,
+            intensity: 0.3,
+            duration: 0.4,
+            elapsed: 0
         };
+    }
 
-        shake();
+    // Called from updateAnimations
+    _updateScreenShake(deltaTime) {
+        const s = this._shakeState;
+        if (!s) return;
+        s.elapsed += deltaTime;
+        const camera = this.camera.getCamera();
+        if (s.elapsed < s.duration) {
+            const currentIntensity = s.intensity * (1 - s.elapsed / s.duration);
+            camera.position.x = s.origX + (Math.random() - 0.5) * currentIntensity;
+            camera.position.y = s.origY + (Math.random() - 0.5) * currentIntensity;
+        } else {
+            camera.position.x = s.origX;
+            camera.position.y = s.origY;
+            this._shakeState = null;
+        }
     }
 
     createDeathParticles(position) {

@@ -128,22 +128,46 @@ export class AudioManager {
             this._sectionLookup.push({ name, start, end: start + duration });
         }
 
-        // Motif-based melody generation - generates a short motif then develops it
-        this.melodyCache = {}; // Cache generated melodies per section+cycle
+        // Melody cache
+        this.melodyCache = {};
         this.melodyCacheKeys = [];
         this.maxMelodyCacheSize = 50;
-        this.lastNote = 2; // Start on E5 (index 2) for bright opening
-        this.songCycle = 0; // Tracks which song loop we're on
+        this.songCycle = 0;
 
-        // Motif development rules: how to transform a 4-note motif
-        // Each function takes a motif array and returns a developed version
-        this.motifDevelopments = [
-            (m) => m.slice(),                                    // Exact repeat
-            (m) => m.map(n => Math.min(7, n + 1)),              // Step up
-            (m) => m.map(n => Math.max(0, n - 1)),              // Step down
-            (m) => m.slice().reverse(),                          // Retrograde
-            (m) => [m[0], m[2], m[1], m[3]],                    // Swap middle
-            (m) => m.map(n => Math.min(7, Math.max(0, n + 2))), // Leap up
+        // === HOOK-BASED MELODY SYSTEM ===
+        // Pre-crafted 4-note hooks based on what the human brain finds catchy:
+        // - Arch contours (rise→peak→fall) are the most memorable shape
+        // - 3rd↔5th alternation ("millennial whoop") is extremely catchy
+        // - Descending patterns feel playful and resolved
+        // - Question→answer (rise then fall) mirrors conversation
+        this.hookShapes = [
+            [0, 2, 4, 2],      // "Arch" - up, peak, back down (most universally catchy)
+            [4, 2, 4, 5],      // "Whoop" - 5th↔3rd oscillation (pop earworm)
+            [0, 0, 2, 4],      // "Launch" - repeated root then ascending (builds excitement)
+            [4, 3, 2, 0],      // "Cascade" - tumbling descent (playful, fun)
+            [0, 2, 0, -1],     // "Question" - rises, returns, dips below (creates tension)
+        ];
+
+        // Base scale index per section — THE key to making chorus exciting
+        // Chorus is HIGHER than verse (proven across all catchy pop music)
+        // pentatonicScale: C5=0, D5=1, E5=2, G5=3, A5=4, C6=5, D6=6, E6=7
+        this.sectionBases = {
+            intro: 2,   // E5 - bright, inviting
+            verseA: 0,  // C5 - home base (lower energy)
+            verseB: 1,  // D5 - slight lift
+            chorus: 3,  // G5 - HIGH register = excitement!
+            bridge: 1,  // D5 - reflective
+            outro: 0,   // C5 - return home
+        };
+
+        // How to develop the hook across bars
+        // AABA structure: original→original→variation→original (maximum catchiness)
+        this.hookDevelopments = [
+            (h) => h.slice(),                          // Exact repeat (recognition!)
+            (h) => h.map(n => n + 1),                  // Step up (brighter)
+            (h) => h.map(n => n - 1),                  // Step down (darker)
+            (h) => h.slice().reverse(),                 // Retrograde (surprise)
+            (h) => [h[2], h[3], h[0], h[1]],          // Swap halves (fresh angle)
         ];
 
         // Rhythm patterns (1 = play, 0 = rest)
@@ -371,16 +395,27 @@ export class AudioManager {
             this.playChordArpeggio(currentChord, sectionBeat, beatTime);
         }
 
-        // Walking bass - plays every beat with melodic movement
-        // Intro: just root on downbeats. Other sections: full walking pattern.
+        // Bass: half-note pattern (root+fifth) for most sections
+        // Walking bass ONLY in chorus for maximum energy contrast
+        const beatInBar = this.currentBeat % 4;
         if (section === 'intro' || section === 'outro') {
-            if (this.currentBeat % 4 === 0) {
+            // Light: root on downbeat only
+            if (beatInBar === 0) {
                 this.playBassNote(currentChord.root, beatTime);
             }
-        } else {
+        } else if (section === 'chorus') {
+            // Full walking bass in chorus = peak energy
             const nextChordIndex = (chordIndex + 1) % this.chordProgression.length;
             const nextChord = this.chordProgression[nextChordIndex];
-            this.playWalkingBass(currentChord, nextChord, this.currentBeat % 4, beatTime);
+            this.playWalkingBass(currentChord, nextChord, beatInBar, beatTime);
+        } else {
+            // Verse/bridge: root on 1, fifth on 3 (clean half-note feel)
+            if (beatInBar === 0) {
+                this.playBassNote(currentChord.root, beatTime);
+            } else if (beatInBar === 2) {
+                const fifth = currentChord.notes[2] || currentChord.root;
+                this.playBassNote(fifth, beatTime);
+            }
         }
 
         // Play percussion - varies by section for dynamic feel
@@ -412,92 +447,42 @@ export class AudioManager {
 
     // === Procedural Melody Generation ===
 
-    generateMelody(section, length, chordIndex) {
-        // Motif-based melody: generate a short seed motif then develop it
-        // This creates recognizable, catchy melodies that evolve over time
-        const melody = [];
-        const chordTones = this.getChordTonesInPentatonic(chordIndex);
-        const seed = this._sectionHash(section, this.songCycle);
-
-        // Generate the core 4-note motif anchored on chord tones
-        const motif = this._generateMotif(chordTones, seed);
-
-        // Fill the section by developing the motif across bars
-        const barsNeeded = Math.ceil(length / 4);
-        for (let bar = 0; bar < barsNeeded; bar++) {
-            // Bar 0: original motif. Subsequent bars: pick a development.
-            let developed;
-            if (bar === 0) {
-                developed = motif.slice();
-            } else {
-                const devIndex = (seed + bar) % this.motifDevelopments.length;
-                developed = this.motifDevelopments[devIndex](motif);
-            }
-
-            // Add developed motif notes (up to section length)
-            for (let i = 0; i < 4 && melody.length < length; i++) {
-                melody.push(developed[i % developed.length]);
-            }
-        }
-
-        this.lastNote = melody[melody.length - 1];
-        return melody;
-    }
-
-    getChordTonesInPentatonic(chordIndex) {
-        // Map chord notes to pentatonic scale indices
-        const chord = this.chordProgression[chordIndex];
-        const chordTones = [];
-
-        // For each chord note, find matching notes in pentatonic scale
-        chord.notes.forEach(noteName => {
-            const pitchClass = noteName[0]; // Extract pitch class (C, D, E, etc.)
-
-            // Find matching notes in pentatonic scale
-            this.pentatonicScale.forEach((pentatonicNote, index) => {
-                if (pentatonicNote[0] === pitchClass) {
-                    chordTones.push(index);
-                }
-            });
-        });
-
-        return chordTones;
-    }
-
-    // Simple hash for deterministic but varying motif generation per section/cycle
-    _sectionHash(section, cycle) {
-        let hash = cycle * 7 + 13;
-        for (let i = 0; i < section.length; i++) {
-            hash = (hash * 31 + section.charCodeAt(i)) & 0xFF;
-        }
-        return hash;
-    }
-
-    // Generate a 4-note motif anchored on chord tones
-    // Beats 1,3 = chord tones (stability), beats 2,4 = neighbor notes (movement)
-    _generateMotif(chordTones, seed) {
-        const motif = [];
+    generateMelody(section, length) {
+        // Hook-based melody with AABA phrase structure
+        // The brain loves: hear it, hear it AGAIN, hear variation, hear original
+        // Same hook across all sections but at different pitch ranges
+        const hookIdx = this.songCycle % this.hookShapes.length;
+        const hook = this.hookShapes[hookIdx];
+        const base = this.sectionBases[section] || 0;
         const scaleLen = this.pentatonicScale.length;
 
-        // Beat 1: chord tone (strong anchor)
-        const ct1 = chordTones[seed % chordTones.length];
-        motif.push(ct1);
+        const melody = [];
+        const barsNeeded = Math.ceil(length / 4);
 
-        // Beat 2: neighboring step from beat 1 (melodic movement)
-        const step2 = (seed & 1) ? 1 : -1;
-        motif.push(Math.max(0, Math.min(scaleLen - 1, ct1 + step2)));
+        for (let bar = 0; bar < barsNeeded && melody.length < length; bar++) {
+            // AABA: bars 0,1,3 = original hook, bar 2 = development
+            // This gives maximum recognition with just enough surprise
+            let notes;
+            if (bar === 2 && barsNeeded >= 4) {
+                // Bar 3 of a 4-bar section: develop for variety
+                const devIdx = (this.songCycle + 1) % this.hookDevelopments.length;
+                notes = this.hookDevelopments[devIdx](hook);
+            } else if (bar === 1 && barsNeeded >= 3) {
+                // Bar 2: slight development (step up for energy)
+                notes = this.hookDevelopments[1](hook);
+            } else {
+                // Bars 1 and 4: original hook (recognition!)
+                notes = hook;
+            }
 
-        // Beat 3: different chord tone (harmonic interest)
-        const ct3 = chordTones.length > 1
-            ? chordTones[(seed + 1) % chordTones.length]
-            : Math.max(0, Math.min(scaleLen - 1, ct1 + 2));
-        motif.push(ct3);
+            // Map hook offsets to actual scale indices at the section's pitch range
+            for (let i = 0; i < notes.length && melody.length < length; i++) {
+                const rawIdx = base + notes[i];
+                melody.push(Math.max(0, Math.min(scaleLen - 1, rawIdx)));
+            }
+        }
 
-        // Beat 4: step back toward beat 1 (creates pull/resolution)
-        const direction = ct1 > ct3 ? 1 : (ct1 < ct3 ? -1 : ((seed >> 1) & 1 ? 1 : -1));
-        motif.push(Math.max(0, Math.min(scaleLen - 1, ct3 + direction)));
-
-        return motif;
+        return melody;
     }
 
     // === Music Playback ===
@@ -569,19 +554,17 @@ export class AudioManager {
     }
 
     playMelodyNote(section, beat, time) {
-        // Determine current chord for harmonic context
         const chordIndex = Math.floor((this.currentBeat % 16) / 4);
 
-        // Generate unique cache key (section + chord)
-        const cacheKey = `${section}_${chordIndex}`;
+        // Cache key: same hook for entire section within a song cycle
+        const cacheKey = `${section}_${this.songCycle}`;
 
-        // Generate new melody if not cached
+        // Generate melody if not cached
         if (!this.melodyCache[cacheKey]) {
             const sectionLength = this.songStructure[section];
-            this.melodyCache[cacheKey] = this.generateMelody(section, sectionLength, chordIndex);
+            this.melodyCache[cacheKey] = this.generateMelody(section, sectionLength);
             this.melodyCacheKeys.push(cacheKey);
 
-            // Evict oldest entries if cache exceeds max size
             while (this.melodyCacheKeys.length > this.maxMelodyCacheSize) {
                 const oldestKey = this.melodyCacheKeys.shift();
                 delete this.melodyCache[oldestKey];

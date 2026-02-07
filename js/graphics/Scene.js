@@ -167,8 +167,7 @@ export class GameScene {
 
     createSkyGradient() {
         // Create a large sphere for sky gradient
-        // PERFORMANCE: Reduced from 32 to 16 segments (invisible at this distance)
-        const skyGeometry = new THREE.SphereGeometry(500, 16, 16);
+        const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
         const skyMaterial = new THREE.ShaderMaterial({
             vertexShader: `
                 varying vec3 vWorldPosition;
@@ -2032,17 +2031,25 @@ export class GameScene {
         // PERFORMANCE: Reset animation time
         this.animTime = 0;
 
-        // Helper function to properly dispose Three.js objects
+        // Build sets of shared resources so we never dispose them during reset
+        const sharedGeoSet = new Set(Object.values(this.sharedGeometries).filter(Boolean));
+        const sharedMatSet = new Set(Object.values(this.sharedMaterials).filter(Boolean));
+
+        // Helper function to properly dispose Three.js objects (skips shared resources)
         const disposeObject = (obj) => {
             this.scene.remove(obj);
             obj.traverse((child) => {
-                if (child.geometry) child.geometry.dispose();
+                if (child.geometry && !sharedGeoSet.has(child.geometry)) {
+                    child.geometry.dispose();
+                }
                 if (child.material) {
                     // Handle both single materials and material arrays
                     if (Array.isArray(child.material)) {
-                        child.material.forEach(mat => mat.dispose());
+                        child.material.forEach(mat => {
+                            if (!sharedMatSet.has(mat)) mat.dispose();
+                        });
                     } else {
-                        child.material.dispose();
+                        if (!sharedMatSet.has(child.material)) child.material.dispose();
                     }
                 }
             });

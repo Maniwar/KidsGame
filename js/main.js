@@ -572,10 +572,18 @@ class Game {
         // MEMORY FIX: Remove any lingering power-up notifications
         document.querySelectorAll('.power-up-notification').forEach(el => el.remove());
 
-        // PERFORMANCE: Reset particle pool (return all active particles)
-        for (let i = this.activeParticles.length - 1; i >= 0; i--) {
-            this.returnParticleToPool(this.activeParticles[i]);
+        // Reset particle pool: hide all particles and rebuild free-list cleanly
+        for (let i = 0; i < this.particlePool.length; i++) {
+            const p = this.particlePool[i];
+            p.userData.active = false;
+            p.visible = false;
+            p.userData.nextFree = i + 1;
         }
+        if (this.particlePool.length > 0) {
+            this.particlePool[this.particlePool.length - 1].userData.nextFree = -1;
+        }
+        this.nextFreeParticle = this.particlePool.length > 0 ? 0 : -1;
+        this.activeParticles.length = 0;
 
         // MEMORY FIX: Force-complete any pending animations to dispose their resources
         if (this.animations && this.animations.length > 0) {

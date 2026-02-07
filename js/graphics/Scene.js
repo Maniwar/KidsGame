@@ -2036,6 +2036,9 @@ export class GameScene {
         this.buildings.forEach(disposeObject);
         this.buildings = [];
 
+        // MEMORY FIX: backgroundObjects stale references were never cleared
+        this.backgroundObjects = [];
+
         // MEMORY FIX: Decorations were not disposing geometry/materials
         this.decorations.forEach(decoration => {
             disposeObject(decoration.mesh);

@@ -942,6 +942,9 @@ export class Candy {
         const startY = this.position.y;
         const group = this.group;
 
+        // Build set of shared materials to avoid modifying them during fade
+        const sharedMats = sharedSprinkleMaterials ? new Set(sharedSprinkleMaterials) : null;
+
         const animate = () => {
             const elapsed = performance.now() - startTime;
             const progress = elapsed / duration;
@@ -954,9 +957,9 @@ export class Candy {
             const easeOut = 1 - Math.pow(1 - progress, 3);
             group.position.y = startY + (easeOut * 5);
 
-            // Fade out and scale down
+            // Fade out and scale down (skip shared materials)
             group.traverse((child) => {
-                if (child.material) {
+                if (child.material && !(sharedMats && sharedMats.has(child.material))) {
                     child.material.opacity = 1 - progress;
                     child.material.transparent = true;
                 }

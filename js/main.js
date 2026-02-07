@@ -650,6 +650,12 @@ class Game {
         // Clean up dizzy stars
         this.cleanupDizzyStars();
 
+        // MEMORY: Clean up milestone keydown listener if screen was left open
+        if (this.milestoneKeyHandler) {
+            document.removeEventListener('keydown', this.milestoneKeyHandler);
+            this.milestoneKeyHandler = null;
+        }
+
         // Reset player
         this.player.reset();
 
@@ -1684,6 +1690,12 @@ class Game {
             overlay.remove();
         }
 
+        // Remove injected style tag (prevents accumulation on repeated Sugar Rush)
+        const style = document.getElementById('sugar-rush-style');
+        if (style) {
+            style.remove();
+        }
+
         // Remove benefits panel
         this.removeSugarRushBenefitsUI();
     }
@@ -1859,6 +1871,13 @@ class Game {
         let texture = this.floatingTextCache[cacheKey];
 
         if (!texture) {
+            // MEMORY: Evict oldest entries if cache exceeds 30 textures
+            const keys = Object.keys(this.floatingTextCache);
+            if (keys.length >= 30) {
+                const evictKey = keys[0];
+                this.floatingTextCache[evictKey].dispose();
+                delete this.floatingTextCache[evictKey];
+            }
             // Create canvas texture with high visibility
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
@@ -2344,10 +2363,21 @@ class Game {
             if (progress < 1) {
                 requestAnimationFrame(animateSmash);
             } else {
-                // Remove from scene
+                // Remove from scene and dispose
                 if (movingObj.parent) {
                     movingObj.parent.remove(movingObj);
                 }
+                // MEMORY: Dispose geometry/materials
+                movingObj.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
             }
         };
 
@@ -3214,7 +3244,10 @@ class Game {
         this.cleanupDizzyStars();
 
         const starCount = 5;
-        const starGeometry = new THREE.OctahedronGeometry(0.12, 0);
+        // MEMORY: Reuse shared geometry across deaths
+        if (!this._dizzyStarGeo) {
+            this._dizzyStarGeo = new THREE.OctahedronGeometry(0.12, 0);
+        }
         const starColors = [0xFFD700, 0xFFFFFF, 0xFF69B4, 0x87CEEB, 0xFFB6C1];
 
         for (let i = 0; i < starCount; i++) {
@@ -3224,7 +3257,7 @@ class Game {
                 emissiveIntensity: 0.8,
                 flatShading: true,
             });
-            const star = new THREE.Mesh(starGeometry, starMaterial);
+            const star = new THREE.Mesh(this._dizzyStarGeo, starMaterial);
             star.userData.index = i;
             star.userData.orbitOffset = (i * Math.PI * 2) / starCount;
             this.gameScene.getScene().add(star);
@@ -3265,11 +3298,12 @@ class Game {
     }
 
     cleanupDizzyStars() {
-        this.dizzyStars.forEach(star => {
+        for (let i = 0; i < this.dizzyStars.length; i++) {
+            const star = this.dizzyStars[i];
             this.gameScene.getScene().remove(star);
-            star.geometry.dispose();
+            // MEMORY: Only dispose material; geometry is shared (_dizzyStarGeo)
             star.material.dispose();
-        });
+        }
         this.dizzyStars = [];
     }
 

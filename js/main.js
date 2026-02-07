@@ -657,6 +657,12 @@ class Game {
     }
 
     restartGame() {
+        // Cancel pending game over music so it doesn't start after restart
+        if (this._gameOverMusicTimeout) {
+            clearTimeout(this._gameOverMusicTimeout);
+            this._gameOverMusicTimeout = null;
+        }
+
         // Hide game over screen
         document.getElementById('game-over-screen').classList.remove('active');
 
@@ -698,7 +704,11 @@ class Game {
         this.audio.playGameOverSound();
         this.audio.stopBackgroundMusic();
         // Start game over ambient music after the game over sound finishes
-        setTimeout(() => this.audio.startGameOverMusic(), 800);
+        if (this._gameOverMusicTimeout) clearTimeout(this._gameOverMusicTimeout);
+        this._gameOverMusicTimeout = setTimeout(() => {
+            this._gameOverMusicTimeout = null;
+            this.audio.startGameOverMusic();
+        }, 800);
 
         // Update final score display
         const finalScore = Math.floor(this.score);

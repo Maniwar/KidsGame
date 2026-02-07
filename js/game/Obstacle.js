@@ -94,8 +94,8 @@ export class Obstacle {
             // VISIBILITY: Add ground warning stripe
             this.addWarningStripe('jump');
         } else {
-            // Traffic cone - BIG and BRIGHT for visibility
-            const coneGeometry = new THREE.ConeGeometry(0.8, 1.6, 8);
+            // Traffic cone - bright and visible
+            const coneGeometry = new THREE.ConeGeometry(0.4, 1.2, 8);
             const coneMaterial = new THREE.MeshStandardMaterial({
                 color: 0xFF5500, // Bright orange
                 emissive: 0xFF6600, // Strong orange glow
@@ -104,7 +104,7 @@ export class Obstacle {
             });
 
             const cone = new THREE.Mesh(coneGeometry, coneMaterial);
-            cone.position.y = 0.8;
+            cone.position.y = 0.6;
             cone.castShadow = true;
             this.group.add(cone);
 
@@ -117,19 +117,29 @@ export class Obstacle {
             });
 
             // Lower stripe
-            const stripe1Geometry = new THREE.CylinderGeometry(0.48, 0.58, 0.18, 8);
+            const stripe1Geometry = new THREE.CylinderGeometry(0.28, 0.34, 0.12, 8);
             const stripe1 = new THREE.Mesh(stripe1Geometry, stripeMaterial);
-            stripe1.position.y = 0.5;
+            stripe1.position.y = 0.3;
             this.group.add(stripe1);
 
             // Upper stripe
-            const stripe2Geometry = new THREE.CylinderGeometry(0.32, 0.42, 0.15, 8);
+            const stripe2Geometry = new THREE.CylinderGeometry(0.18, 0.24, 0.10, 8);
             const stripe2 = new THREE.Mesh(stripe2Geometry, stripeMaterial);
-            stripe2.position.y = 1.0;
+            stripe2.position.y = 0.7;
             this.group.add(stripe2);
 
-            this.height = 1.6;
-            this.collisionRadius = 0.9;
+            // Square base plate
+            const baseGeometry = new THREE.BoxGeometry(0.9, 0.08, 0.9);
+            const baseMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFF5500,
+                flatShading: true,
+            });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = 0.04;
+            this.group.add(base);
+
+            this.height = 1.2;
+            this.collisionRadius = 0.5;
 
             // VISIBILITY: Add ground warning stripe
             this.addWarningStripe('jump');

@@ -427,14 +427,45 @@ export class AudioManager {
         this.currentBeat = 0;
         this.nextBeatTime = this.context.currentTime;
 
-        // Quick fade in - get the music going fast
-        this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
-        this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, this.context.currentTime + 0.3);
+        // Cancel any lingering gain ramps from previous stop (critical!)
+        // Without this, a stop's ramp-to-zero can fire AFTER our fade-in completes
+        const now = this.context.currentTime;
+        this.musicGain.gain.cancelScheduledValues(now);
+        this.musicGain.gain.setValueAtTime(0, now);
+        this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, now + 0.3);
 
         // Start the music scheduler - checks frequently but only schedules when needed
         this.schedulerInterval = setInterval(() => {
             this.scheduleMusic();
         }, 25); // Check every 25ms for smooth scheduling
+
+        // Watchdog: if the scheduler somehow dies but isMusicPlaying is still true,
+        // detect and restart. Checks every 3 seconds.
+        if (this._watchdogInterval) clearInterval(this._watchdogInterval);
+        this._watchdogInterval = setInterval(() => {
+            if (!this.isMusicPlaying) {
+                clearInterval(this._watchdogInterval);
+                this._watchdogInterval = null;
+                return;
+            }
+            // If context is suspended, try to resume
+            if (this.context.state === 'suspended') {
+                this.context.resume();
+            }
+            // If scheduler interval was cleared but music should be playing, restart it
+            if (!this.schedulerInterval) {
+                this.nextBeatTime = this.context.currentTime;
+                this.schedulerInterval = setInterval(() => {
+                    this.scheduleMusic();
+                }, 25);
+            }
+            // If musicGain is stuck near 0, restore it
+            if (this.musicGain.gain.value < 0.01 && this.isMusicPlaying) {
+                const now = this.context.currentTime;
+                this.musicGain.gain.cancelScheduledValues(now);
+                this.musicGain.gain.setValueAtTime(this.musicVolume, now);
+            }
+        }, 3000);
     }
 
     scheduleMusic() {
@@ -1597,6 +1628,10 @@ export class AudioManager {
                 clearInterval(this.schedulerInterval);
                 this.schedulerInterval = null;
             }
+            if (this._watchdogInterval) {
+                clearInterval(this._watchdogInterval);
+                this._watchdogInterval = null;
+            }
             this.currentBeat = 0;
         }, 550);
     }
@@ -1625,6 +1660,13 @@ export class AudioManager {
 
         this._gameOverInterval = setInterval(() => {
             if (!this.context) return;
+
+            // Resume context if browser suspended it (tab background, etc.)
+            if (this.context.state === 'suspended') {
+                this.context.resume();
+                return; // Skip this tick, play next one after resume
+            }
+
             const time = this.context.currentTime;
             const chordIdx = Math.floor(beat / 4) % chords.length;
             const chord = chords[chordIdx];

@@ -612,6 +612,17 @@ export class AudioManager {
     }
 
     // Play a note using an instrument definition - returns {osc, gain} for caller to manage
+    // Disconnect all audio nodes in a chain when the source ends
+    // This prevents Web Audio node accumulation that kills audio after many games
+    _autoDisconnect(sourceNode, ...nodes) {
+        sourceNode.onended = () => {
+            for (let i = 0; i < nodes.length; i++) {
+                try { nodes[i].disconnect(); } catch (e) { /* already disconnected */ }
+            }
+            try { sourceNode.disconnect(); } catch (e) { /* already disconnected */ }
+        };
+    }
+
     _playInstrumentNote(instrument, freq, peakVol, duration, time, pannerNode) {
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
@@ -671,6 +682,7 @@ export class AudioManager {
 
         osc.start(time);
         osc.stop(time + duration);
+        this._autoDisconnect(osc, outputNode, gain);
     }
 
     // === Procedural Melody Generation ===
@@ -855,6 +867,7 @@ export class AudioManager {
             graceGain.connect(this._melodyPanner);
             graceOsc.start(time);
             graceOsc.stop(time + graceDur);
+            this._autoDisconnect(graceOsc, graceGain);
         }
         // 8% chance: octave jump (play note an octave higher for excitement)
         else if (ornamentRoll < 0.20 && (section === 'chorus' || section === 'chorus2' || section === 'chorus3')) {
@@ -908,6 +921,7 @@ export class AudioManager {
 
             octOsc.start(time);
             octOsc.stop(time + noteDuration);
+            this._autoDisconnect(octOsc, octGain);
         }
     }
 
@@ -961,6 +975,7 @@ export class AudioManager {
 
         osc.start(time);
         osc.stop(time + arpeggioDuration);
+        this._autoDisconnect(osc, gain);
 
         // Chorus/bridge: add octave-up shimmer layer for sparkle
         if (isChorusArp || section === 'bridge') {
@@ -981,6 +996,7 @@ export class AudioManager {
 
             shimmer.start(time);
             shimmer.stop(time + arpeggioDuration);
+            this._autoDisconnect(shimmer, shimmerGain);
         }
     }
 
@@ -1011,6 +1027,7 @@ export class AudioManager {
 
         osc.start(time);
         osc.stop(time + this.beatDuration * 2);
+        this._autoDisconnect(osc, filter, gain);
 
         // Sub-bass sine layer for weight (pure fundamental)
         const sub = this.context.createOscillator();
@@ -1029,6 +1046,7 @@ export class AudioManager {
 
         sub.start(time);
         sub.stop(time + this.beatDuration * 2);
+        this._autoDisconnect(sub, subGain);
     }
 
     // Walking bass: root-fifth-octave-approach pattern for forward momentum
@@ -1171,6 +1189,7 @@ export class AudioManager {
 
         click.start(time);
         click.stop(time + 0.1);
+        this._autoDisconnect(click, clickGain);
 
         // Body layer - sine at ~65Hz for sub-bass punch
         const body = this.context.createOscillator();
@@ -1188,6 +1207,7 @@ export class AudioManager {
 
         body.start(time);
         body.stop(time + 0.15);
+        this._autoDisconnect(body, bodyGain);
     }
 
     playSnare(time) {
@@ -1209,6 +1229,7 @@ export class AudioManager {
 
         noise.start(time);
         noise.stop(time + 0.1);
+        this._autoDisconnect(noise, filter, noiseGain);
 
         // Tonal body layer - short sine burst for punch
         const tone = this.context.createOscillator();
@@ -1226,6 +1247,7 @@ export class AudioManager {
 
         tone.start(time);
         tone.stop(time + 0.04);
+        this._autoDisconnect(tone, toneGain);
     }
 
     // Ghost snare - very quiet snare hit for subtle groove texture
@@ -1247,6 +1269,7 @@ export class AudioManager {
 
         noise.start(time);
         noise.stop(time + 0.06);
+        this._autoDisconnect(noise, filter, noiseGain);
     }
 
     playHiHat(time) {
@@ -1268,6 +1291,7 @@ export class AudioManager {
 
         noise.start(time);
         noise.stop(time + 0.05);
+        this._autoDisconnect(noise, filter, gain);
     }
 
     // Open hi-hat variant (longer decay, lower filter for more body)
@@ -1289,6 +1313,7 @@ export class AudioManager {
 
         noise.start(time);
         noise.stop(time + 0.1);
+        this._autoDisconnect(noise, filter, gain);
     }
 
     // Shaker/tambourine for Sugar Rush energy
@@ -1316,6 +1341,7 @@ export class AudioManager {
 
         noise.start(time);
         noise.stop(time + 0.04);
+        this._autoDisconnect(noise, filter, gain, pan);
     }
 
     // Sugar Rush extra percussion and energy layers
@@ -1369,6 +1395,7 @@ export class AudioManager {
 
             osc.start(time);
             osc.stop(time + padDuration);
+            this._autoDisconnect(osc, gain);
         }
     }
 
@@ -1400,6 +1427,7 @@ export class AudioManager {
 
             osc.start(time);
             osc.stop(time + padDuration);
+            this._autoDisconnect(osc, gain);
         }
     }
 
@@ -1466,6 +1494,7 @@ export class AudioManager {
 
             osc.start(time);
             osc.stop(time + padDuration);
+            this._autoDisconnect(osc, gain);
         });
     }
 
@@ -1494,6 +1523,7 @@ export class AudioManager {
 
         noise.start(time);
         noise.stop(time + sweepDur);
+        this._autoDisconnect(noise, filter, gain);
 
         // Pitch riser for bigger transitions (into chorus)
         if (isToChorus) {
@@ -1514,6 +1544,7 @@ export class AudioManager {
 
             riser.start(time);
             riser.stop(time + sweepDur);
+            this._autoDisconnect(riser, riserGain);
         }
     }
 
@@ -1537,6 +1568,7 @@ export class AudioManager {
 
         noise.start(time);
         noise.stop(time + 0.25);
+        this._autoDisconnect(noise, filter, gain);
     }
 
     stopBackgroundMusic() {
@@ -1619,6 +1651,7 @@ export class AudioManager {
 
                 osc.start(time);
                 osc.stop(time + noteDur);
+                this._autoDisconnect(osc, gain);
 
                 // Pad chord on downbeat
                 if (beat % 4 === 0) {
@@ -1639,6 +1672,7 @@ export class AudioManager {
                         padGain.connect(this.masterGain);
                         padOsc.start(time);
                         padOsc.stop(time + padDur);
+                        this._autoDisconnect(padOsc, padGain);
                     }
                 }
             }
@@ -1692,6 +1726,7 @@ export class AudioManager {
 
         osc.start(this.context.currentTime);
         osc.stop(this.context.currentTime + 0.1);
+        this._autoDisconnect(osc, gain);
     }
 
     playGemSound() {
@@ -1717,6 +1752,7 @@ export class AudioManager {
 
             osc.start(startTime);
             osc.stop(startTime + 0.3);
+            this._autoDisconnect(osc, gain);
         });
     }
 
@@ -1739,6 +1775,7 @@ export class AudioManager {
 
         osc.start(this.context.currentTime);
         osc.stop(this.context.currentTime + 0.15);
+        this._autoDisconnect(osc, gain);
     }
 
     playSlideSound() {
@@ -1760,6 +1797,7 @@ export class AudioManager {
 
         osc.start(this.context.currentTime);
         osc.stop(this.context.currentTime + 0.2);
+        this._autoDisconnect(osc, gain);
     }
 
     playLaneChangeSound() {
@@ -1780,6 +1818,7 @@ export class AudioManager {
 
         osc.start(this.context.currentTime);
         osc.stop(this.context.currentTime + 0.08);
+        this._autoDisconnect(osc, gain);
     }
 
     playGameOverSound() {
@@ -1805,6 +1844,7 @@ export class AudioManager {
 
             osc.start(startTime);
             osc.stop(startTime + 0.5);
+            this._autoDisconnect(osc, gain);
         });
     }
 
@@ -1832,6 +1872,7 @@ export class AudioManager {
 
             osc.start(startTime);
             osc.stop(startTime + 0.5);
+            this._autoDisconnect(osc, gain);
         });
     }
 
@@ -1858,6 +1899,7 @@ export class AudioManager {
 
             osc.start(startTime);
             osc.stop(startTime + 0.3);
+            this._autoDisconnect(osc, gain);
         });
     }
 
@@ -1891,6 +1933,7 @@ export class AudioManager {
 
         noise.start(this.context.currentTime);
         noise.stop(this.context.currentTime + 0.3);
+        this._autoDisconnect(noise, filter, gain);
     }
 
     // Sweet candy collection sound - bubbly "pop" with sparkle
@@ -1916,6 +1959,7 @@ export class AudioManager {
 
         pop.start(now);
         pop.stop(now + 0.1);
+        this._autoDisconnect(pop, popGain);
 
         // Sparkle overtone
         const sparkle = this.context.createOscillator();
@@ -1932,6 +1976,7 @@ export class AudioManager {
 
         sparkle.start(now + 0.02);
         sparkle.stop(now + 0.12);
+        this._autoDisconnect(sparkle, sparkleGain);
     }
 
     // Sugar Rush activation - exciting whoosh with ascending fanfare
@@ -1965,6 +2010,7 @@ export class AudioManager {
 
         sweep.start(now);
         sweep.stop(now + 0.35);
+        this._autoDisconnect(sweep, sweepFilter, sweepGain);
 
         // Celebratory fanfare notes - C E G C E G C (ascending!)
         const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00];
@@ -1985,6 +2031,7 @@ export class AudioManager {
 
             osc.start(startTime);
             osc.stop(startTime + 0.25);
+            this._autoDisconnect(osc, gain);
         });
     }
 
@@ -2014,6 +2061,7 @@ export class AudioManager {
 
             osc.start(startTime);
             osc.stop(startTime + 0.3);
+            this._autoDisconnect(osc, gain);
         });
     }
 
@@ -2044,6 +2092,7 @@ export class AudioManager {
             gain.connect(this.sfxGain);
             osc.start(startTime);
             osc.stop(startTime + 0.15);
+            this._autoDisconnect(osc, gain);
         });
     }
 
@@ -2068,6 +2117,7 @@ export class AudioManager {
         gain.connect(this.sfxGain);
         osc.start(now);
         osc.stop(now + 0.2);
+        this._autoDisconnect(osc, gain);
     }
 
     // Purchase sound - satisfying "ka-ching" for buying items
@@ -2089,6 +2139,7 @@ export class AudioManager {
         gain1.connect(this.sfxGain);
         osc1.start(now);
         osc1.stop(now + 0.1);
+        this._autoDisconnect(osc1, gain1);
 
         // Cash register "ching" (ascending sparkle)
         const notes = [1318.51, 1567.98, 2093.00]; // E6, G6, C7
@@ -2106,6 +2157,7 @@ export class AudioManager {
             gain.connect(this.sfxGain);
             osc.start(startTime);
             osc.stop(startTime + 0.15);
+            this._autoDisconnect(osc, gain);
         });
     }
 
@@ -2128,6 +2180,7 @@ export class AudioManager {
         gain1.connect(this.sfxGain);
         osc1.start(now);
         osc1.stop(now + 0.08);
+        this._autoDisconnect(osc1, gain1);
 
         // Soft click/snap
         const osc2 = this.context.createOscillator();
@@ -2140,6 +2193,7 @@ export class AudioManager {
         gain2.connect(this.sfxGain);
         osc2.start(now + 0.05);
         osc2.stop(now + 0.08);
+        this._autoDisconnect(osc2, gain2);
     }
 
     // Finish line celebration fanfare!
@@ -2173,6 +2227,7 @@ export class AudioManager {
 
             osc.start(now + note.start);
             osc.stop(now + note.start + note.dur);
+            this._autoDisconnect(osc, gain);
         });
 
         // Harmonizing lower notes
@@ -2198,6 +2253,7 @@ export class AudioManager {
 
             osc.start(now + note.start);
             osc.stop(now + note.start + note.dur);
+            this._autoDisconnect(osc, gain);
         });
 
         // Sparkle/chime overlay
@@ -2217,6 +2273,7 @@ export class AudioManager {
 
             osc.start(now + delay);
             osc.stop(now + delay + 0.15);
+            this._autoDisconnect(osc, gain);
         }
     }
 

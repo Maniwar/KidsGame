@@ -51,6 +51,12 @@ class Game {
         this.hasShield = false;
         this.invincibilityTimer = 0; // Brief invincibility after shield breaks
 
+        // Mystery Power-Up Box (shop item)
+        this.mysteryBoxPurchaseCount = 0; // Resets at each checkpoint
+        this.mysteryBoxBaseCost = 100;
+        this.mysteryBoxMaxPurchases = 5;
+        this.mysteryBoxPowerUpTypes = ['magnet', 'shield', 'speed', 'multiplier', 'flight', 'giant'];
+
         // Candy & Sugar Rush system - multi-level with balanced progression
         this.candyMeter = 0;
         this.candyMeterMax = 70; // Meter to trigger Sugar Rush (balanced)
@@ -622,6 +628,7 @@ class Game {
         this.candyCollected = 0;
         this.distance = 0;
         this.finishLinesCrossed = 0; // Reset finish lines for new run
+        this.mysteryBoxPurchaseCount = 0; // Reset mystery box for new run
         this.activePowerUps.clear();
         this.coinMultiplier = 1;
         this.hasShield = false;
@@ -1002,6 +1009,9 @@ class Game {
         finishLine.markCrossed();
         this.finishLinesCrossed++;
 
+        // Reset mystery box purchases at each checkpoint
+        this.mysteryBoxPurchaseCount = 0;
+
         // Update best record (synced to Firebase)
         if (this.finishLinesCrossed > this.bestFinishLines) {
             this.bestFinishLines = this.finishLinesCrossed;
@@ -1041,10 +1051,20 @@ class Game {
         screen.id = 'milestone-screen';
         screen.className = 'milestone-screen';
 
+        const mysteryBoxCost = this.getMysteryBoxCost();
+        const canAffordMystery = this.playerData.getTotalCoins() >= mysteryBoxCost;
+        const mysteryRemaining = this.mysteryBoxMaxPurchases - this.mysteryBoxPurchaseCount;
+        const mysteryAvailable = mysteryRemaining > 0;
+
         screen.innerHTML = `
             <div class="milestone-content">
                 <div class="milestone-banner">🏁 MILE ${mileNumber}! 🏁</div>
                 <div class="milestone-bonus">+${Math.floor(bonusCoins)} coins</div>
+                ${mysteryAvailable ? `
+                <button class="milestone-mystery-btn${canAffordMystery ? '' : ' disabled'}">
+                    🎁 Mystery Power-Up <span class="coin-icon">🪙</span>${mysteryBoxCost} <span class="mystery-remaining">(${mysteryRemaining} left)</span>
+                </button>
+                ` : ''}
                 <div class="milestone-buttons">
                     <button class="milestone-shop-btn">🛍️ Shop</button>
                     <button class="milestone-continue-btn">▶ Go!</button>
@@ -1056,6 +1076,16 @@ class Game {
 
         // Show with animation
         setTimeout(() => screen.classList.add('show'), 10);
+
+        // Mystery box button - quick buy from milestone screen
+        const mysteryBtn = screen.querySelector('.milestone-mystery-btn');
+        if (mysteryBtn && canAffordMystery) {
+            mysteryBtn.addEventListener('click', () => {
+                this.purchaseMysteryBox();
+                // Update the milestone screen to reflect changes
+                this.refreshMilestoneMysterBtn(screen);
+            });
+        }
 
         // Shop button - opens the shop
         screen.querySelector('.milestone-shop-btn').addEventListener('click', () => {
@@ -1128,6 +1158,29 @@ class Game {
                 container.appendChild(option);
             });
         });
+    }
+
+    // Refresh the mystery box button on the milestone screen after a purchase
+    refreshMilestoneMysterBtn(screen) {
+        const btn = screen.querySelector('.milestone-mystery-btn');
+        if (!btn) return;
+
+        const remaining = this.mysteryBoxMaxPurchases - this.mysteryBoxPurchaseCount;
+        if (remaining <= 0) {
+            btn.textContent = '📦 Sold Out!';
+            btn.classList.add('disabled');
+            btn.style.pointerEvents = 'none';
+            return;
+        }
+
+        const cost = this.getMysteryBoxCost();
+        const canAfford = this.playerData.getTotalCoins() >= cost;
+
+        btn.innerHTML = `🎁 Mystery Power-Up <span class="coin-icon">🪙</span>${cost} <span class="mystery-remaining">(${remaining} left)</span>`;
+        if (!canAfford) {
+            btn.classList.add('disabled');
+            btn.style.pointerEvents = 'none';
+        }
     }
 
     // Close milestone screen and resume game with countdown (or open shop)
@@ -3682,6 +3735,9 @@ class Game {
         document.getElementById('shop-total-coins').textContent = shopData.totalCoins.toLocaleString();
         this.updateTotalCoinsDisplay();
 
+        // Populate mystery box
+        this.populateMysteryBox();
+
         // Populate bows
         this.populateShopSection('shop-bows', shopData.bows);
 
@@ -3690,6 +3746,183 @@ class Game {
 
         // Populate overalls
         this.populateShopSection('shop-overalls', shopData.overalls);
+    }
+
+    getMysteryBoxCost() {
+        return this.mysteryBoxBaseCost * Math.pow(2, this.mysteryBoxPurchaseCount);
+    }
+
+    populateMysteryBox() {
+        const container = document.getElementById('shop-mystery-box');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const totalCoins = this.playerData.getTotalCoins();
+        const cost = this.getMysteryBoxCost();
+        const remaining = this.mysteryBoxMaxPurchases - this.mysteryBoxPurchaseCount;
+        const soldOut = remaining <= 0;
+        const canAfford = totalCoins >= cost && !soldOut;
+
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'mystery-box-item' + (soldOut ? ' sold-out' : '');
+
+        const icon = document.createElement('div');
+        icon.className = 'mystery-box-icon';
+        icon.textContent = soldOut ? '📦' : '🎁';
+
+        const info = document.createElement('div');
+        info.className = 'mystery-box-info';
+
+        const title = document.createElement('div');
+        title.className = 'mystery-box-title';
+        title.textContent = 'Mystery Power-Up';
+
+        const desc = document.createElement('div');
+        desc.className = 'mystery-box-desc';
+        desc.textContent = soldOut ? 'Sold out! Resets at next checkpoint.' : 'Get a random power-up!';
+
+        const stock = document.createElement('div');
+        stock.className = 'mystery-box-stock';
+        stock.textContent = `${remaining}/${this.mysteryBoxMaxPurchases} left`;
+
+        info.appendChild(title);
+        info.appendChild(desc);
+        info.appendChild(stock);
+
+        const buyBtn = document.createElement('button');
+        buyBtn.className = 'mystery-box-buy-btn';
+        if (soldOut) {
+            buyBtn.textContent = 'SOLD OUT';
+            buyBtn.disabled = true;
+        } else {
+            buyBtn.innerHTML = `<span class="coin-icon">🪙</span>${cost}`;
+            buyBtn.disabled = !canAfford;
+        }
+
+        if (!soldOut && canAfford) {
+            buyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.purchaseMysteryBox();
+            });
+            itemDiv.addEventListener('click', () => {
+                this.purchaseMysteryBox();
+            });
+        }
+
+        itemDiv.appendChild(icon);
+        itemDiv.appendChild(info);
+        itemDiv.appendChild(buyBtn);
+        container.appendChild(itemDiv);
+    }
+
+    purchaseMysteryBox() {
+        const cost = this.getMysteryBoxCost();
+        const remaining = this.mysteryBoxMaxPurchases - this.mysteryBoxPurchaseCount;
+
+        if (remaining <= 0) return;
+        if (this.playerData.getTotalCoins() < cost) return;
+
+        // Spend coins
+        if (!this.playerData.spendCoins(cost)) return;
+
+        this.mysteryBoxPurchaseCount++;
+
+        // Pick random power-up
+        const randomType = this.mysteryBoxPowerUpTypes[
+            Math.floor(Math.random() * this.mysteryBoxPowerUpTypes.length)
+        ];
+
+        // Activate the power-up
+        this.activatePowerUp(randomType);
+
+        // Play purchase sound
+        this.audio.playPurchaseSound();
+
+        // Show exciting reveal
+        this.showMysteryBoxReveal(randomType);
+
+        // Refresh shop display
+        this.populateShop();
+    }
+
+    showMysteryBoxReveal(type) {
+        const names = {
+            'shield': { name: 'Shield', emoji: '🛡️', color: '#00BCD4' },
+            'magnet': { name: 'Coin Magnet', emoji: '🧲', color: '#F44336' },
+            'speed': { name: 'Super Speed', emoji: '⚡', color: '#FFEB3B' },
+            'multiplier': { name: '2x Coins', emoji: '⭐', color: '#FFD700' },
+            'flight': { name: 'Flight', emoji: '🎈', color: '#FF69B4' },
+            'giant': { name: 'Giant Mode', emoji: '🍄', color: '#FF5722' }
+        };
+
+        const info = names[type] || { name: type, emoji: '✨', color: '#9C27B0' };
+
+        // Create full-screen reveal overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 10000; pointer-events: none;
+            background: radial-gradient(circle, rgba(0,0,0,0.3) 0%, transparent 70%);
+        `;
+
+        // Burst particles
+        for (let i = 0; i < 12; i++) {
+            const particle = document.createElement('div');
+            const angle = (i / 12) * Math.PI * 2;
+            const distance = 80 + Math.random() * 60;
+            const size = 8 + Math.random() * 12;
+            const emojis = ['✨', '⭐', '💫', '🌟', '✨'];
+            particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            particle.style.cssText = `
+                position: absolute; font-size: ${size}px;
+                top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                animation: mysteryParticleBurst 0.8s ease-out forwards;
+                --dx: ${Math.cos(angle) * distance}px;
+                --dy: ${Math.sin(angle) * distance}px;
+            `;
+            overlay.appendChild(particle);
+        }
+
+        // Big emoji reveal
+        const bigEmoji = document.createElement('div');
+        bigEmoji.textContent = info.emoji;
+        bigEmoji.style.cssText = `
+            font-size: 80px;
+            animation: mysteryReveal 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            filter: drop-shadow(0 0 20px ${info.color});
+        `;
+
+        // Power-up name
+        const label = document.createElement('div');
+        label.textContent = info.name + '!';
+        label.style.cssText = `
+            font-size: 28px; font-weight: bold; color: white;
+            text-shadow: 0 0 10px ${info.color}, 0 0 20px ${info.color}, 2px 2px 4px rgba(0,0,0,0.5);
+            margin-top: 10px;
+            animation: mysteryReveal 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s both;
+        `;
+
+        overlay.appendChild(bigEmoji);
+        overlay.appendChild(label);
+        document.body.appendChild(overlay);
+
+        // Add burst keyframe if not already present
+        if (!document.getElementById('mystery-burst-keyframes')) {
+            const style = document.createElement('style');
+            style.id = 'mystery-burst-keyframes';
+            style.textContent = `
+                @keyframes mysteryParticleBurst {
+                    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+                    100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Remove after animation
+        setTimeout(() => overlay.remove(), 1200);
     }
 
     populateShopSection(containerId, items) {

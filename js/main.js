@@ -90,6 +90,14 @@ class Game {
         // PERFORMANCE: Animation queue (replaces separate RAF callbacks)
         this.animations = [];
 
+        // PERFORMANCE: Confetti pool (replaces per-piece RAF callbacks)
+        this.activeConfetti = [];
+        this._confettiGeo = null;
+        this._confettiMats = null;
+
+        // PERFORMANCE: Screen shake state (replaces recursive RAF)
+        this._shakeState = null;
+
         // Persistent dizzy stars for death animation (orbit until restart)
         this.dizzyStars = [];
 
@@ -278,6 +286,18 @@ class Game {
         // Settings back button
         document.getElementById('settings-back-button').addEventListener('click', () => {
             document.getElementById('settings-panel').classList.remove('active');
+            document.getElementById('start-screen').classList.add('active');
+        });
+
+        // Tips button
+        document.getElementById('tips-button').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('tips-screen').classList.add('active');
+        });
+
+        // Tips back button
+        document.getElementById('tips-back-button').addEventListener('click', () => {
+            document.getElementById('tips-screen').classList.remove('active');
             document.getElementById('start-screen').classList.add('active');
         });
 
@@ -551,6 +571,13 @@ class Game {
         }
         // Clear animation queue
         this.animations = [];
+
+        // PERFORMANCE: Clean up active confetti
+        for (let i = this.activeConfetti.length - 1; i >= 0; i--) {
+            this.gameScene.scene.remove(this.activeConfetti[i]);
+        }
+        this.activeConfetti.length = 0;
+        this._shakeState = null;
 
         // Clean up any lingering speed trail particles (legacy cleanup)
         if (this.speedTrailParticles) {
@@ -1143,19 +1170,26 @@ class Game {
         setTimeout(tick, 300);
     }
 
-    // Create confetti explosion at finish line
+    // PERFORMANCE: Shared confetti geometry + materials (created once, reused)
+    _getConfettiResources() {
+        if (!this._confettiGeo) {
+            this._confettiGeo = new THREE.PlaneGeometry(0.15, 0.15);
+            const colors = [0xFF69B4, 0xFFD700, 0x00FFFF, 0xFF6B6B, 0x98FB98, 0xDDA0DD];
+            this._confettiMats = colors.map(c => new THREE.MeshBasicMaterial({
+                color: c, side: THREE.DoubleSide, transparent: true
+            }));
+        }
+        return { geo: this._confettiGeo, mats: this._confettiMats };
+    }
+
+    // Create confetti explosion at finish line (integrated into main loop)
     createFinishLineConfetti() {
         const playerPos = this.player.getPosition();
         const confettiCount = 50;
-        const colors = [0xFF69B4, 0xFFD700, 0x00FFFF, 0xFF6B6B, 0x98FB98, 0xDDA0DD];
+        const { geo, mats } = this._getConfettiResources();
 
         for (let i = 0; i < confettiCount; i++) {
-            const geometry = new THREE.PlaneGeometry(0.15, 0.15);
-            const material = new THREE.MeshBasicMaterial({
-                color: colors[Math.floor(Math.random() * colors.length)],
-                side: THREE.DoubleSide
-            });
-            const confetti = new THREE.Mesh(geometry, material);
+            const confetti = new THREE.Mesh(geo, mats[i % mats.length]);
 
             confetti.position.set(
                 playerPos.x + (Math.random() - 0.5) * 6,
@@ -1170,50 +1204,48 @@ class Game {
             );
 
             confetti.userData = {
-                velocity: new THREE.Vector3(
-                    (Math.random() - 0.5) * 4,
-                    Math.random() * 3 + 2,
-                    (Math.random() - 0.5) * 4
-                ),
-                rotationSpeed: new THREE.Vector3(
-                    Math.random() * 5,
-                    Math.random() * 5,
-                    Math.random() * 5
-                ),
+                vx: (Math.random() - 0.5) * 4,
+                vy: Math.random() * 3 + 2,
+                vz: (Math.random() - 0.5) * 4,
+                rx: Math.random() * 5,
+                ry: Math.random() * 5,
+                rz: Math.random() * 5,
                 lifetime: 0
             };
 
             this.gameScene.scene.add(confetti);
+            this.activeConfetti.push(confetti);
+        }
+    }
 
-            // Animate confetti
-            const animateConfetti = () => {
-                confetti.userData.lifetime += 0.016;
-                if (confetti.userData.lifetime > 2) {
-                    this.gameScene.scene.remove(confetti);
-                    geometry.dispose();
-                    material.dispose();
-                    return;
-                }
+    // PERFORMANCE: Update all confetti in main loop (no per-piece RAF)
+    updateConfetti(deltaTime) {
+        for (let i = this.activeConfetti.length - 1; i >= 0; i--) {
+            const c = this.activeConfetti[i];
+            const ud = c.userData;
+            ud.lifetime += deltaTime;
 
-                // Physics
-                confetti.userData.velocity.y -= 0.1; // Gravity
-                confetti.position.add(confetti.userData.velocity.clone().multiplyScalar(0.016));
+            if (ud.lifetime > 2) {
+                this.gameScene.scene.remove(c);
+                this.activeConfetti.splice(i, 1);
+                continue;
+            }
 
-                // Rotation
-                confetti.rotation.x += confetti.userData.rotationSpeed.x * 0.016;
-                confetti.rotation.y += confetti.userData.rotationSpeed.y * 0.016;
-                confetti.rotation.z += confetti.userData.rotationSpeed.z * 0.016;
+            // Gravity + position (no clone/Vector3 allocation)
+            ud.vy -= 6 * deltaTime;
+            c.position.x += ud.vx * deltaTime;
+            c.position.y += ud.vy * deltaTime;
+            c.position.z += ud.vz * deltaTime;
 
-                // Fade out
-                if (confetti.userData.lifetime > 1.5) {
-                    material.opacity = 1 - (confetti.userData.lifetime - 1.5) * 2;
-                    material.transparent = true;
-                }
+            // Rotation
+            c.rotation.x += ud.rx * deltaTime;
+            c.rotation.y += ud.ry * deltaTime;
+            c.rotation.z += ud.rz * deltaTime;
 
-                requestAnimationFrame(animateConfetti);
-            };
-
-            requestAnimationFrame(animateConfetti);
+            // Fade out in last 0.5s
+            if (ud.lifetime > 1.5) {
+                c.material.opacity = 1 - (ud.lifetime - 1.5) * 2;
+            }
         }
     }
 
@@ -3087,7 +3119,15 @@ class Game {
             }
         }
 
-        // Update queued animations (screen shake, floating text, etc.)
+        // PERFORMANCE: Update confetti in main loop (not per-piece RAF)
+        if (this.activeConfetti.length > 0) {
+            this.updateConfetti(deltaTime);
+        }
+
+        // PERFORMANCE: Update screen shake in main loop (not recursive RAF)
+        this._updateScreenShake(deltaTime);
+
+        // Update queued animations (floating text, etc.)
         for (let i = this.animations.length - 1; i >= 0; i--) {
             const anim = this.animations[i];
             anim.elapsed += deltaTime * 1000; // Convert to ms for compatibility
@@ -3178,29 +3218,32 @@ class Game {
         this.dizzyStarsStartTime = performance.now();
     }
 
+    // PERFORMANCE: Use for-loop instead of forEach
     updateDizzyStars() {
-        if (this.dizzyStars.length === 0) return;
+        const len = this.dizzyStars.length;
+        if (len === 0) return;
 
         const elapsed = (performance.now() - this.dizzyStarsStartTime) * 0.003;
         const playerPos = this.player.getPosition();
+        const centerY = playerPos.y + 1.8;
+        const orbitRadius = 0.6;
+        const cosE = Math.cos(elapsed * 2);
+        const rotY = elapsed * 3;
+        const rotZ = elapsed * 2;
 
-        // Update orbit center to follow player (in case of death animation movement)
-        const centerY = playerPos.y + 1.8; // Above head
-
-        this.dizzyStars.forEach((star, i) => {
+        for (let i = 0; i < len; i++) {
+            const star = this.dizzyStars[i];
             const angle = elapsed + star.userData.orbitOffset;
-            const orbitRadius = 0.6;
 
             star.position.set(
                 playerPos.x + Math.cos(angle) * orbitRadius,
-                centerY + Math.sin(elapsed * 2 + i) * 0.15, // Bobbing
+                centerY + Math.sin(elapsed * 2 + i) * 0.15,
                 playerPos.z + Math.sin(angle) * orbitRadius
             );
 
-            // Spin the stars
-            star.rotation.y = elapsed * 3;
-            star.rotation.z = elapsed * 2;
-        });
+            star.rotation.y = rotY;
+            star.rotation.z = rotZ;
+        }
     }
 
     cleanupDizzyStars() {
@@ -3236,30 +3279,33 @@ class Game {
         });
     }
 
+    // PERFORMANCE: Screen shake integrated into main loop (no recursive RAF)
     screenShake() {
         const camera = this.camera.getCamera();
-        const originalPosition = camera.position.clone();
-        const intensity = 0.3;
-        const duration = 400;
-        const startTime = performance.now();
-
-        const shake = () => {
-            const elapsed = performance.now() - startTime;
-            const progress = elapsed / duration;
-
-            if (progress < 1) {
-                // Decreasing intensity shake
-                const currentIntensity = intensity * (1 - progress);
-                camera.position.x = originalPosition.x + (Math.random() - 0.5) * currentIntensity;
-                camera.position.y = originalPosition.y + (Math.random() - 0.5) * currentIntensity;
-                requestAnimationFrame(shake);
-            } else {
-                // Reset camera position
-                camera.position.copy(originalPosition);
-            }
+        this._shakeState = {
+            origX: camera.position.x,
+            origY: camera.position.y,
+            intensity: 0.3,
+            duration: 0.4,
+            elapsed: 0
         };
+    }
 
-        shake();
+    // Called from updateAnimations
+    _updateScreenShake(deltaTime) {
+        const s = this._shakeState;
+        if (!s) return;
+        s.elapsed += deltaTime;
+        const camera = this.camera.getCamera();
+        if (s.elapsed < s.duration) {
+            const currentIntensity = s.intensity * (1 - s.elapsed / s.duration);
+            camera.position.x = s.origX + (Math.random() - 0.5) * currentIntensity;
+            camera.position.y = s.origY + (Math.random() - 0.5) * currentIntensity;
+        } else {
+            camera.position.x = s.origX;
+            camera.position.y = s.origY;
+            this._shakeState = null;
+        }
     }
 
     createDeathParticles(position) {

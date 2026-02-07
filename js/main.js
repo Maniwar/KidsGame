@@ -550,10 +550,13 @@ class Game {
             this.domElements.candyMeter.style.opacity = '1';
         }
 
-        // Initialize and start audio
+        // Initialize and start audio fresh
         this.audio.init();
+        this.audio.stopGameOverMusic();
+        this.audio.stopBackgroundMusic();
         this.audio.setSugarRushLevel(0);
-        this.audio.playBackgroundMusic();
+        // Brief delay to let stop complete before restarting
+        setTimeout(() => this.audio.playBackgroundMusic(), 100);
 
         // Clean up any active power-ups from previous game
         // This removes their visual meshes and effects
@@ -684,9 +687,11 @@ class Game {
         // Start knocked out animation (rubbing head, shaking head)
         this.player.startKnockedOutAnimation();
 
-        // Play game over sound
+        // Play game over sound, stop upbeat music, start gentle game over loop
         this.audio.playGameOverSound();
         this.audio.stopBackgroundMusic();
+        // Start game over ambient music after the game over sound finishes
+        setTimeout(() => this.audio.startGameOverMusic(), 800);
 
         // Update final score display
         const finalScore = Math.floor(this.score);
@@ -895,9 +900,9 @@ class Game {
         this.score = this.distance;
 
         // Update music tempo based on game speed
-        // Scale from 144 BPM at start speed to 180 BPM at max speed
+        // Scale from 160 BPM at start speed to 192 BPM at max speed
         const speedProgress = (this.player.speed - 25) / (40 - 25); // 0 to 1
-        const newTempo = 144 + (speedProgress * 36); // 144 to 180 BPM
+        const newTempo = 160 + (speedProgress * 32); // 160 to 192 BPM
         this.audio.setTempo(newTempo);
 
         // Update HUD

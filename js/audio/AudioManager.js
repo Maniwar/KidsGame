@@ -19,6 +19,9 @@ export class AudioManager {
         this.sfxVolume = 0.5;
         this.musicEnabled = true;
 
+        // Sugar Rush state (set by game via setSugarRushLevel)
+        this.sugarRushLevel = 0;
+
         // Music theory - Key of C Major
         this.key = 'C';
         this.scale = 'major';
@@ -91,6 +94,37 @@ export class AudioManager {
             snare: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Backbeat
             hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   // Sixteenth notes
         };
+
+        // Sugar Rush percussion patterns - more energetic
+        this.sugarRushPatterns = {
+            // Level 1: add shaker/tambourine on every 8th note
+            shaker: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+            // Level 2: add open hihat accents
+            openHat: [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+            // Level 3: double-time kick
+            doubleKick: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+        };
+
+        // Pre-generated noise buffers (set in init)
+        this._snareBuffer = null;
+        this._hihatBuffer = null;
+
+        // Stereo panners (set in init)
+        this._melodyPanner = null;
+        this._arpPanner = null;
+        this._bassPanner = null;
+        this._percPanner = null;
+
+        // Reverb send (set in init)
+        this._reverbSend = null;
+        this._reverbGain = null;
+
+        // Dynamic filter on music bus (set in init)
+        this._musicFilter = null;
+        this._filterBaseFreq = 3500; // Opens with speed
+
+        // Music ducking state
+        this._duckTimeout = null;
     }
 
     init() {
@@ -101,16 +135,94 @@ export class AudioManager {
             this.masterGain = this.context.createGain();
             this.masterGain.connect(this.context.destination);
 
+            // Dynamic lowpass filter on music bus - opens up with game speed
+            this._musicFilter = this.context.createBiquadFilter();
+            this._musicFilter.type = 'lowpass';
+            this._musicFilter.frequency.value = this._filterBaseFreq;
+            this._musicFilter.Q.value = 0.7; // Gentle rolloff
+            this._musicFilter.connect(this.masterGain);
+
             this.musicGain = this.context.createGain();
             this.musicGain.gain.value = this.musicVolume;
-            this.musicGain.connect(this.masterGain);
+            this.musicGain.connect(this._musicFilter);
 
             this.sfxGain = this.context.createGain();
             this.sfxGain.gain.value = this.sfxVolume;
             this.sfxGain.connect(this.masterGain);
 
+            // Stereo panners - spread voices across the stereo field
+            this._melodyPanner = this.context.createStereoPanner();
+            this._melodyPanner.pan.value = 0.15; // Slightly right
+            this._melodyPanner.connect(this.musicGain);
+
+            this._arpPanner = this.context.createStereoPanner();
+            this._arpPanner.pan.value = -0.15; // Slightly left
+            this._arpPanner.connect(this.musicGain);
+
+            this._bassPanner = this.context.createStereoPanner();
+            this._bassPanner.pan.value = 0.0; // Center (bass should stay centered)
+            this._bassPanner.connect(this.musicGain);
+
+            this._percPanner = this.context.createStereoPanner();
+            this._percPanner.pan.value = 0.0; // Center
+            this._percPanner.connect(this.musicGain);
+
+            // Reverb send bus - convolver with procedurally generated impulse response
+            this._reverbGain = this.context.createGain();
+            this._reverbGain.gain.value = 0.18; // Wet amount (~18%)
+            this._reverbGain.connect(this.masterGain);
+
+            const convolver = this.context.createConvolver();
+            convolver.buffer = this._createReverbIR(0.8, 3.0); // 0.8s, fast decay
+            convolver.connect(this._reverbGain);
+            this._reverbSend = convolver;
+
+            // Pre-generate noise buffers (reuse instead of creating per-hit)
+            this._snareBuffer = this._createNoiseBuffer(0.1);
+            this._hihatBuffer = this._createNoiseBuffer(0.05);
+
             this.isInitialized = true;
         }
+    }
+
+    // Generate a procedural reverb impulse response (exponentially decaying noise)
+    _createReverbIR(duration, decay) {
+        const rate = this.context.sampleRate;
+        const length = Math.floor(rate * duration);
+        const buffer = this.context.createBuffer(2, length, rate);
+        const left = buffer.getChannelData(0);
+        const right = buffer.getChannelData(1);
+
+        for (let i = 0; i < length; i++) {
+            const t = i / rate;
+            const envelope = Math.exp(-t * decay);
+            left[i] = (Math.random() * 2 - 1) * envelope;
+            right[i] = (Math.random() * 2 - 1) * envelope;
+        }
+
+        return buffer;
+    }
+
+    // Pre-generate white noise buffer for percussion (avoids per-hit allocation)
+    _createNoiseBuffer(durationSec) {
+        const bufferSize = Math.floor(this.context.sampleRate * durationSec);
+        const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        return buffer;
+    }
+
+    // Briefly duck music volume so SFX punch through clearly
+    _duckMusic() {
+        if (!this.musicGain || !this.isMusicPlaying) return;
+        const now = this.context.currentTime;
+        this.musicGain.gain.cancelScheduledValues(now);
+        this.musicGain.gain.setValueAtTime(this.musicVolume * 0.55, now);
+        this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, now + 0.25);
     }
 
     playBackgroundMusic() {
@@ -119,6 +231,10 @@ export class AudioManager {
         this.isMusicPlaying = true;
         this.currentBeat = 0;
         this.nextBeatTime = this.context.currentTime;
+
+        // Fade in music over 1 second for smooth entrance
+        this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
+        this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, this.context.currentTime + 1.0);
 
         // Start the music scheduler - checks frequently but only schedules when needed
         this.schedulerInterval = setInterval(() => {
@@ -185,6 +301,11 @@ export class AudioManager {
         // Play percussion (except in intro and outro)
         if (section !== 'intro' && section !== 'outro') {
             this.playPercussion(sectionBeat % 16, beatTime);
+        }
+
+        // Sugar Rush extra layers - add energy based on level
+        if (this.sugarRushLevel > 0 && section !== 'intro') {
+            this._playSugarRushLayers(sectionBeat % 16, beatTime, chordIndex);
         }
     }
 
@@ -447,33 +568,79 @@ export class AudioManager {
         // Chord tones and resolution notes are held longer per music theory
         const noteDuration = this.getNoteDuration(section, beat, note, chordIndex);
 
-        // Create oscillator for melody
-        const osc = this.context.createOscillator();
-        const gain = this.context.createGain();
-
-        osc.type = 'triangle'; // Soft, pleasant tone
-        osc.frequency.value = freq;
-
         // ADSR envelope with duration-aware timing
-        // Shorter notes get snappier envelopes, longer notes get more sustain
         const attackTime = Math.min(0.02, noteDuration * 0.1);
         const decayTime = Math.min(0.08, noteDuration * 0.2);
-        // Chord tones/roots get fuller sustain for warmth
         const importance = this.getNoteImportance(note, chordIndex, beat);
         const sustainLevel = importance > 1.3 ? 0.08 : (noteDuration > this.beatDuration ? 0.07 : 0.05);
         const sustainEnd = noteDuration * 0.75;
 
+        // Main melody oscillator - triangle wave for soft, pleasant tone
+        const osc = this.context.createOscillator();
+        const gain = this.context.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.08, time + attackTime);       // Attack
-        gain.gain.linearRampToValueAtTime(sustainLevel, time + attackTime + decayTime); // Decay
-        gain.gain.setValueAtTime(sustainLevel, time + sustainEnd);        // Sustain
-        gain.gain.linearRampToValueAtTime(0, time + noteDuration);        // Release
+        gain.gain.linearRampToValueAtTime(0.08, time + attackTime);
+        gain.gain.linearRampToValueAtTime(sustainLevel, time + attackTime + decayTime);
+        gain.gain.setValueAtTime(sustainLevel, time + sustainEnd);
+        gain.gain.linearRampToValueAtTime(0, time + noteDuration);
 
         osc.connect(gain);
-        gain.connect(this.musicGain);
+        gain.connect(this._melodyPanner);   // Stereo positioned
+        gain.connect(this._reverbSend);     // Send to reverb
 
         osc.start(time);
         osc.stop(time + noteDuration);
+
+        // Detuned unison oscillator - adds warmth and width (chorus effect)
+        const osc2 = this.context.createOscillator();
+        const gain2 = this.context.createGain();
+
+        osc2.type = 'triangle';
+        osc2.frequency.value = freq * 1.003; // +5 cents detune for shimmer
+
+        // Slightly lower volume than main voice
+        gain2.gain.setValueAtTime(0, time);
+        gain2.gain.linearRampToValueAtTime(0.035, time + attackTime);
+        gain2.gain.linearRampToValueAtTime(sustainLevel * 0.45, time + attackTime + decayTime);
+        gain2.gain.setValueAtTime(sustainLevel * 0.45, time + sustainEnd);
+        gain2.gain.linearRampToValueAtTime(0, time + noteDuration);
+
+        osc2.connect(gain2);
+        // Pan unison voice opposite to main for stereo width
+        const unisonPanner = this.context.createStereoPanner();
+        unisonPanner.pan.value = -0.2; // Opposite side from melody
+        gain2.connect(unisonPanner);
+        unisonPanner.connect(this.musicGain);
+        gain2.connect(this._reverbSend);
+
+        osc2.start(time);
+        osc2.stop(time + noteDuration);
+
+        // Sugar Rush level 2+: octave doubling for extra brightness
+        if (this.sugarRushLevel >= 2) {
+            const octOsc = this.context.createOscillator();
+            const octGain = this.context.createGain();
+
+            octOsc.type = 'sine';
+            octOsc.frequency.value = freq * 2; // One octave up
+
+            const octLevel = this.sugarRushLevel === 3 ? 0.03 : 0.02;
+            octGain.gain.setValueAtTime(0, time);
+            octGain.gain.linearRampToValueAtTime(octLevel, time + attackTime);
+            octGain.gain.linearRampToValueAtTime(octLevel * 0.6, time + sustainEnd);
+            octGain.gain.linearRampToValueAtTime(0, time + noteDuration);
+
+            octOsc.connect(octGain);
+            octGain.connect(this._melodyPanner);
+            octGain.connect(this._reverbSend);
+
+            octOsc.start(time);
+            octOsc.stop(time + noteDuration);
+        }
     }
 
     playChordArpeggio(chord, beat, time) {
@@ -504,7 +671,8 @@ export class AudioManager {
         gain.gain.linearRampToValueAtTime(0, time + arpeggioDuration);
 
         osc.connect(gain);
-        gain.connect(this.musicGain);
+        gain.connect(this._arpPanner);    // Stereo positioned
+        gain.connect(this._reverbSend);   // Send to reverb
 
         osc.start(time);
         osc.stop(time + arpeggioDuration);
@@ -525,18 +693,36 @@ export class AudioManager {
         gain.gain.linearRampToValueAtTime(0.08, time + 0.1);
         gain.gain.exponentialRampToValueAtTime(0.01, time + this.beatDuration * 1.5);
 
-        // Low-pass filter for warmth
+        // Low-pass filter for tighter bass (200Hz cutoff for cleaner sub)
         const filter = this.context.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.value = 400;
-        filter.Q.value = 1;
+        filter.frequency.value = 200;
+        filter.Q.value = 2; // Slight resonance for presence
 
         osc.connect(filter);
         filter.connect(gain);
-        gain.connect(this.musicGain);
+        gain.connect(this._bassPanner); // Stereo positioned (center)
 
         osc.start(time);
         osc.stop(time + this.beatDuration * 2);
+
+        // Sub-bass sine layer for weight (pure fundamental)
+        const sub = this.context.createOscillator();
+        const subGain = this.context.createGain();
+
+        sub.type = 'sine';
+        sub.frequency.value = freq;
+
+        subGain.gain.setValueAtTime(0, time);
+        subGain.gain.linearRampToValueAtTime(0.06, time + 0.01);
+        subGain.gain.linearRampToValueAtTime(0.04, time + 0.1);
+        subGain.gain.exponentialRampToValueAtTime(0.01, time + this.beatDuration * 1.8);
+
+        sub.connect(subGain);
+        subGain.connect(this._bassPanner);
+
+        sub.start(time);
+        sub.stop(time + this.beatDuration * 2);
     }
 
     playPercussion(beat, time) {
@@ -559,93 +745,255 @@ export class AudioManager {
     }
 
     playKick(time) {
-        const osc = this.context.createOscillator();
-        const gain = this.context.createGain();
+        // Transient click (pitch sweep)
+        const click = this.context.createOscillator();
+        const clickGain = this.context.createGain();
 
-        osc.frequency.setValueAtTime(150, time);
-        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.1);
+        click.frequency.setValueAtTime(150, time);
+        click.frequency.exponentialRampToValueAtTime(0.01, time + 0.1);
 
-        gain.gain.setValueAtTime(0.2, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        clickGain.gain.setValueAtTime(0.18, time);
+        clickGain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
 
-        osc.connect(gain);
-        gain.connect(this.musicGain);
+        click.connect(clickGain);
+        clickGain.connect(this._percPanner);
 
-        osc.start(time);
-        osc.stop(time + 0.1);
+        click.start(time);
+        click.stop(time + 0.1);
+
+        // Body layer - sine at ~65Hz for sub-bass punch
+        const body = this.context.createOscillator();
+        const bodyGain = this.context.createGain();
+
+        body.type = 'sine';
+        body.frequency.setValueAtTime(65, time);
+        body.frequency.exponentialRampToValueAtTime(45, time + 0.12);
+
+        bodyGain.gain.setValueAtTime(0.2, time);
+        bodyGain.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
+
+        body.connect(bodyGain);
+        bodyGain.connect(this._percPanner);
+
+        body.start(time);
+        body.stop(time + 0.15);
     }
 
     playSnare(time) {
-        // White noise for snare
+        // Noise layer (reuse pre-generated buffer)
         const noise = this.context.createBufferSource();
-        const bufferSize = this.context.sampleRate * 0.1;
-        const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
-        const data = buffer.getChannelData(0);
-
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-
-        noise.buffer = buffer;
+        noise.buffer = this._snareBuffer;
 
         const filter = this.context.createBiquadFilter();
         filter.type = 'highpass';
         filter.frequency.value = 1000;
 
-        const gain = this.context.createGain();
-        gain.gain.setValueAtTime(0.15, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        const noiseGain = this.context.createGain();
+        noiseGain.gain.setValueAtTime(0.15, time);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
 
         noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.musicGain);
+        filter.connect(noiseGain);
+        noiseGain.connect(this._percPanner);
 
         noise.start(time);
         noise.stop(time + 0.1);
+
+        // Tonal body layer - short sine burst for punch
+        const tone = this.context.createOscillator();
+        const toneGain = this.context.createGain();
+
+        tone.type = 'sine';
+        tone.frequency.setValueAtTime(200, time);
+        tone.frequency.exponentialRampToValueAtTime(120, time + 0.03);
+
+        toneGain.gain.setValueAtTime(0.12, time);
+        toneGain.gain.exponentialRampToValueAtTime(0.01, time + 0.04);
+
+        tone.connect(toneGain);
+        toneGain.connect(this._percPanner);
+
+        tone.start(time);
+        tone.stop(time + 0.04);
     }
 
     playHiHat(time) {
-        // High-frequency noise for hi-hat
+        // Reuse pre-generated noise buffer
         const noise = this.context.createBufferSource();
-        const bufferSize = this.context.sampleRate * 0.05;
-        const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
-        const data = buffer.getChannelData(0);
-
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-
-        noise.buffer = buffer;
+        noise.buffer = this._hihatBuffer;
 
         const filter = this.context.createBiquadFilter();
         filter.type = 'highpass';
         filter.frequency.value = 7000;
 
         const gain = this.context.createGain();
-        gain.gain.setValueAtTime(0.03, time);
+        gain.gain.setValueAtTime(0.04, time);
         gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
 
         noise.connect(filter);
         filter.connect(gain);
-        gain.connect(this.musicGain);
+        gain.connect(this._percPanner);
 
         noise.start(time);
         noise.stop(time + 0.05);
     }
 
-    stopBackgroundMusic() {
-        this.isMusicPlaying = false;
-        if (this.schedulerInterval) {
-            clearInterval(this.schedulerInterval);
-            this.schedulerInterval = null;
-        }
-        this.currentBeat = 0;
+    // Open hi-hat variant (longer decay, lower filter for more body)
+    _playOpenHiHat(time) {
+        const noise = this.context.createBufferSource();
+        noise.buffer = this._snareBuffer; // Longer buffer for open hat
+
+        const filter = this.context.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 5000;
+
+        const gain = this.context.createGain();
+        gain.gain.setValueAtTime(0.05, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this._percPanner);
+
+        noise.start(time);
+        noise.stop(time + 0.1);
     }
 
-    // === SFX Methods (keep existing) ===
+    // Shaker/tambourine for Sugar Rush energy
+    _playShaker(time) {
+        const noise = this.context.createBufferSource();
+        noise.buffer = this._hihatBuffer;
+
+        const filter = this.context.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 9000;
+        filter.Q.value = 2;
+
+        const gain = this.context.createGain();
+        gain.gain.setValueAtTime(0.025, time);
+        gain.gain.exponentialRampToValueAtTime(0.005, time + 0.04);
+
+        // Pan shaker slightly to the side for width
+        const pan = this.context.createStereoPanner();
+        pan.pan.value = 0.3;
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(pan);
+        pan.connect(this.musicGain);
+
+        noise.start(time);
+        noise.stop(time + 0.04);
+    }
+
+    // Sugar Rush extra percussion and energy layers
+    _playSugarRushLayers(beatIndex, time, chordIndex) {
+        // Level 1+: Shaker/tambourine on 8th notes
+        if (this.sugarRushLevel >= 1 && this.sugarRushPatterns.shaker[beatIndex]) {
+            this._playShaker(time);
+        }
+
+        // Level 2+: Open hi-hat accents on upbeats
+        if (this.sugarRushLevel >= 2 && this.sugarRushPatterns.openHat[beatIndex]) {
+            this._playOpenHiHat(time);
+        }
+
+        // Level 3: Double-time kick for maximum energy
+        if (this.sugarRushLevel >= 3 && this.sugarRushPatterns.doubleKick[beatIndex]) {
+            if (!this.rhythmPatterns.kick[beatIndex]) {
+                // Only add kick if not already playing one from base pattern
+                this.playKick(time);
+            }
+        }
+
+        // Level 3: Synth pad chord for fullness (every 4 beats)
+        if (this.sugarRushLevel >= 3 && beatIndex % 4 === 0) {
+            this._playSugarPad(time, chordIndex);
+        }
+    }
+
+    // Synth pad for Sugar Rush level 3 - adds harmonic fullness
+    _playSugarPad(time, chordIndex) {
+        const chord = this.chordProgression[chordIndex];
+
+        chord.notes.forEach(noteName => {
+            const freq = this.noteFrequencies[noteName];
+            if (!freq) return;
+
+            // Play note one octave up for brightness
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.value = freq * 2;
+
+            const padDuration = this.beatDuration * 3.5;
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(0.015, time + 0.1);
+            gain.gain.setValueAtTime(0.015, time + padDuration * 0.7);
+            gain.gain.linearRampToValueAtTime(0, time + padDuration);
+
+            osc.connect(gain);
+            gain.connect(this._arpPanner);
+            gain.connect(this._reverbSend);
+
+            osc.start(time);
+            osc.stop(time + padDuration);
+        });
+    }
+
+    stopBackgroundMusic() {
+        if (!this.isMusicPlaying) {
+            // Still clear interval if it exists
+            if (this.schedulerInterval) {
+                clearInterval(this.schedulerInterval);
+                this.schedulerInterval = null;
+            }
+            return;
+        }
+
+        // Fade out music over 500ms for smooth exit
+        if (this.musicGain) {
+            const now = this.context.currentTime;
+            this.musicGain.gain.cancelScheduledValues(now);
+            this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
+            this.musicGain.gain.linearRampToValueAtTime(0, now + 0.5);
+        }
+
+        // Stop scheduler after fade completes
+        setTimeout(() => {
+            this.isMusicPlaying = false;
+            if (this.schedulerInterval) {
+                clearInterval(this.schedulerInterval);
+                this.schedulerInterval = null;
+            }
+            this.currentBeat = 0;
+        }, 550);
+    }
+
+    // Set Sugar Rush level for dynamic music layers (called by game)
+    setSugarRushLevel(level) {
+        const prevLevel = this.sugarRushLevel;
+        this.sugarRushLevel = level;
+
+        // Open the dynamic filter more during Sugar Rush for brighter sound
+        if (this._musicFilter && this.isInitialized) {
+            const now = this.context.currentTime;
+            let targetFreq = this._filterBaseFreq;
+            if (level === 1) targetFreq = 6000;
+            else if (level === 2) targetFreq = 10000;
+            else if (level === 3) targetFreq = 18000;
+            this._musicFilter.frequency.cancelScheduledValues(now);
+            this._musicFilter.frequency.setValueAtTime(this._musicFilter.frequency.value, now);
+            this._musicFilter.frequency.linearRampToValueAtTime(targetFreq, now + 0.3);
+        }
+    }
+
+    // === SFX Methods ===
 
     playCoinSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
@@ -665,6 +1013,7 @@ export class AudioManager {
 
     playGemSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const notes = [659.25, 783.99, 987.77]; // E5, G5, B5 - major triad
         const now = this.context.currentTime;
@@ -690,6 +1039,7 @@ export class AudioManager {
 
     playJumpSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
@@ -710,6 +1060,7 @@ export class AudioManager {
 
     playSlideSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
@@ -730,6 +1081,7 @@ export class AudioManager {
 
     playLaneChangeSound() {
         if (!this.isInitialized) return;
+        // No duck for lane change - too frequent and subtle
 
         const osc = this.context.createOscillator();
         const gain = this.context.createGain();
@@ -749,6 +1101,7 @@ export class AudioManager {
 
     playGameOverSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const notes = [523.25, 493.88, 440.00, 392.00]; // C5-B4-A4-G4 descending
         const now = this.context.currentTime;
@@ -774,6 +1127,7 @@ export class AudioManager {
 
     playMilestoneSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         // Fanfare: C-E-G-C (I chord arpeggio)
         const notes = [261.63, 329.63, 392.00, 523.25]; // C4-E4-G4-C5
@@ -800,6 +1154,7 @@ export class AudioManager {
 
     playPowerUpSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const notes = [392.00, 523.25, 659.25, 783.99, 1046.50]; // G-C-E-G-C
         const now = this.context.currentTime;
@@ -825,7 +1180,9 @@ export class AudioManager {
 
     playShieldBreakSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
+        // Reuse pre-generated noise concept but need unique buffer for shaped decay
         const noise = this.context.createBufferSource();
         const bufferSize = this.context.sampleRate * 0.3;
         const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
@@ -856,6 +1213,7 @@ export class AudioManager {
     // Sweet candy collection sound - bubbly "pop" with sparkle
     playCandySound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const now = this.context.currentTime;
 
@@ -896,6 +1254,7 @@ export class AudioManager {
     // Sugar Rush activation - exciting whoosh with ascending fanfare
     playSugarRushSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const now = this.context.currentTime;
 
@@ -949,6 +1308,7 @@ export class AudioManager {
     // Sugar Rush ending - gentle descending notes
     playSugarRushEndSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const now = this.context.currentTime;
 
@@ -982,6 +1342,7 @@ export class AudioManager {
         const now = this.context.currentTime;
         if (this.lastLevelUpSound && now - this.lastLevelUpSound < 0.5) return;
         this.lastLevelUpSound = now;
+        this._duckMusic();
 
         // Simple ascending chime - kawaii and not overwhelming
         const notes = level === 3
@@ -1029,6 +1390,7 @@ export class AudioManager {
     // Purchase sound - satisfying "ka-ching" for buying items
     playPurchaseSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const now = this.context.currentTime;
 
@@ -1067,6 +1429,7 @@ export class AudioManager {
     // Equip sound - quick "swoosh/click" for switching gear
     playEquipSound() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const now = this.context.currentTime;
 
@@ -1099,6 +1462,7 @@ export class AudioManager {
     // Finish line celebration fanfare!
     playFinishLineFanfare() {
         if (!this.isInitialized) return;
+        this._duckMusic();
 
         const now = this.context.currentTime;
 
@@ -1192,6 +1556,14 @@ export class AudioManager {
         // Clamp tempo between 100 and 180 BPM for playability
         this.tempo = Math.max(100, Math.min(180, newTempo));
         this.beatDuration = 60 / this.tempo;
+
+        // Open dynamic filter with tempo (higher tempo = brighter sound)
+        if (this._musicFilter && this.sugarRushLevel === 0) {
+            const progress = (this.tempo - 100) / 80; // 0 at 100bpm, 1 at 180bpm
+            const freq = 3500 + progress * 8000; // 3500Hz → 11500Hz
+            this._musicFilter.frequency.setTargetAtTime(freq, this.context.currentTime, 0.3);
+            this._filterBaseFreq = freq;
+        }
     }
 
     // Get current tempo for external reference

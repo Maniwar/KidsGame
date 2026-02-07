@@ -67,6 +67,21 @@ export class AudioManager {
             outro: 'shortLong'       // Build to resolution
         };
 
+        // Melody rest patterns per section (1 = play, 0 = rest)
+        // Creates breathing room and musical phrasing
+        this.melodyRestPatterns = {
+            intro:  [1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0],  // Very sparse, breathing
+            verseA: [1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0],  // Play 3, rest 1, play 2, rest 2 (repeating riff shape)
+            verseB: [1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1],  // Syncopated rests, offbeat pickup
+            chorus: [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0],  // Strong phrases with 2-beat breaks
+            bridge: [1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0],  // Spacious, contemplative
+            outro:  [1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0]   // Fading out, lots of silence
+        };
+
+        // Riff repetition: sections where the first 4-beat phrase repeats
+        // This creates memorable, catchy motifs instead of endless new notes
+        this.riffRepeatSections = new Set(['verseA', 'chorus']);
+
         // C Major Pentatonic scale (no semitones - perfect for melodies)
         // Removes F and B from C major scale to avoid dissonance
         this.pentatonicScale = ['C5', 'D5', 'E5', 'G5', 'A5', 'C6', 'D6', 'E6'];
@@ -289,9 +304,13 @@ export class AudioManager {
         const chordIndex = Math.floor((this.currentBeat % 16) / 4);
         const currentChord = this.chordProgression[chordIndex];
 
-        // Play melody (skip first 4 beats of intro for gradual entrance)
+        // Play melody with rest pattern (creates breathing room and phrasing)
         if (section !== 'intro' || this.currentBeat >= 4) {
-            this.playMelodyNote(section, sectionBeat, beatTime);
+            const restPattern = this.melodyRestPatterns[section] || this.melodyRestPatterns.verseA;
+            const patternBeat = sectionBeat % restPattern.length;
+            if (restPattern[patternBeat] === 1) {
+                this.playMelodyNote(section, sectionBeat, beatTime);
+            }
         }
 
         // Play chord arpeggio (except in intro)
@@ -328,7 +347,29 @@ export class AudioManager {
         // Different melodic contour shapes for different sections
         const contour = this.getContourForSection(section);
 
+        // Riff length for motif repetition (4 beats = 1 bar)
+        const riffLength = 4;
+        const useRiffRepeat = this.riffRepeatSections.has(section) && length >= riffLength * 2;
+
         for (let i = 0; i < length; i++) {
+            // Riff repetition: repeat the first bar's motif in subsequent bars
+            // with slight variation (transpose by chord movement)
+            if (useRiffRepeat && i >= riffLength && melody.length >= riffLength) {
+                const riffIndex = i % riffLength;
+                const baseNote = melody[riffIndex];
+
+                // Every other repeat, transpose the riff up/down for variation
+                const repeatNum = Math.floor(i / riffLength);
+                let offset = 0;
+                if (repeatNum === 2) offset = 1;       // 3rd repeat: up a step
+                else if (repeatNum === 3) offset = -1;  // 4th repeat: down a step (resolution)
+
+                const transposed = Math.max(0, Math.min(this.pentatonicScale.length - 1, baseNote + offset));
+                melody.push(transposed);
+                currentNote = transposed;
+                continue;
+            }
+
             // Emphasize chord tones on strong beats (downbeats and endings)
             const emphasizeChord = (i % 4 === 0) || (i === length - 1);
 

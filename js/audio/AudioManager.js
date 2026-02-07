@@ -57,6 +57,20 @@ export class AudioManager {
                 { root: 'A3', notes: ['A3', 'C4', 'E4'], name: 'Am', roman: 'vi' },
                 { root: 'F3', notes: ['F3', 'A3', 'C4'], name: 'F', roman: 'IV' },
                 { root: 'G3', notes: ['G3', 'B3', 'D4'], name: 'G', roman: 'V' }
+            ],
+            // I-IV-vi-V (uplifting anthem - builds hope)
+            [
+                { root: 'C3', notes: ['C3', 'E3', 'G3'], name: 'C', roman: 'I' },
+                { root: 'F3', notes: ['F3', 'A3', 'C4'], name: 'F', roman: 'IV' },
+                { root: 'A3', notes: ['A3', 'C4', 'E4'], name: 'Am', roman: 'vi' },
+                { root: 'G3', notes: ['G3', 'B3', 'D4'], name: 'G', roman: 'V' }
+            ],
+            // IV-V-vi-I (EDM euphoric lift)
+            [
+                { root: 'F3', notes: ['F3', 'A3', 'C4'], name: 'F', roman: 'IV' },
+                { root: 'G3', notes: ['G3', 'B3', 'D4'], name: 'G', roman: 'V' },
+                { root: 'A3', notes: ['A3', 'C4', 'E4'], name: 'Am', roman: 'vi' },
+                { root: 'C3', notes: ['C3', 'E3', 'G3'], name: 'C', roman: 'I' }
             ]
         ];
         this.currentProgressionIndex = 0;
@@ -146,6 +160,9 @@ export class AudioManager {
             [0, 0, 2, 4],      // "Launch" - repeated root then ascending (builds excitement)
             [4, 3, 2, 0],      // "Cascade" - tumbling descent (playful, fun)
             [0, 2, 0, -1],     // "Question" - rises, returns, dips below (creates tension)
+            [2, 4, 3, 5],      // "Zigzag" - ascending zigzag (triumphant, uplifting)
+            [0, 4, 2, 3],      // "Leap" - big interval jump then settle (exciting, bold)
+            [3, 1, 4, 0],      // "Swirl" - unpredictable motion (playful surprise)
         ];
 
         // Base scale index per section — THE key to making chorus exciting
@@ -168,13 +185,19 @@ export class AudioManager {
             (h) => h.map(n => n - 1),                  // Step down (darker)
             (h) => h.slice().reverse(),                 // Retrograde (surprise)
             (h) => [h[2], h[3], h[0], h[1]],          // Swap halves (fresh angle)
+            (h) => [h[0], h[0], h[2], h[3]],          // Repeat first (emphasis)
+            (h) => h.map((n, i) => i % 2 === 0 ? n + 1 : n), // Alternate lift (shimmer)
         ];
 
         // Rhythm patterns (1 = play, 0 = rest)
         this.rhythmPatterns = {
-            kick:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],  // Four-on-the-floor
-            snare: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Backbeat
-            hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   // Sixteenth notes
+            kick:       [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],  // Four-on-the-floor
+            kickGroove: [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0],  // Syncopated groove
+            kickBouncy: [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0],  // Bouncy offbeat
+            snare:      [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],  // Backbeat
+            ghostSnare: [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  // Ghost notes (quiet)
+            hihat:      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  // Sixteenth notes
+            hihatOpen:  [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],  // Open hat accents
         };
 
         // Sugar Rush percussion patterns - more energetic
@@ -392,7 +415,7 @@ export class AudioManager {
         // Play chord arpeggio with rest pattern (not every beat)
         const arpPattern = this.arpeggioRestPatterns[section] || this.arpeggioRestPatterns.verseA;
         if (arpPattern[sectionBeat % arpPattern.length] === 1) {
-            this.playChordArpeggio(currentChord, sectionBeat, beatTime);
+            this.playChordArpeggio(currentChord, sectionBeat, beatTime, section);
         }
 
         // Bass: half-note pattern (root+fifth) for most sections
@@ -431,12 +454,37 @@ export class AudioManager {
             }
             this.playHiHat(beatTime);
         } else if (section !== 'outro') {
-            this.playPercussion(sectionBeat % 16, beatTime);
+            this.playPercussion(sectionBeat % 16, beatTime, section);
+        }
+
+        // Verse B: light pad to build energy toward chorus
+        if (section === 'verseB' && sectionBeat % 4 === 0) {
+            this._playLightPad(currentChord, beatTime);
         }
 
         // Chorus: add sustained chord pad for fullness
         if (section === 'chorus' && sectionBeat % 4 === 0) {
             this._playChordPad(currentChord, beatTime);
+        }
+
+        // Chorus: countermelody for call-and-response richness
+        if (section === 'chorus') {
+            this._playCountermelody(currentChord, sectionBeat, beatTime);
+        }
+
+        // Section transitions - sweeps and crashes for smooth flow
+        const sectionLength = this.songStructure[section];
+        if (sectionBeat === sectionLength - 2) {
+            // 2 beats before section ends: play transition sweep
+            const nextSectionIdx = this._sectionLookup.findIndex(s => s.name === section) + 1;
+            const nextSection = nextSectionIdx < this._sectionLookup.length
+                ? this._sectionLookup[nextSectionIdx].name : 'intro';
+            const isToChorus = nextSection === 'chorus';
+            this._playTransitionSweep(beatTime, isToChorus);
+        }
+        if (sectionBeat === 0 && section !== 'intro') {
+            // First beat of new section: crash cymbal for impact
+            this._playCrashCymbal(beatTime);
         }
 
         // Sugar Rush extra layers - add energy based on level
@@ -655,7 +703,7 @@ export class AudioManager {
         }
     }
 
-    playChordArpeggio(chord, beat, time) {
+    playChordArpeggio(chord, beat, time, section = 'verseA') {
         // Play chord notes in sequence (arpeggio) following circle of fifths voicing
         const noteIndex = beat % chord.notes.length;
         const note = chord.notes[noteIndex];
@@ -688,6 +736,27 @@ export class AudioManager {
 
         osc.start(time);
         osc.stop(time + arpeggioDuration);
+
+        // Chorus/bridge: add octave-up shimmer layer for sparkle
+        if (section === 'chorus' || section === 'bridge') {
+            const shimmer = this.context.createOscillator();
+            const shimmerGain = this.context.createGain();
+
+            shimmer.type = 'sine';
+            shimmer.frequency.value = freq * 2; // Octave up
+
+            const shimmerLevel = section === 'chorus' ? 0.02 : 0.012;
+            shimmerGain.gain.setValueAtTime(0, time);
+            shimmerGain.gain.linearRampToValueAtTime(shimmerLevel, time + 0.01);
+            shimmerGain.gain.linearRampToValueAtTime(0, time + arpeggioDuration * 0.8);
+
+            shimmer.connect(shimmerGain);
+            shimmerGain.connect(this._arpPanner);
+            shimmerGain.connect(this._reverbSend);
+
+            shimmer.start(time);
+            shimmer.stop(time + arpeggioDuration);
+        }
     }
 
     playBassNote(note, time) {
@@ -785,7 +854,7 @@ export class AudioManager {
         return this.noteFrequencies[approachNote] ? approachNote : currentRoot;
     }
 
-    playPercussion(beat, time) {
+    playPercussion(beat, time, section = 'verseA') {
         const beatIndex = beat % 16;
 
         // Snare fill on last 2 beats of every 4-bar phrase (beats 14-15)
@@ -801,8 +870,15 @@ export class AudioManager {
             return;
         }
 
+        // Select kick pattern based on section for groove variety
+        const kickPattern = section === 'chorus'
+            ? this.rhythmPatterns.kickGroove   // Syncopated groove for chorus energy
+            : section === 'verseB'
+                ? this.rhythmPatterns.kickBouncy // Bouncy feel for verse B
+                : this.rhythmPatterns.kick;      // Solid four-on-the-floor for verse A
+
         // Kick drum
-        if (this.rhythmPatterns.kick[beatIndex]) {
+        if (kickPattern[beatIndex]) {
             this.playKick(time);
         }
 
@@ -811,8 +887,17 @@ export class AudioManager {
             this.playSnare(time);
         }
 
-        // Hi-hat (every beat for driving energy)
-        this.playHiHat(time);
+        // Ghost snare hits - subtle quiet snares for groove (verse B + chorus)
+        if (section !== 'verseA' && this.rhythmPatterns.ghostSnare[beatIndex]) {
+            this._playGhostSnare(time);
+        }
+
+        // Hi-hat with open hat accents in chorus for energy
+        if (section === 'chorus' && this.rhythmPatterns.hihatOpen[beatIndex]) {
+            this._playOpenHiHat(time);
+        } else {
+            this.playHiHat(time);
+        }
     }
 
     playKick(time) {
@@ -886,6 +971,27 @@ export class AudioManager {
 
         tone.start(time);
         tone.stop(time + 0.04);
+    }
+
+    // Ghost snare - very quiet snare hit for subtle groove texture
+    _playGhostSnare(time) {
+        const noise = this.context.createBufferSource();
+        noise.buffer = this._snareBuffer;
+
+        const filter = this.context.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 1500; // Higher cutoff for thinner sound
+
+        const noiseGain = this.context.createGain();
+        noiseGain.gain.setValueAtTime(0.04, time); // Much quieter than normal snare
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.06);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this._percPanner);
+
+        noise.start(time);
+        noise.stop(time + 0.06);
     }
 
     playHiHat(time) {
@@ -1011,6 +1117,72 @@ export class AudioManager {
         }
     }
 
+    // Light pad for verse B - quieter than chorus pad, builds anticipation
+    _playLightPad(chord, time) {
+        const padDuration = this.beatDuration * 3.5;
+
+        // Only play root and fifth (not full triad) for a more open sound
+        const notesToPlay = [chord.notes[0], chord.notes[2] || chord.notes[1]];
+
+        for (let i = 0; i < notesToPlay.length; i++) {
+            const freq = this.noteFrequencies[notesToPlay[i]];
+            if (!freq) continue;
+
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.value = freq * 2;
+
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(0.012, time + 0.2);
+            gain.gain.setValueAtTime(0.012, time + padDuration * 0.5);
+            gain.gain.linearRampToValueAtTime(0, time + padDuration);
+
+            osc.connect(gain);
+            gain.connect(this._arpPanner);
+            gain.connect(this._reverbSend);
+
+            osc.start(time);
+            osc.stop(time + padDuration);
+        }
+    }
+
+    // Countermelody for chorus - plays chord tones in a lower register
+    // Creates call-and-response feel with the main melody
+    _playCountermelody(chord, beat, time) {
+        // Play on offbeats (beats 1 and 3) to interleave with melody
+        if (beat % 2 !== 1) return;
+
+        // Cycle through chord tones in a pattern: root, fifth, third
+        const noteOrder = [0, 2, 1];
+        const noteIdx = noteOrder[Math.floor(beat / 2) % noteOrder.length];
+        const note = chord.notes[noteIdx] || chord.notes[0];
+        const freq = this.noteFrequencies[note];
+        if (!freq) return;
+
+        const noteDur = this.beatDuration * 0.6;
+
+        // Warm sine tone in the mid register
+        const osc = this.context.createOscillator();
+        const gain = this.context.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.value = freq * 2; // One octave up from chord register
+
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.04, time + 0.02);
+        gain.gain.setValueAtTime(0.035, time + noteDur * 0.5);
+        gain.gain.linearRampToValueAtTime(0, time + noteDur);
+
+        osc.connect(gain);
+        gain.connect(this._unisonPanner); // Opposite side from melody
+        gain.connect(this._reverbSend);
+
+        osc.start(time);
+        osc.stop(time + noteDur);
+    }
+
     // Synth pad for Sugar Rush level 3 - adds harmonic fullness
     _playSugarPad(time, chordIndex) {
         const chord = this.chordProgression[chordIndex];
@@ -1039,6 +1211,76 @@ export class AudioManager {
             osc.start(time);
             osc.stop(time + padDuration);
         });
+    }
+
+    // Rising sweep to build anticipation at section transitions
+    _playTransitionSweep(time, isToChorus) {
+        const sweepDur = this.beatDuration * 2;
+
+        // Filtered noise riser
+        const noise = this.context.createBufferSource();
+        noise.buffer = this._snareBuffer;
+
+        const filter = this.context.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(500, time);
+        filter.frequency.exponentialRampToValueAtTime(isToChorus ? 6000 : 3000, time + sweepDur);
+        filter.Q.value = 3;
+
+        const gain = this.context.createGain();
+        gain.gain.setValueAtTime(0.01, time);
+        gain.gain.linearRampToValueAtTime(isToChorus ? 0.06 : 0.03, time + sweepDur * 0.8);
+        gain.gain.linearRampToValueAtTime(0, time + sweepDur);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this._percPanner);
+
+        noise.start(time);
+        noise.stop(time + sweepDur);
+
+        // Pitch riser for bigger transitions (into chorus)
+        if (isToChorus) {
+            const riser = this.context.createOscillator();
+            const riserGain = this.context.createGain();
+
+            riser.type = 'sine';
+            riser.frequency.setValueAtTime(200, time);
+            riser.frequency.exponentialRampToValueAtTime(800, time + sweepDur);
+
+            riserGain.gain.setValueAtTime(0, time);
+            riserGain.gain.linearRampToValueAtTime(0.03, time + sweepDur * 0.7);
+            riserGain.gain.linearRampToValueAtTime(0, time + sweepDur);
+
+            riser.connect(riserGain);
+            riserGain.connect(this._reverbSend);
+            riserGain.connect(this.musicGain);
+
+            riser.start(time);
+            riser.stop(time + sweepDur);
+        }
+    }
+
+    // Crash cymbal hit for downbeat after transitions
+    _playCrashCymbal(time) {
+        const noise = this.context.createBufferSource();
+        noise.buffer = this._snareBuffer;
+
+        const filter = this.context.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 3000;
+
+        const gain = this.context.createGain();
+        gain.gain.setValueAtTime(0.08, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.25);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this._percPanner);
+        gain.connect(this._reverbSend);
+
+        noise.start(time);
+        noise.stop(time + 0.25);
     }
 
     stopBackgroundMusic() {

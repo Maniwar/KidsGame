@@ -516,6 +516,7 @@ class Game {
 
         // Initialize and start audio
         this.audio.init();
+        this.audio.setSugarRushLevel(0);
         this.audio.playBackgroundMusic();
 
         // Clean up any active power-ups from previous game
@@ -1370,6 +1371,9 @@ class Game {
 
         // Play exciting Sugar Rush fanfare!
         this.audio.playSugarRushSound();
+
+        // Update music layers for Sugar Rush level
+        this.audio.setSugarRushLevel(level);
     }
 
     levelUpSugarRush() {
@@ -1394,6 +1398,9 @@ class Game {
 
         // Play level up sound
         this.audio.playSugarRushLevelUpSound(this.sugarRushLevel);
+
+        // Update music layers for new level
+        this.audio.setSugarRushLevel(this.sugarRushLevel);
     }
 
     levelDownSugarRush() {
@@ -1414,6 +1421,9 @@ class Game {
 
         // Play warning sound
         this.audio.playSugarRushLevelDownSound();
+
+        // Update music layers for lower level
+        this.audio.setSugarRushLevel(this.sugarRushLevel);
     }
 
     endSugarRush() {
@@ -1432,6 +1442,9 @@ class Game {
 
         // Play gentle end sound
         this.audio.playSugarRushEndSound();
+
+        // Reset music layers
+        this.audio.setSugarRushLevel(0);
     }
 
     getSugarRushMultiplier() {

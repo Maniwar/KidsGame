@@ -616,6 +616,12 @@ class Game {
         this.activeConfetti.length = 0;
         this._shakeState = null;
 
+        // MEMORY FIX: Dispose cached floating text textures between sessions
+        for (const key in this.floatingTextCache) {
+            this.floatingTextCache[key].dispose();
+        }
+        this.floatingTextCache = {};
+
         // Clean up any lingering speed trail particles (legacy cleanup)
         if (this.speedTrailParticles) {
             this.speedTrailParticles.forEach(p => {

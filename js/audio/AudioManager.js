@@ -1604,10 +1604,14 @@ export class AudioManager {
 
     stopBackgroundMusic() {
         if (!this.isMusicPlaying) {
-            // Still clear interval if it exists
+            // Still clear intervals if they exist
             if (this.schedulerInterval) {
                 clearInterval(this.schedulerInterval);
                 this.schedulerInterval = null;
+            }
+            if (this._watchdogInterval) {
+                clearInterval(this._watchdogInterval);
+                this._watchdogInterval = null;
             }
             return;
         }

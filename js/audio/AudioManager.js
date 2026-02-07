@@ -228,6 +228,12 @@ export class AudioManager {
     playBackgroundMusic() {
         if (!this.isInitialized || this.isMusicPlaying || !this.musicEnabled) return;
 
+        // MEMORY: Clear any lingering scheduler from previous session (race with fade-out timeout)
+        if (this.schedulerInterval) {
+            clearInterval(this.schedulerInterval);
+            this.schedulerInterval = null;
+        }
+
         this.isMusicPlaying = true;
         this.currentBeat = 0;
         this.nextBeatTime = this.context.currentTime;

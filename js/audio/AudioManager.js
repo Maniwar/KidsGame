@@ -35,15 +35,32 @@ export class AudioManager {
             'C6': 1046.50, 'D6': 1174.66, 'E6': 1318.51, 'F6': 1396.91, 'G6': 1567.98
         };
 
-        // Chord progression: Circle of Fifths - vi → ii → V → I (Am → Dm → G → C)
-        // Classic circle of fifths progression - each chord root is a perfect fifth apart
-        // This creates natural harmonic movement and satisfying resolution
-        this.chordProgression = [
-            { root: 'A3', notes: ['A3', 'C4', 'E4'], name: 'Am', roman: 'vi' },   // Relative minor - start
-            { root: 'D3', notes: ['D3', 'F3', 'A3'], name: 'Dm', roman: 'ii' },   // Supertonic - fifth below Am
-            { root: 'G3', notes: ['G3', 'B3', 'D4'], name: 'G', roman: 'V' },     // Dominant - fifth below Dm
-            { root: 'C4', notes: ['C4', 'E4', 'G4'], name: 'C', roman: 'I' }      // Tonic - resolution (fifth below G)
+        // Multiple chord progressions - rotate each song cycle for variety
+        this.chordProgressions = [
+            // I-V-vi-IV (pop anthem - bright and catchy)
+            [
+                { root: 'C3', notes: ['C3', 'E3', 'G3'], name: 'C', roman: 'I' },
+                { root: 'G3', notes: ['G3', 'B3', 'D4'], name: 'G', roman: 'V' },
+                { root: 'A3', notes: ['A3', 'C4', 'E4'], name: 'Am', roman: 'vi' },
+                { root: 'F3', notes: ['F3', 'A3', 'C4'], name: 'F', roman: 'IV' }
+            ],
+            // vi-IV-I-V (emotional pop)
+            [
+                { root: 'A3', notes: ['A3', 'C4', 'E4'], name: 'Am', roman: 'vi' },
+                { root: 'F3', notes: ['F3', 'A3', 'C4'], name: 'F', roman: 'IV' },
+                { root: 'C3', notes: ['C3', 'E3', 'G3'], name: 'C', roman: 'I' },
+                { root: 'G3', notes: ['G3', 'B3', 'D4'], name: 'G', roman: 'V' }
+            ],
+            // I-vi-IV-V (classic doo-wop / 50s pop)
+            [
+                { root: 'C3', notes: ['C3', 'E3', 'G3'], name: 'C', roman: 'I' },
+                { root: 'A3', notes: ['A3', 'C4', 'E4'], name: 'Am', roman: 'vi' },
+                { root: 'F3', notes: ['F3', 'A3', 'C4'], name: 'F', roman: 'IV' },
+                { root: 'G3', notes: ['G3', 'B3', 'D4'], name: 'G', roman: 'V' }
+            ]
         ];
+        this.currentProgressionIndex = 0;
+        this.chordProgression = this.chordProgressions[0];
 
         // Note duration patterns for musical variety (in beats)
         // Different sections use different rhythmic patterns
@@ -88,10 +105,6 @@ export class AudioManager {
             outro:  [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]   // Sparse echoes
         };
 
-        // Riff repetition: sections where the first 4-beat phrase repeats
-        // This creates memorable, catchy motifs instead of endless new notes
-        this.riffRepeatSections = new Set(['verseA', 'chorus']);
-
         // C Major Pentatonic scale (no semitones - perfect for melodies)
         // Removes F and B from C major scale to avoid dissonance
         this.pentatonicScale = ['C5', 'D5', 'E5', 'G5', 'A5', 'C6', 'D6', 'E6'];
@@ -115,12 +128,23 @@ export class AudioManager {
             this._sectionLookup.push({ name, start, end: start + duration });
         }
 
-        // Procedural melody generation (replaces hard-coded patterns)
-        this.melodyCache = {}; // Cache generated melodies
-        this.melodyCacheKeys = []; // Track insertion order for LRU eviction
-        this.maxMelodyCacheSize = 50; // Limit cache size to prevent memory growth
-        this.lastNote = 0; // Track last note for smooth transitions
-        this.sectionSeed = {}; // Seed for consistent regeneration per section
+        // Motif-based melody generation - generates a short motif then develops it
+        this.melodyCache = {}; // Cache generated melodies per section+cycle
+        this.melodyCacheKeys = [];
+        this.maxMelodyCacheSize = 50;
+        this.lastNote = 2; // Start on E5 (index 2) for bright opening
+        this.songCycle = 0; // Tracks which song loop we're on
+
+        // Motif development rules: how to transform a 4-note motif
+        // Each function takes a motif array and returns a developed version
+        this.motifDevelopments = [
+            (m) => m.slice(),                                    // Exact repeat
+            (m) => m.map(n => Math.min(7, n + 1)),              // Step up
+            (m) => m.map(n => Math.max(0, n - 1)),              // Step down
+            (m) => m.slice().reverse(),                          // Retrograde
+            (m) => [m[0], m[2], m[1], m[3]],                    // Swap middle
+            (m) => m.map(n => Math.min(7, Math.max(0, n + 2))), // Leap up
+        ];
 
         // Rhythm patterns (1 = play, 0 = rest)
         this.rhythmPatterns = {
@@ -305,7 +329,11 @@ export class AudioManager {
             // Loop back to start after song ends
             if (this.currentBeat >= this.totalBeats) {
                 this.currentBeat = 0;
-                // Clear melody cache so next cycle generates fresh melodies
+                this.songCycle++;
+                // Rotate chord progression for variety
+                this.currentProgressionIndex = (this.currentProgressionIndex + 1) % this.chordProgressions.length;
+                this.chordProgression = this.chordProgressions[this.currentProgressionIndex];
+                // Clear melody cache so next cycle generates fresh motifs
                 this.melodyCache = {};
                 this.melodyCacheKeys = [];
             }
@@ -343,14 +371,37 @@ export class AudioManager {
             this.playChordArpeggio(currentChord, sectionBeat, beatTime);
         }
 
-        // Play bass note (on beats 1 and 3 of each bar)
-        if (this.currentBeat % 2 === 0) {
-            this.playBassNote(currentChord.root, beatTime);
+        // Walking bass - plays every beat with melodic movement
+        // Intro: just root on downbeats. Other sections: full walking pattern.
+        if (section === 'intro' || section === 'outro') {
+            if (this.currentBeat % 4 === 0) {
+                this.playBassNote(currentChord.root, beatTime);
+            }
+        } else {
+            const nextChordIndex = (chordIndex + 1) % this.chordProgression.length;
+            const nextChord = this.chordProgression[nextChordIndex];
+            this.playWalkingBass(currentChord, nextChord, this.currentBeat % 4, beatTime);
         }
 
-        // Play percussion (skip outro for contrast at the end)
-        if (section !== 'outro') {
+        // Play percussion - varies by section for dynamic feel
+        // Intro: hi-hat only (light). Bridge: skip kick (open feel). Outro: none.
+        if (section === 'intro') {
+            // Light percussion - just hi-hats to keep time
+            this.playHiHat(beatTime);
+        } else if (section === 'bridge') {
+            // Bridge: no kick, just snare + hats for open, airy feel
+            const bridgeBeat = sectionBeat % 16;
+            if (this.rhythmPatterns.snare[bridgeBeat]) {
+                this.playSnare(beatTime);
+            }
+            this.playHiHat(beatTime);
+        } else if (section !== 'outro') {
             this.playPercussion(sectionBeat % 16, beatTime);
+        }
+
+        // Chorus: add sustained chord pad for fullness
+        if (section === 'chorus' && sectionBeat % 4 === 0) {
+            this._playChordPad(currentChord, beatTime);
         }
 
         // Sugar Rush extra layers - add energy based on level
@@ -362,56 +413,34 @@ export class AudioManager {
     // === Procedural Melody Generation ===
 
     generateMelody(section, length, chordIndex) {
-        // Generate a musically coherent melody for the given section
+        // Motif-based melody: generate a short seed motif then develop it
+        // This creates recognizable, catchy melodies that evolve over time
         const melody = [];
-        let currentNote = this.lastNote || 0; // Start from last note or root
-
-        // Get current chord tones mapped to pentatonic scale indices
         const chordTones = this.getChordTonesInPentatonic(chordIndex);
+        const seed = this._sectionHash(section, this.songCycle);
 
-        // Different melodic contour shapes for different sections
-        const contour = this.getContourForSection(section);
+        // Generate the core 4-note motif anchored on chord tones
+        const motif = this._generateMotif(chordTones, seed);
 
-        // Riff length for motif repetition (4 beats = 1 bar)
-        const riffLength = 4;
-        const useRiffRepeat = this.riffRepeatSections.has(section) && length >= riffLength * 2;
-
-        for (let i = 0; i < length; i++) {
-            // Riff repetition: repeat the first bar's motif in subsequent bars
-            // with slight variation (transpose by chord movement)
-            if (useRiffRepeat && i >= riffLength && melody.length >= riffLength) {
-                const riffIndex = i % riffLength;
-                const baseNote = melody[riffIndex];
-
-                // Every other repeat, transpose the riff up/down for variation
-                const repeatNum = Math.floor(i / riffLength);
-                let offset = 0;
-                if (repeatNum === 2) offset = 1;       // 3rd repeat: up a step
-                else if (repeatNum === 3) offset = -1;  // 4th repeat: down a step (resolution)
-
-                const transposed = Math.max(0, Math.min(this.pentatonicScale.length - 1, baseNote + offset));
-                melody.push(transposed);
-                currentNote = transposed;
-                continue;
+        // Fill the section by developing the motif across bars
+        const barsNeeded = Math.ceil(length / 4);
+        for (let bar = 0; bar < barsNeeded; bar++) {
+            // Bar 0: original motif. Subsequent bars: pick a development.
+            let developed;
+            if (bar === 0) {
+                developed = motif.slice();
+            } else {
+                const devIndex = (seed + bar) % this.motifDevelopments.length;
+                developed = this.motifDevelopments[devIndex](motif);
             }
 
-            // Emphasize chord tones on strong beats (downbeats and endings)
-            const emphasizeChord = (i % 4 === 0) || (i === length - 1);
-
-            // Generate next note based on music theory rules
-            const nextNote = this.generateNextNote(
-                currentNote,
-                chordTones,
-                emphasizeChord,
-                contour,
-                i / length // Progress through section (0 to 1)
-            );
-
-            melody.push(nextNote);
-            currentNote = nextNote;
+            // Add developed motif notes (up to section length)
+            for (let i = 0; i < 4 && melody.length < length; i++) {
+                melody.push(developed[i % developed.length]);
+            }
         }
 
-        this.lastNote = currentNote; // Remember for smooth transitions
+        this.lastNote = melody[melody.length - 1];
         return melody;
     }
 
@@ -435,108 +464,40 @@ export class AudioManager {
         return chordTones;
     }
 
-    getContourForSection(section) {
-        // Different melodic shapes create variety and structure
-        const contours = {
-            intro: 'gentle',      // Small movements, calm opening
-            verseA: 'ascending',  // Rising energy, building up
-            verseB: 'arch',       // Peak in middle, dramatic
-            chorus: 'wave',       // Up and down, catchy and memorable
-            bridge: 'descending', // Wind down, prepare for resolution
-            outro: 'settling'     // Return to root, peaceful ending
-        };
-
-        return contours[section] || 'wave';
+    // Simple hash for deterministic but varying motif generation per section/cycle
+    _sectionHash(section, cycle) {
+        let hash = cycle * 7 + 13;
+        for (let i = 0; i < section.length; i++) {
+            hash = (hash * 31 + section.charCodeAt(i)) & 0xFF;
+        }
+        return hash;
     }
 
-    generateNextNote(currentNote, chordTones, emphasizeChord, contour, progress) {
-        const scaleLength = this.pentatonicScale.length;
-        const candidates = [];
+    // Generate a 4-note motif anchored on chord tones
+    // Beats 1,3 = chord tones (stability), beats 2,4 = neighbor notes (movement)
+    _generateMotif(chordTones, seed) {
+        const motif = [];
+        const scaleLen = this.pentatonicScale.length;
 
-        // Prefer stepwise motion for smoother, more singable melodies
-        const maxJump = emphasizeChord ? 3 : 2;
+        // Beat 1: chord tone (strong anchor)
+        const ct1 = chordTones[seed % chordTones.length];
+        motif.push(ct1);
 
-        for (let step = -maxJump; step <= maxJump; step++) {
-            const candidate = currentNote + step;
+        // Beat 2: neighboring step from beat 1 (melodic movement)
+        const step2 = (seed & 1) ? 1 : -1;
+        motif.push(Math.max(0, Math.min(scaleLen - 1, ct1 + step2)));
 
-            // Stay within scale bounds
-            if (candidate >= 0 && candidate < scaleLength) {
-                let weight = 1.0;
+        // Beat 3: different chord tone (harmonic interest)
+        const ct3 = chordTones.length > 1
+            ? chordTones[(seed + 1) % chordTones.length]
+            : Math.max(0, Math.min(scaleLen - 1, ct1 + 2));
+        motif.push(ct3);
 
-                // Prefer stepwise motion (±1 step gets higher weight)
-                if (Math.abs(step) === 1) weight *= 2.0;
+        // Beat 4: step back toward beat 1 (creates pull/resolution)
+        const direction = ct1 > ct3 ? 1 : (ct1 < ct3 ? -1 : ((seed >> 1) & 1 ? 1 : -1));
+        motif.push(Math.max(0, Math.min(scaleLen - 1, ct3 + direction)));
 
-                // Emphasize chord tones on strong beats for harmonic coherence
-                if (emphasizeChord && chordTones.includes(candidate)) {
-                    weight *= 3.0;
-                }
-
-                // Apply contour bias to shape the melody
-                weight *= this.getContourWeight(step, contour, progress);
-
-                // Avoid staying on same note (creates static melody)
-                if (step === 0) weight *= 0.3;
-
-                candidates.push({ note: candidate, weight });
-            }
-        }
-
-        // Weighted random selection for musical variation
-        return this.weightedRandom(candidates);
-    }
-
-    getContourWeight(step, contour, progress) {
-        // Bias note selection based on desired melodic contour
-        switch (contour) {
-            case 'ascending':
-                // Prefer upward motion throughout
-                return step > 0 ? 1.5 : 1.0;
-
-            case 'descending':
-                // Prefer downward motion throughout
-                return step < 0 ? 1.5 : 1.0;
-
-            case 'arch':
-                // Go up in first half, down in second half
-                return progress < 0.5
-                    ? (step > 0 ? 1.5 : 1.0)
-                    : (step < 0 ? 1.5 : 1.0);
-
-            case 'wave':
-                // Alternating up/down creates memorable, catchy patterns
-                const phase = progress * 4; // 4 waves per section
-                return Math.sin(phase * Math.PI) > 0
-                    ? (step > 0 ? 1.3 : 1.0)
-                    : (step < 0 ? 1.3 : 1.0);
-
-            case 'gentle':
-                // Prefer small movements, calm and peaceful
-                return Math.abs(step) <= 1 ? 1.5 : 0.8;
-
-            case 'settling':
-                // Move toward root (index 0) for resolution
-                const distanceFromRoot = Math.abs(step);
-                return step < 0 ? 1.3 : 1.0;
-
-            default:
-                return 1.0;
-        }
-    }
-
-    weightedRandom(candidates) {
-        // Select from candidates based on their weights
-        const totalWeight = candidates.reduce((sum, c) => sum + c.weight, 0);
-        let random = Math.random() * totalWeight;
-
-        for (const candidate of candidates) {
-            random -= candidate.weight;
-            if (random <= 0) {
-                return candidate.note;
-            }
-        }
-
-        // Fallback to last candidate
-        return candidates[candidates.length - 1].note;
+        return motif;
     }
 
     // === Music Playback ===
@@ -793,8 +754,69 @@ export class AudioManager {
         sub.stop(time + this.beatDuration * 2);
     }
 
+    // Walking bass: root-fifth-octave-approach pattern for forward momentum
+    playWalkingBass(currentChord, nextChord, beatInBar, time) {
+        let note;
+        const rootNote = currentChord.root;
+
+        switch (beatInBar) {
+            case 0:
+                // Beat 1: root (strong foundation)
+                note = rootNote;
+                break;
+            case 1:
+                // Beat 2: fifth of current chord (harmonic stability)
+                note = currentChord.notes[2] || currentChord.notes[1] || rootNote;
+                break;
+            case 2:
+                // Beat 3: third of current chord (color)
+                note = currentChord.notes[1] || rootNote;
+                break;
+            case 3:
+                // Beat 4: approach note - step toward next chord root
+                // Creates tension that resolves on the next downbeat
+                note = this._getApproachNote(rootNote, nextChord.root);
+                break;
+            default:
+                note = rootNote;
+        }
+
+        this.playBassNote(note, time);
+    }
+
+    // Find an approach note one scale step above or below the target
+    _getApproachNote(currentRoot, targetRoot) {
+        const noteOrder = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+        const targetPitch = targetRoot[0];
+        const targetOctave = targetRoot[1];
+        const targetIdx = noteOrder.indexOf(targetPitch);
+
+        if (targetIdx < 0) return currentRoot;
+
+        // Approach from one scale step below
+        const approachIdx = targetIdx > 0 ? targetIdx - 1 : 6;
+        const approachOctave = targetIdx > 0 ? targetOctave : String(parseInt(targetOctave) - 1);
+        const approachNote = noteOrder[approachIdx] + approachOctave;
+
+        // Return approach note if it exists in our frequency table, else return current root
+        return this.noteFrequencies[approachNote] ? approachNote : currentRoot;
+    }
+
     playPercussion(beat, time) {
         const beatIndex = beat % 16;
+
+        // Snare fill on last 2 beats of every 4-bar phrase (beats 14-15)
+        // Creates energy and signals the phrase boundary
+        if (beatIndex >= 14) {
+            this.playSnare(time);
+            // Double-tap snare on the very last beat for a proper fill
+            if (beatIndex === 15) {
+                this.playSnare(time + this.beatDuration * 0.33);
+                this.playSnare(time + this.beatDuration * 0.66);
+            }
+            this.playHiHat(time);
+            return;
+        }
 
         // Kick drum
         if (this.rhythmPatterns.kick[beatIndex]) {
@@ -975,6 +997,34 @@ export class AudioManager {
         // Level 3: Synth pad chord for fullness (every 4 beats)
         if (this.sugarRushLevel >= 3 && beatIndex % 4 === 0) {
             this._playSugarPad(time, chordIndex);
+        }
+    }
+
+    // Sustained chord pad for chorus sections - warm harmonic bed
+    _playChordPad(chord, time) {
+        const padDuration = this.beatDuration * 3.8;
+
+        for (let i = 0; i < chord.notes.length; i++) {
+            const freq = this.noteFrequencies[chord.notes[i]];
+            if (!freq) continue;
+
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.value = freq * 2; // Octave up for shimmer
+
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(0.02, time + 0.15);
+            gain.gain.setValueAtTime(0.02, time + padDuration * 0.6);
+            gain.gain.linearRampToValueAtTime(0, time + padDuration);
+
+            osc.connect(gain);
+            gain.connect(this._arpPanner);
+            gain.connect(this._reverbSend);
+
+            osc.start(time);
+            osc.stop(time + padDuration);
         }
     }
 
@@ -1641,6 +1691,5 @@ export class AudioManager {
     clearMelodyCache() {
         this.melodyCache = {};
         this.melodyCacheKeys = [];
-        this.sectionSeed = {};
     }
 }

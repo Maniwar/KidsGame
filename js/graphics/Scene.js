@@ -38,6 +38,10 @@ export class GameScene {
         this.sharedMaterials = {};
         this.initSharedTreeLampResources();
 
+        // MEMORY FIX: Build sets of shared resources once so disposal helpers can skip them
+        this._sharedGeoSet = new Set(Object.values(this.sharedGeometries).filter(Boolean));
+        this._sharedMatSet = new Set(Object.values(this.sharedMaterials).filter(Boolean));
+
         this.setupRenderer();
         this.setupEnvironment();
     }
@@ -115,6 +119,24 @@ export class GameScene {
         this.sharedMaterials.flowerPink = new THREE.MeshStandardMaterial({ color: 0xFF69B4, flatShading: true });
         this.sharedMaterials.flowerGold = new THREE.MeshStandardMaterial({ color: 0xFFD700, flatShading: true });
         this.sharedMaterials.flowerLightPink = new THREE.MeshStandardMaterial({ color: 0xFFB6C1, flatShading: true });
+    }
+
+    // Helper: dispose geometry/material on a Three.js object, skipping shared resources
+    _disposeObjectResources(obj) {
+        obj.traverse((child) => {
+            if (child.geometry && !this._sharedGeoSet.has(child.geometry)) {
+                child.geometry.dispose();
+            }
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => {
+                        if (!this._sharedMatSet.has(m)) m.dispose();
+                    });
+                } else {
+                    if (!this._sharedMatSet.has(child.material)) child.material.dispose();
+                }
+            }
+        });
     }
 
     setupRenderer() {
@@ -229,6 +251,7 @@ export class GameScene {
         // PERFORMANCE: Use shared geometry and material (all segments same size)
         if (!this.sharedGeometries.segmentPlane) {
             this.sharedGeometries.segmentPlane = new THREE.PlaneGeometry(8, this.groundSegmentLength);
+            this._sharedGeoSet.add(this.sharedGeometries.segmentPlane);
         }
 
         const segmentPlane = new THREE.Mesh(this.sharedGeometries.segmentPlane, this.sharedMaterials.segmentPlane);
@@ -1060,10 +1083,8 @@ export class GameScene {
             const segment = this.groundSegments[i];
             if (segment.userData.endZ > playerZ + 100) {
                 this.scene.remove(segment);
-                segment.traverse((child) => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
-                });
+                // MEMORY FIX: Skip shared geometries/materials during disposal
+                this._disposeObjectResources(segment);
                 this.groundSegments[i] = this.groundSegments[this.groundSegments.length - 1];
                 this.groundSegments.pop();
             }
@@ -1080,17 +1101,8 @@ export class GameScene {
             const building = this.buildings[i];
             if (building.userData.zPos > playerZ + 50) {
                 this.scene.remove(building);
-                // MEMORY FIX: Dispose building geometries and materials
-                building.traverse((child) => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(m => m.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
-                });
+                // MEMORY FIX: Skip shared window geometries/materials during disposal
+                this._disposeObjectResources(building);
                 this.buildings[i] = this.buildings[this.buildings.length - 1];
                 this.buildings.pop();
             }
@@ -1114,17 +1126,8 @@ export class GameScene {
             // Cleanup if too far behind
             if (decoration.zPos > playerZ + 50) {
                 this.scene.remove(decoration.mesh);
-                // MEMORY FIX: Dispose decoration geometries and materials
-                decoration.mesh.traverse((child) => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(m => m.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
-                });
+                // MEMORY FIX: Skip shared resources during disposal
+                this._disposeObjectResources(decoration.mesh);
                 this.decorations[i] = this.decorations[this.decorations.length - 1];
                 this.decorations.pop();
             }
@@ -1960,6 +1963,8 @@ export class GameScene {
             const obj = this.movingObjects[i];
             if (obj.position.z > playerZ + 20) {
                 this.scene.remove(obj);
+                // MEMORY FIX: Dispose geometries/materials to prevent WebGL resource leak
+                this._disposeObjectResources(obj);
                 // PERFORMANCE: Also remove from obstacle cache if present
                 if (obj.userData.isObstacle) {
                     const cacheIdx = this.movingObstaclesCache.indexOf(obj);
@@ -2016,6 +2021,8 @@ export class GameScene {
             const distance = Math.abs(character.position.z - playerZ);
             if (distance > 100) {
                 this.scene.remove(character);
+                // MEMORY FIX: Dispose geometries/materials to prevent WebGL resource leak
+                this._disposeObjectResources(character);
                 this.sidewalkCharacters[i] = this.sidewalkCharacters[this.sidewalkCharacters.length - 1];
                 this.sidewalkCharacters.pop();
             }
@@ -2031,61 +2038,36 @@ export class GameScene {
         // PERFORMANCE: Reset animation time
         this.animTime = 0;
 
-        // Build sets of shared resources so we never dispose them during reset
-        const sharedGeoSet = new Set(Object.values(this.sharedGeometries).filter(Boolean));
-        const sharedMatSet = new Set(Object.values(this.sharedMaterials).filter(Boolean));
-
-        // Helper function to properly dispose Three.js objects (skips shared resources)
+        // Helper: remove from scene and dispose non-shared resources
         const disposeObject = (obj) => {
             this.scene.remove(obj);
-            obj.traverse((child) => {
-                if (child.geometry && !sharedGeoSet.has(child.geometry)) {
-                    child.geometry.dispose();
-                }
-                if (child.material) {
-                    // Handle both single materials and material arrays
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach(mat => {
-                            if (!sharedMatSet.has(mat)) mat.dispose();
-                        });
-                    } else {
-                        if (!sharedMatSet.has(child.material)) child.material.dispose();
-                    }
-                }
-            });
+            this._disposeObjectResources(obj);
         };
 
         // Clean up all spawned elements with proper disposal
         this.groundSegments.forEach(disposeObject);
         this.groundSegments = [];
 
-        // MEMORY FIX: Buildings were not disposing geometry/materials
         this.buildings.forEach(disposeObject);
         this.buildings = [];
 
-        // MEMORY FIX: backgroundObjects stale references were never cleared
         this.backgroundObjects = [];
 
-        // MEMORY FIX: Decorations were not disposing geometry/materials
         this.decorations.forEach(decoration => {
             disposeObject(decoration.mesh);
         });
         this.decorations = [];
 
-        // MEMORY FIX: Sidewalk characters were not disposing geometry/materials
         this.sidewalkCharacters.forEach(disposeObject);
         this.sidewalkCharacters = [];
 
-        // MEMORY FIX: Moving objects (cars/buses) were not disposing geometry/materials
         this.movingObjects.forEach(disposeObject);
         this.movingObjects = [];
-        this.movingObstaclesCache = []; // PERFORMANCE: Clear obstacle cache on reset
+        this.movingObstaclesCache = [];
 
-        // Clean up street lamps
         this.streetLamps.forEach(disposeObject);
         this.streetLamps = [];
 
-        // Clean up trees
         this.trees.forEach(disposeObject);
         this.trees = [];
 

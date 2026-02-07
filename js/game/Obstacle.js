@@ -116,14 +116,14 @@ export class Obstacle {
                 flatShading: true,
             });
 
-            // Lower stripe
-            const stripe1Geometry = new THREE.CylinderGeometry(0.38, 0.45, 0.14, 8);
+            // Lower stripe (radii follow cone taper to sit flush)
+            const stripe1Geometry = new THREE.CylinderGeometry(0.37, 0.43, 0.14, 8);
             const stripe1 = new THREE.Mesh(stripe1Geometry, stripeMaterial);
             stripe1.position.y = 0.4;
             this.group.add(stripe1);
 
-            // Upper stripe
-            const stripe2Geometry = new THREE.CylinderGeometry(0.24, 0.30, 0.12, 8);
+            // Upper stripe (radii follow cone taper to sit flush)
+            const stripe2Geometry = new THREE.CylinderGeometry(0.19, 0.24, 0.12, 8);
             const stripe2 = new THREE.Mesh(stripe2Geometry, stripeMaterial);
             stripe2.position.y = 0.85;
             this.group.add(stripe2);

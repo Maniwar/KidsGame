@@ -15,7 +15,7 @@ export class AudioManager {
         this.beatDuration = 60 / this.tempo; // seconds per beat
 
         // Settings
-        this.musicVolume = 0.15; // Lower volume for less distraction
+        this.musicVolume = 0.45; // Clearly audible game music
         this.sfxVolume = 0.5;
         this.musicEnabled = true;
 
@@ -288,6 +288,11 @@ export class AudioManager {
         if (!this.isInitialized) {
             this.context = new (window.AudioContext || window.webkitAudioContext)();
 
+            // Resume context if it starts suspended (browser autoplay policy)
+            if (this.context.state === 'suspended') {
+                this.context.resume();
+            }
+
             // Create gain nodes
             this.masterGain = this.context.createGain();
             this.masterGain.connect(this.context.destination);
@@ -343,6 +348,14 @@ export class AudioManager {
             this._snareBuffer = this._createNoiseBuffer(0.1);
             this._hihatBuffer = this._createNoiseBuffer(0.05);
 
+            // Resume AudioContext when user returns to tab (browsers suspend it on background)
+            this._visibilityHandler = () => {
+                if (!document.hidden && this.context && this.context.state === 'suspended') {
+                    this.context.resume();
+                }
+            };
+            document.addEventListener('visibilitychange', this._visibilityHandler);
+
             this.isInitialized = true;
         }
     }
@@ -390,6 +403,11 @@ export class AudioManager {
     playBackgroundMusic() {
         if (!this.isInitialized || !this.musicEnabled) return;
 
+        // Resume AudioContext if browser suspended it (required by autoplay policies)
+        if (this.context.state === 'suspended') {
+            this.context.resume();
+        }
+
         // Cancel any pending stop cleanup that would kill our new session
         if (this._stopTimeout) {
             clearTimeout(this._stopTimeout);
@@ -422,8 +440,29 @@ export class AudioManager {
     scheduleMusic() {
         if (!this.isMusicPlaying) return;
 
+        // Resume AudioContext if browser suspended it (tab backgrounded, etc.)
+        if (this.context.state === 'suspended') {
+            this.context.resume();
+        }
+
         const scheduleAheadTime = 0.2; // Schedule 200ms ahead
         const currentTime = this.context.currentTime;
+
+        // If scheduler fell far behind (e.g., tab was backgrounded), skip ahead
+        // instead of trying to schedule hundreds of missed beats at once
+        if (this.nextBeatTime < currentTime - 1.0) {
+            const missedBeats = Math.floor((currentTime - this.nextBeatTime) / this.beatDuration);
+            this.currentBeat = (this.currentBeat + missedBeats) % this.totalBeats;
+            this.nextBeatTime = currentTime;
+            // If we skipped past a song cycle boundary, rotate progression
+            if (missedBeats >= this.totalBeats) {
+                this.songCycle++;
+                this.currentProgressionIndex = (this.currentProgressionIndex + 1) % this.chordProgressions.length;
+                this.chordProgression = this.chordProgressions[this.currentProgressionIndex];
+                this.melodyCache = {};
+                this.melodyCacheKeys = [];
+            }
+        }
 
         // Schedule all beats that should happen in the next 200ms
         while (this.nextBeatTime < currentTime + scheduleAheadTime) {
@@ -838,13 +877,13 @@ export class AudioManager {
         const isChorusMelody = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
         const melodyInst = this._getMelodyInstrument(section);
 
-        // Melody volume: quieter overall - shares space with response voice
+        // Melody volume per section - louder in chorus for impact
         const sectionVolMap = {
-            intro: 0.05, verseA: 0.05, verseB: 0.055, verseA2: 0.05,
-            chorus: 0.06, chorus2: 0.065, chorus3: 0.065,
-            bridge: 0.045, outro: 0.04
+            intro: 0.09, verseA: 0.09, verseB: 0.10, verseA2: 0.09,
+            chorus: 0.12, chorus2: 0.13, chorus3: 0.13,
+            bridge: 0.08, outro: 0.07
         };
-        const melodyPeak = sectionVolMap[section] || 0.055;
+        const melodyPeak = sectionVolMap[section] || 0.10;
 
         // Play main melody note with dynamically selected instrument
         this._playInstrumentNote(melodyInst, playFreq, melodyPeak, noteDuration, time, this._melodyPanner);
@@ -907,8 +946,8 @@ export class AudioManager {
 
         // Arpeggio louder in chorus for dense harmonic bed
         const isChorusArp = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
-        const arpPeak = isChorusArp ? 0.045 : 0.04;
-        const arpSustain = isChorusArp ? 0.035 : 0.03;
+        const arpPeak = isChorusArp ? 0.07 : 0.06;
+        const arpSustain = isChorusArp ? 0.055 : 0.045;
 
         // ADSR envelope scaled to arpeggio duration
         gain.gain.setValueAtTime(0, time);
@@ -956,8 +995,8 @@ export class AudioManager {
         osc.frequency.value = freq;
 
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.12, time + 0.01);
-        gain.gain.linearRampToValueAtTime(0.08, time + 0.1);
+        gain.gain.linearRampToValueAtTime(0.18, time + 0.01);
+        gain.gain.linearRampToValueAtTime(0.12, time + 0.1);
         gain.gain.exponentialRampToValueAtTime(0.01, time + this.beatDuration * 1.5);
 
         // Low-pass filter for tighter bass (200Hz cutoff for cleaner sub)
@@ -981,8 +1020,8 @@ export class AudioManager {
         sub.frequency.value = freq;
 
         subGain.gain.setValueAtTime(0, time);
-        subGain.gain.linearRampToValueAtTime(0.06, time + 0.01);
-        subGain.gain.linearRampToValueAtTime(0.04, time + 0.1);
+        subGain.gain.linearRampToValueAtTime(0.09, time + 0.01);
+        subGain.gain.linearRampToValueAtTime(0.06, time + 0.1);
         subGain.gain.exponentialRampToValueAtTime(0.01, time + this.beatDuration * 1.8);
 
         sub.connect(subGain);
@@ -1390,10 +1429,10 @@ export class AudioManager {
         // Volume varies by section - louder in chorus where it duets with melody
         const isChorus = section === 'chorus' || section === 'chorus2' || section === 'chorus3';
         const volumeMap = {
-            verseA: 0.055, verseB: 0.06, verseA2: 0.055,
-            bridge: 0.05, outro: 0.05, intro: 0.04
+            verseA: 0.09, verseB: 0.10, verseA2: 0.09,
+            bridge: 0.08, outro: 0.08, intro: 0.07
         };
-        const peakVol = isChorus ? 0.065 : (volumeMap[section] || 0.05);
+        const peakVol = isChorus ? 0.12 : (volumeMap[section] || 0.09);
 
         // Play response note with dynamically selected instrument
         const responseInst = this._getResponseInstrument(section);
@@ -1534,6 +1573,11 @@ export class AudioManager {
     startGameOverMusic() {
         if (!this.isInitialized) return;
         this.stopGameOverMusic(); // Clean up any existing
+
+        // Resume AudioContext if browser suspended it
+        if (this.context.state === 'suspended') {
+            this.context.resume();
+        }
 
         // Gentle Am → F → C → G progression (bittersweet, not depressing)
         const chords = [

@@ -43,7 +43,11 @@ class Game {
         this.lastJumpTime = 0;
         this.lastSlideTime = 0;
         this.lastLaneChangeTime = 0;
-        this.actionCooldown = 0.2; // seconds
+        this.actionCooldown = 0.13; // seconds - snappy but prevents accidental doubles
+
+        // Input buffer - stores pending action during cooldown so it fires immediately after
+        this._bufferedAction = null;
+        this._bufferExpiry = 0;
 
         // Power-up system
         this.activePowerUps = new Map(); // type -> {duration, maxDuration}
@@ -749,6 +753,19 @@ class Game {
     handleInput(deltaTime) {
         const currentTime = performance.now() / 1000;
 
+        // Process any buffered action first (input was pressed during cooldown)
+        if (this._bufferedAction && currentTime < this._bufferExpiry) {
+            const action = this._bufferedAction;
+            this._bufferedAction = null;
+            if (action === 'jump') {
+                this._tryJump(currentTime);
+            } else if (action === 'slide') {
+                this._trySlide(currentTime);
+            }
+        } else {
+            this._bufferedAction = null;
+        }
+
         // Lane switching (with cooldown)
         if (currentTime - this.lastLaneChangeTime > this.actionCooldown) {
             if (this.keyboard.isLeftPressed()) {
@@ -763,28 +780,48 @@ class Game {
         }
 
         // Jumping (only on key press, not while holding)
-        // Reduced cooldown for double jump support
-        if (currentTime - this.lastJumpTime > 0.15) { // 150ms cooldown for double jump
-            if (this.keyboard.isJumpJustPressed()) {
-                const wasJumping = this.player.isJumping;
-                const oldJumpCount = this.player.jumpCount;
-                this.player.jump();
-                // Only play sound and set cooldown if jump was successful
-                if (this.player.jumpCount > oldJumpCount || (!wasJumping && this.player.isJumping)) {
-                    this.audio.playJumpSound();
-                    this.lastJumpTime = currentTime;
-                }
+        if (this.keyboard.isJumpJustPressed()) {
+            if (!this._tryJump(currentTime)) {
+                // Buffer the jump if on cooldown
+                this._bufferedAction = 'jump';
+                this._bufferExpiry = currentTime + 0.1; // 100ms buffer window
             }
         }
 
         // Sliding (only on key press, not while holding)
+        if (this.keyboard.isSlideJustPressed()) {
+            if (!this._trySlide(currentTime)) {
+                // Buffer the slide if on cooldown
+                this._bufferedAction = 'slide';
+                this._bufferExpiry = currentTime + 0.1;
+            }
+        }
+    }
+
+    _tryJump(currentTime) {
+        if (currentTime - this.lastJumpTime > 0.1) { // 100ms cooldown for double jump
+            const wasJumping = this.player.isJumping;
+            const oldJumpCount = this.player.jumpCount;
+            this.player.jump();
+            if (this.player.jumpCount > oldJumpCount || (!wasJumping && this.player.isJumping)) {
+                this.audio.playJumpSound();
+                this.lastJumpTime = currentTime;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    _trySlide(currentTime) {
         if (currentTime - this.lastSlideTime > this.actionCooldown) {
-            if (this.keyboard.isSlideJustPressed()) {
+            if (!this.player.isSliding) {
                 this.player.slide();
                 this.audio.playSlideSound();
                 this.lastSlideTime = currentTime;
+                return true;
             }
         }
+        return false;
     }
 
     update(deltaTime) {

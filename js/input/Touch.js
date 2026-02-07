@@ -5,7 +5,7 @@ export class TouchController {
         this.touchEndX = 0;
         this.touchEndY = 0;
 
-        this.swipeThreshold = 50; // Minimum distance for a swipe
+        this.swipeThreshold = 30; // Minimum distance for a swipe (responsive)
         this.tapThreshold = 10; // Maximum movement for a tap
 
         // Hold-to-move support
@@ -15,8 +15,8 @@ export class TouchController {
         this.currentTouchX = 0;
         this.currentTouchY = 0;
         this.lastHoldMoveTime = 0;
-        this.holdMoveInterval = 200; // Trigger move every 200ms while holding
-        this.holdMoveThreshold = 30; // Minimum horizontal distance from start to trigger hold-move
+        this.holdMoveInterval = 130; // Trigger move every 130ms while holding (snappy)
+        this.holdMoveThreshold = 25; // Minimum horizontal distance from start to trigger hold-move
         this.holdUpdateId = null;
 
         this.onSwipeLeft = null;

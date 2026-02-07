@@ -53,7 +53,7 @@ class Game {
 
         // Mystery Power-Up Box (shop item)
         this.mysteryBoxPurchaseCount = 0; // Resets at each checkpoint
-        this.mysteryBoxBaseCost = 100;
+        this.mysteryBoxBaseCost = 1000;
         this.mysteryBoxMaxPurchases = 5;
         this.mysteryBoxPowerUpTypes = ['magnet', 'shield', 'speed', 'multiplier', 'flight', 'giant'];
 
@@ -3756,6 +3756,17 @@ class Game {
         const container = document.getElementById('shop-mystery-box');
         if (!container) return;
         container.innerHTML = '';
+
+        // Mystery box only available during active gameplay (milestone shop)
+        const isMidGame = this.shopReturnScreen === 'gameplay';
+        if (!isMidGame) {
+            const notice = document.createElement('div');
+            notice.className = 'mystery-box-desc';
+            notice.textContent = 'Available at checkpoints during a run!';
+            notice.style.padding = '8px';
+            container.appendChild(notice);
+            return;
+        }
 
         const totalCoins = this.playerData.getTotalCoins();
         const cost = this.getMysteryBoxCost();

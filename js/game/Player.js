@@ -667,37 +667,64 @@ export class Player {
 
         if (!hasSparkle) return;
 
-        // Create small sparkle star meshes scattered around the character
-        const sparkleCount = 8;
-        const starGeo = new THREE.OctahedronGeometry(0.04, 0);
+        // Determine sparkle accent color from equipped sparkle items
+        let accentHex = 0xFFFFFF;
+        if (this.outfitColors.isSparkleBow) accentHex = this.outfitColors.bowColor;
+        else if (this.outfitColors.isSparkleShirt) accentHex = this.outfitColors.shirtColor;
+        else if (this.outfitColors.isSparkleOveralls) accentHex = this.outfitColors.overallsColor;
+
+        // Three geometry types for visual variety
+        const geoTypes = [
+            new THREE.OctahedronGeometry(0.035, 0),  // Diamond
+            new THREE.TetrahedronGeometry(0.03, 0),   // Triangle sparkle
+            new THREE.SphereGeometry(0.02, 6, 6),     // Tiny glitter dot
+        ];
+
+        // Color palette: mix of white, gold, and accent-colored sparkles
+        const sparkleColors = [0xFFFFFF, 0xFFFFFF, 0xFFF8DC, 0xFFD700, accentHex];
+
+        // More particles for denser glitter (16 around body + 6 close orbit)
+        const sparkleCount = 22;
         for (let i = 0; i < sparkleCount; i++) {
+            const colorHex = sparkleColors[i % sparkleColors.length];
+            const geo = geoTypes[i % geoTypes.length];
             const mat = new THREE.MeshStandardMaterial({
-                color: 0xFFFFFF,
-                emissive: 0xFFFFFF,
-                emissiveIntensity: 1.0,
+                color: colorHex,
+                emissive: colorHex,
+                emissiveIntensity: 1.2,
                 transparent: true,
                 opacity: 0,
             });
-            const star = new THREE.Mesh(starGeo.clone(), mat);
-            // Distribute around character body area
-            const angle = (i / sparkleCount) * Math.PI * 2;
-            const radius = 0.3 + Math.random() * 0.2;
-            const height = 0.2 + Math.random() * 1.0;
+            const star = new THREE.Mesh(geo.clone(), mat);
+
+            // Two layers: inner orbit (close to body) and outer orbit (floating around)
+            const isInner = i >= 16;
+            const angle = (i / (isInner ? 6 : 16)) * Math.PI * 2;
+            const radius = isInner ? (0.15 + Math.random() * 0.1) : (0.3 + Math.random() * 0.25);
+            const height = isInner ? (0.3 + Math.random() * 0.8) : (0.1 + Math.random() * 1.2);
+
             star.position.set(
                 Math.cos(angle) * radius,
                 height,
                 Math.sin(angle) * radius
             );
-            // Stagger phase so they don't all sparkle at once
-            star.userData.sparklePhase = (i / sparkleCount) * Math.PI * 2;
-            star.userData.sparkleSpeed = 2.5 + Math.random() * 1.5;
+
+            // Per-particle animation parameters for varied motion
+            star.userData.sparklePhase = (i / sparkleCount) * Math.PI * 2 + Math.random() * 0.5;
+            star.userData.sparkleSpeed = 3.0 + Math.random() * 2.5; // Faster twinkle
             star.userData.baseY = star.position.y;
+            star.userData.baseAngle = angle;
+            star.userData.orbitRadius = radius;
+            star.userData.orbitSpeed = (0.8 + Math.random() * 1.2) * (i % 2 === 0 ? 1 : -1); // Alternating orbit direction
+            star.userData.floatAmplitude = 0.04 + Math.random() * 0.06; // Varied float height
+            star.userData.sizeBase = isInner ? 0.6 : (0.4 + Math.random() * 0.3); // Inner particles slightly larger
+            star.userData.isInner = isInner;
             this.character.add(star);
             this._sparkleParticles.push(star);
         }
     }
 
-    // Update sparkle visual effects (emissive pulsing + particle animation)
+    // Update sparkle visual effects (multi-frequency shimmer + glitter particle animation)
     updateSparkleEffects(deltaTime) {
         const hasSparkle = this.outfitColors.isSparkleShirt ||
                            this.outfitColors.isSparkleOveralls ||
@@ -705,41 +732,62 @@ export class Player {
         if (!hasSparkle) return;
 
         this._sparkleTime += deltaTime;
+        const t0 = this._sparkleTime;
 
-        // Pulsing emissive on sparkle materials (shimmer effect)
-        const pulse = (Math.sin(this._sparkleTime * 4) + 1) * 0.5; // 0 to 1
+        // Multi-frequency emissive shimmer (layered sine waves for richer sparkle)
+        const pulse1 = (Math.sin(t0 * 5) + 1) * 0.5;        // Fast shimmer
+        const pulse2 = (Math.sin(t0 * 2.3 + 1.0) + 1) * 0.5; // Slow wave
+        const pulse3 = (Math.sin(t0 * 11) + 1) * 0.5;        // Glitter flicker
+        const shimmer = pulse1 * 0.4 + pulse2 * 0.3 + pulse3 * 0.3;
 
         if (this.outfitColors.isSparkleShirt && this.shirtMaterial) {
             this.shirtMaterial.emissive.setHex(this.outfitColors.shirtColor);
-            this.shirtMaterial.emissiveIntensity = 0.1 + pulse * 0.25;
+            this.shirtMaterial.emissiveIntensity = 0.15 + shimmer * 0.4;
+            // Subtle metalness pulse for extra glint
+            this.shirtMaterial.metalness = 0.3 + pulse3 * 0.2;
         }
         if (this.outfitColors.isSparkleOveralls && this.overallsMaterial) {
             this.overallsMaterial.emissive.setHex(this.outfitColors.overallsColor);
-            this.overallsMaterial.emissiveIntensity = 0.1 + pulse * 0.25;
+            this.overallsMaterial.emissiveIntensity = 0.15 + shimmer * 0.4;
+            this.overallsMaterial.metalness = 0.3 + pulse3 * 0.2;
         }
         if (this.outfitColors.isSparkleBow && this.bowMaterial) {
             this.bowMaterial.emissive = new THREE.Color(this.outfitColors.bowColor);
-            this.bowMaterial.emissiveIntensity = 0.15 + pulse * 0.3;
+            this.bowMaterial.emissiveIntensity = 0.2 + shimmer * 0.45;
+            this.bowMaterial.metalness = 0.4 + pulse3 * 0.2;
         }
 
-        // Animate sparkle particles (twinkle in and out)
+        // Animate sparkle particles with orbiting, floating, and staggered twinkle bursts
         for (const star of this._sparkleParticles) {
             const phase = star.userData.sparklePhase;
             const speed = star.userData.sparkleSpeed;
-            const t = this._sparkleTime * speed + phase;
+            const t = t0 * speed + phase;
 
-            // Twinkle: sharp peaks of opacity with mostly-invisible gaps
-            const raw = Math.sin(t);
-            const opacity = Math.max(0, raw * raw * raw); // Cubic for sharp sparkle peaks
+            // Twinkle: layered sharp peaks for rapid glitter bursts
+            const wave1 = Math.sin(t);
+            const wave2 = Math.sin(t * 1.7 + 0.8);
+            const raw = Math.max(wave1, wave2); // Overlapping peaks = more frequent flashes
+            const opacity = Math.max(0, raw * raw * raw * raw); // Quartic for even sharper sparkle peaks
             star.material.opacity = opacity;
+            star.material.emissiveIntensity = 0.8 + opacity * 0.8; // Brighter when visible
 
-            // Small float and spin
-            star.position.y = star.userData.baseY + Math.sin(t * 0.7) * 0.05;
-            star.rotation.y = t * 2;
-            star.rotation.z = t * 1.5;
+            // Orbit around character (slow drift around body)
+            const orbitAngle = star.userData.baseAngle + t0 * star.userData.orbitSpeed;
+            const r = star.userData.orbitRadius;
+            star.position.x = Math.cos(orbitAngle) * r;
+            star.position.z = Math.sin(orbitAngle) * r;
 
-            // Scale pop when visible
-            const s = 0.5 + opacity * 1.0;
+            // Vertical float with varied amplitude
+            star.position.y = star.userData.baseY + Math.sin(t * 0.9) * star.userData.floatAmplitude;
+
+            // Fast spin for glitter catching light
+            star.rotation.y = t * 3;
+            star.rotation.x = t * 2.2;
+            star.rotation.z = t * 1.7;
+
+            // Scale pop: burst big when fully visible, shrink when fading
+            const sBase = star.userData.sizeBase;
+            const s = sBase * (0.3 + opacity * 1.4);
             star.scale.set(s, s, s);
         }
     }
@@ -1082,6 +1130,11 @@ export class Player {
                 this.character.rotation.y = Math.PI + Math.sin(elapsed * 0.01) * 0.2;
             }
 
+            // Keep sparkle glitter and rainbow animating during celebration
+            const frameDelta = 1 / 60;
+            this.updateSparkleEffects(frameDelta);
+            this.updateRainbowColors(frameDelta);
+
             // Keep animating while celebrating
             requestAnimationFrame(animate);
         };
@@ -1266,6 +1319,11 @@ export class Player {
                     this.rightEye.scale.y = this.eyeOpenScale;
                 }
             }
+
+            // Keep sparkle glitter and rainbow animating during death
+            const frameDelta = 1 / 60; // Approximate delta for rAF-driven loops
+            this.updateSparkleEffects(frameDelta);
+            this.updateRainbowColors(frameDelta);
 
             if (progress < 1) {
                 requestAnimationFrame(animate);

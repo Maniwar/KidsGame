@@ -170,6 +170,17 @@ export const COSMETIC_ITEMS = {
         description: 'Dazzling silver shimmer!',
         collection: 'sparkle'
     },
+    rainbow_sparkle_shirt: {
+        id: 'rainbow_sparkle_shirt',
+        name: 'Rainbow Sparkle Shirt',
+        slot: 'shirt',
+        color: 0xFF69B4,
+        isRainbow: true,
+        isSparkle: true,
+        price: 15000, // Legendary - ultimate flex
+        description: 'Rainbow colors AND sparkle glitter!',
+        collection: 'rainbow_sparkle'
+    },
 
     // === OVERALLS ===
     blue_overalls: {
@@ -333,6 +344,18 @@ export const COSMETIC_ITEMS = {
         description: 'Dazzling silver overalls!',
         collection: 'sparkle'
     },
+    rainbow_sparkle_overalls: {
+        id: 'rainbow_sparkle_overalls',
+        name: 'Rainbow Sparkle Overalls',
+        slot: 'overalls',
+        color: 0xFF69B4,
+        pocketColor: 0x69B4FF,
+        isRainbow: true,
+        isSparkle: true,
+        price: 15000, // Legendary - ultimate flex
+        description: 'Rainbow colors AND sparkle glitter!',
+        collection: 'rainbow_sparkle'
+    },
 
     // === BOWS ===
     red_bow: {
@@ -487,6 +510,17 @@ export const COSMETIC_ITEMS = {
         price: 8000, // Rare
         description: 'Dazzling silver bow!',
         collection: 'sparkle'
+    },
+    rainbow_sparkle_bow: {
+        id: 'rainbow_sparkle_bow',
+        name: 'Rainbow Sparkle Bow',
+        slot: 'bow',
+        color: 0xFF69B4,
+        isRainbow: true,
+        isSparkle: true,
+        price: 18000, // Legendary - THE ultimate flex item!
+        description: 'Rainbow colors AND sparkle glitter!',
+        collection: 'rainbow_sparkle'
     }
 };
 

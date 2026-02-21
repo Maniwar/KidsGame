@@ -1186,6 +1186,8 @@ class Game {
                 if (item.id.startsWith('none_')) {
                     option.classList.add('no-clothes');
                     option.textContent = '✕';
+                } else if (item.isRainbow && item.isSparkle) {
+                    option.classList.add('rainbow-sparkle');
                 } else if (item.isRainbow) {
                     option.classList.add('rainbow');
                 } else if (item.isSparkle) {
@@ -3179,6 +3181,8 @@ class Game {
             this.player.updateKnockedOutAnimation(deltaTime);
             // Keep rainbow animation going on game over screen
             this.player.updateRainbowColors(deltaTime);
+            // Keep sparkle glitter going on game over screen
+            this.player.updateSparkleEffects(deltaTime);
         }
 
         // Update celebration camera during milestone screen
@@ -3189,6 +3193,8 @@ class Game {
             this.player.updateBlink(deltaTime);
             // Keep rainbow animation going during celebration
             this.player.updateRainbowColors(deltaTime);
+            // Keep sparkle glitter going during celebration
+            this.player.updateSparkleEffects(deltaTime);
         }
 
         // Render scene
@@ -4018,6 +4024,8 @@ class Game {
 
             if (item.id.startsWith('none_')) {
                 swatch.classList.add('no-clothes');
+            } else if (item.isRainbow && item.isSparkle) {
+                swatch.classList.add('rainbow-sparkle');
             } else if (item.isRainbow) {
                 swatch.classList.add('rainbow');
             } else if (item.isSparkle) {

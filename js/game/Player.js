@@ -416,6 +416,14 @@ export class Player {
             this.head.add(whisker);
         }
 
+        // Tail (cute round ball tail - Hello Kitty style)
+        const tailGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+        this.tail = new THREE.Mesh(tailGeometry, bodyMaterial);
+        this.tail.position.set(0, 0.35, -0.42); // Behind and slightly below body center
+        this.tail.scale.set(1.0, 0.9, 0.9); // Slightly round
+        this.tail.castShadow = true;
+        this.character.add(this.tail);
+
         // Arms with shoulder joints (adjusted for smaller body)
         // Arm geometry with pivot at TOP (shoulder) - translate geometry down
         const armGeometry = new THREE.CylinderGeometry(0.09, 0.09, 0.3, 12);
@@ -746,6 +754,12 @@ export class Player {
             // Bow bounce - add to base diagonal tilt (-0.5 rad = inner loop UP)
             if (this.bow) {
                 this.bow.rotation.z = -0.5 + armSwing * 0.15; // Base tilt + bounce
+            }
+
+            // Tail wag - cute side-to-side wagging while running
+            if (this.tail) {
+                this.tail.rotation.x = Math.sin(runTime * 8) * 0.3; // Side-to-side wag
+                this.tail.rotation.z = Math.cos(runTime * 8) * 0.2; // Slight circular motion
             }
 
             // Head tilt when turning - only update when needed

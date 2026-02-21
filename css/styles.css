@@ -944,6 +944,60 @@ input:checked + .toggle-slider:before {
     100% { background-position: 0% 50%; }
 }
 
+/* Sparkle swatch animation */
+.item-color-swatch.sparkle {
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(255, 255, 255, 0.4);
+}
+
+.item-color-swatch.sparkle::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        rgba(255, 255, 255, 0.8) 10deg,
+        transparent 20deg,
+        transparent 90deg,
+        rgba(255, 255, 255, 0.6) 100deg,
+        transparent 110deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.7) 190deg,
+        transparent 200deg,
+        transparent 270deg,
+        rgba(255, 255, 255, 0.5) 280deg,
+        transparent 290deg
+    );
+    animation: sparkleRotate 3s linear infinite;
+}
+
+.item-color-swatch.sparkle::after {
+    content: "✦";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+    animation: sparklePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sparkleRotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes sparklePulse {
+    0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.8); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+}
+
 .item-name {
     font-size: 12px;
     font-weight: bold;

@@ -63,7 +63,10 @@ export class Player {
             bowColor: 0xFF0000,      // Red (default)
             isRainbowBow: false,
             isRainbowShirt: false,
-            isRainbowOveralls: false
+            isRainbowOveralls: false,
+            isSparkleShirt: false,
+            isSparkleOveralls: false,
+            isSparkleBow: false
         };
 
         // Rainbow animation state
@@ -76,6 +79,10 @@ export class Player {
         // Rainbow bow: merged geometry with vertex colors (5 draw calls → 1)
         this._bowColorAttr = null;     // BufferAttribute reference for fast updates
         this._bowPartRanges = [];      // [{start, count}, ...] vertex ranges per bow part
+
+        // Sparkle animation state
+        this._sparkleTime = 0;
+        this._sparkleParticles = [];   // Array of small star meshes on the character
 
         // Celebration animation state
         this.isCelebrating = false;
@@ -120,10 +127,14 @@ export class Player {
         this.overallsMaterial = new THREE.MeshStandardMaterial({
             color: this.outfitColors.overallsColor,
             flatShading: false,
+            metalness: this.outfitColors.isSparkleOveralls ? 0.4 : 0.0,
+            roughness: this.outfitColors.isSparkleOveralls ? 0.3 : 0.6,
         });
         this.shirtMaterial = new THREE.MeshStandardMaterial({
             color: this.outfitColors.shirtColor,
             flatShading: false,
+            metalness: this.outfitColors.isSparkleShirt ? 0.4 : 0.0,
+            roughness: this.outfitColors.isSparkleShirt ? 0.3 : 0.6,
         });
         // Button material - gold normally, but white when "no overalls" selected
         const isNoOveralls = this.outfitColors.overallsColor === 0xFFFFFF;
@@ -350,8 +361,8 @@ export class Player {
         this.bowMaterial = new THREE.MeshStandardMaterial({
             vertexColors: true,
             flatShading: false,
-            roughness: 0.5,
-            metalness: 0.1,
+            roughness: this.outfitColors.isSparkleBow ? 0.2 : 0.5,
+            metalness: this.outfitColors.isSparkleBow ? 0.5 : 0.1,
         });
 
         // Cache vertex color attribute for fast updates in rainbow animation
@@ -502,6 +513,9 @@ export class Player {
             rightLeg: this.rightLeg,
         };
 
+        // Initialize sparkle particles if sparkle items equipped at creation
+        this.updateSparkleParticles();
+
         // Character faces -Z (forward/movement direction), camera behind sees back
         this.character.position.copy(this.position);
         this.character.rotation.y = Math.PI; // 180° to face -Z
@@ -587,6 +601,29 @@ export class Player {
         if (colors.isRainbowOveralls !== undefined) {
             this.outfitColors.isRainbowOveralls = colors.isRainbowOveralls;
         }
+        if (colors.isSparkleShirt !== undefined) {
+            this.outfitColors.isSparkleShirt = colors.isSparkleShirt;
+            if (this.shirtMaterial) {
+                this.shirtMaterial.metalness = colors.isSparkleShirt ? 0.4 : 0.0;
+                this.shirtMaterial.roughness = colors.isSparkleShirt ? 0.3 : 0.6;
+            }
+        }
+        if (colors.isSparkleOveralls !== undefined) {
+            this.outfitColors.isSparkleOveralls = colors.isSparkleOveralls;
+            if (this.overallsMaterial) {
+                this.overallsMaterial.metalness = colors.isSparkleOveralls ? 0.4 : 0.0;
+                this.overallsMaterial.roughness = colors.isSparkleOveralls ? 0.3 : 0.6;
+            }
+        }
+        if (colors.isSparkleBow !== undefined) {
+            this.outfitColors.isSparkleBow = colors.isSparkleBow;
+            if (this.bowMaterial) {
+                this.bowMaterial.metalness = colors.isSparkleBow ? 0.5 : 0.1;
+                this.bowMaterial.roughness = colors.isSparkleBow ? 0.2 : 0.5;
+            }
+        }
+        // Update sparkle particles based on whether any sparkle items are active
+        this.updateSparkleParticles();
         // Update visibility based on "no clothes" selections
         this.updateOutfitVisibility();
     }
@@ -611,6 +648,99 @@ export class Player {
             this.overallsMeshes.forEach(mesh => {
                 mesh.visible = !isNoOveralls;
             });
+        }
+    }
+
+    // Create or remove sparkle particles based on active sparkle items
+    updateSparkleParticles() {
+        const hasSparkle = this.outfitColors.isSparkleShirt ||
+                           this.outfitColors.isSparkleOveralls ||
+                           this.outfitColors.isSparkleBow;
+
+        // Remove existing sparkle particles
+        this._sparkleParticles.forEach(p => {
+            this.character.remove(p);
+            p.geometry.dispose();
+            p.material.dispose();
+        });
+        this._sparkleParticles = [];
+
+        if (!hasSparkle) return;
+
+        // Create small sparkle star meshes scattered around the character
+        const sparkleCount = 8;
+        const starGeo = new THREE.OctahedronGeometry(0.04, 0);
+        for (let i = 0; i < sparkleCount; i++) {
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xFFFFFF,
+                emissive: 0xFFFFFF,
+                emissiveIntensity: 1.0,
+                transparent: true,
+                opacity: 0,
+            });
+            const star = new THREE.Mesh(starGeo.clone(), mat);
+            // Distribute around character body area
+            const angle = (i / sparkleCount) * Math.PI * 2;
+            const radius = 0.3 + Math.random() * 0.2;
+            const height = 0.2 + Math.random() * 1.0;
+            star.position.set(
+                Math.cos(angle) * radius,
+                height,
+                Math.sin(angle) * radius
+            );
+            // Stagger phase so they don't all sparkle at once
+            star.userData.sparklePhase = (i / sparkleCount) * Math.PI * 2;
+            star.userData.sparkleSpeed = 2.5 + Math.random() * 1.5;
+            star.userData.baseY = star.position.y;
+            this.character.add(star);
+            this._sparkleParticles.push(star);
+        }
+    }
+
+    // Update sparkle visual effects (emissive pulsing + particle animation)
+    updateSparkleEffects(deltaTime) {
+        const hasSparkle = this.outfitColors.isSparkleShirt ||
+                           this.outfitColors.isSparkleOveralls ||
+                           this.outfitColors.isSparkleBow;
+        if (!hasSparkle) return;
+
+        this._sparkleTime += deltaTime;
+
+        // Pulsing emissive on sparkle materials (shimmer effect)
+        const pulse = (Math.sin(this._sparkleTime * 4) + 1) * 0.5; // 0 to 1
+
+        if (this.outfitColors.isSparkleShirt && this.shirtMaterial) {
+            this.shirtMaterial.emissive.setHex(this.outfitColors.shirtColor);
+            this.shirtMaterial.emissiveIntensity = 0.1 + pulse * 0.25;
+        }
+        if (this.outfitColors.isSparkleOveralls && this.overallsMaterial) {
+            this.overallsMaterial.emissive.setHex(this.outfitColors.overallsColor);
+            this.overallsMaterial.emissiveIntensity = 0.1 + pulse * 0.25;
+        }
+        if (this.outfitColors.isSparkleBow && this.bowMaterial) {
+            this.bowMaterial.emissive = new THREE.Color(this.outfitColors.bowColor);
+            this.bowMaterial.emissiveIntensity = 0.15 + pulse * 0.3;
+        }
+
+        // Animate sparkle particles (twinkle in and out)
+        for (const star of this._sparkleParticles) {
+            const phase = star.userData.sparklePhase;
+            const speed = star.userData.sparkleSpeed;
+            const t = this._sparkleTime * speed + phase;
+
+            // Twinkle: sharp peaks of opacity with mostly-invisible gaps
+            const raw = Math.sin(t);
+            const opacity = Math.max(0, raw * raw * raw); // Cubic for sharp sparkle peaks
+            star.material.opacity = opacity;
+
+            // Small float and spin
+            star.position.y = star.userData.baseY + Math.sin(t * 0.7) * 0.05;
+            star.rotation.y = t * 2;
+            star.rotation.z = t * 1.5;
+
+            // Scale pop when visible
+            const s = 0.5 + opacity * 1.0;
+            star.scale.set(s, s, s);
         }
     }
 
@@ -673,6 +803,9 @@ export class Player {
     update(deltaTime) {
         // Update rainbow colors for all rainbow items
         this.updateRainbowColors(deltaTime);
+
+        // Update sparkle effects for all sparkle items
+        this.updateSparkleEffects(deltaTime);
 
         // Move forward automatically
         this.position.z -= this.speed * deltaTime;

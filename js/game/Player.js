@@ -83,6 +83,7 @@ export class Player {
         // Sparkle animation state
         this._sparkleTime = 0;
         this._sparkleParticles = [];   // Array of small star meshes on the character
+        this._bowSparkleParticles = []; // Dedicated sparkle particles orbiting the bow
 
         // Celebration animation state
         this.isCelebrating = false;
@@ -665,6 +666,14 @@ export class Player {
         });
         this._sparkleParticles = [];
 
+        // Remove existing bow sparkle particles
+        this._bowSparkleParticles.forEach(p => {
+            this.head.remove(p);
+            p.geometry.dispose();
+            p.material.dispose();
+        });
+        this._bowSparkleParticles = [];
+
         if (!hasSparkle) return;
 
         // Determine sparkle accent color from equipped sparkle items
@@ -722,6 +731,52 @@ export class Player {
             this.character.add(star);
             this._sparkleParticles.push(star);
         }
+
+        // Create dedicated bow sparkle particles (tight orbit around the bow for visible glitter)
+        if (this.outfitColors.isSparkleBow && this.head) {
+            const bowPos = { x: 0.35, y: 0.42, z: 0.1 }; // Bow position relative to head
+            const bowSparkleCount = 10;
+            const bowGeoTypes = [
+                new THREE.OctahedronGeometry(0.025, 0),   // Tiny diamond
+                new THREE.TetrahedronGeometry(0.02, 0),    // Tiny triangle
+                new THREE.SphereGeometry(0.015, 4, 4),     // Micro dot
+            ];
+            const bowSparkleColors = [0xFFFFFF, 0xFFF8DC, 0xFFD700, accentHex, 0xFFFFFF];
+
+            for (let i = 0; i < bowSparkleCount; i++) {
+                const colorHex = bowSparkleColors[i % bowSparkleColors.length];
+                const geo = bowGeoTypes[i % bowGeoTypes.length];
+                const mat = new THREE.MeshStandardMaterial({
+                    color: colorHex,
+                    emissive: colorHex,
+                    emissiveIntensity: 1.5,
+                    transparent: true,
+                    opacity: 0,
+                });
+                const spark = new THREE.Mesh(geo.clone(), mat);
+
+                const angle = (i / bowSparkleCount) * Math.PI * 2;
+                const radius = 0.12 + Math.random() * 0.15;
+                spark.position.set(
+                    bowPos.x + Math.cos(angle) * radius,
+                    bowPos.y + (Math.random() - 0.5) * 0.2,
+                    bowPos.z + Math.sin(angle) * radius
+                );
+
+                spark.userData.sparklePhase = (i / bowSparkleCount) * Math.PI * 2 + Math.random() * 1.5;
+                spark.userData.sparkleSpeed = 4.0 + Math.random() * 3.0; // Faster than body sparkles
+                spark.userData.baseAngle = angle;
+                spark.userData.orbitRadius = radius;
+                spark.userData.orbitSpeed = (1.5 + Math.random() * 2.0) * (i % 2 === 0 ? 1 : -1);
+                spark.userData.baseY = spark.position.y;
+                spark.userData.floatAmplitude = 0.02 + Math.random() * 0.03;
+                spark.userData.sizeBase = 0.5 + Math.random() * 0.4;
+                spark.userData.bowCenter = bowPos;
+
+                this.head.add(spark);
+                this._bowSparkleParticles.push(spark);
+            }
+        }
     }
 
     // Update sparkle visual effects (multi-frequency shimmer + glitter particle animation)
@@ -752,7 +807,7 @@ export class Player {
             this.overallsMaterial.metalness = 0.3 + pulse3 * 0.2;
         }
         if (this.outfitColors.isSparkleBow && this.bowMaterial) {
-            this.bowMaterial.emissive = new THREE.Color(this.outfitColors.bowColor);
+            this.bowMaterial.emissive.setHex(this.outfitColors.bowColor);
             this.bowMaterial.emissiveIntensity = 0.2 + shimmer * 0.45;
             this.bowMaterial.metalness = 0.4 + pulse3 * 0.2;
         }
@@ -789,6 +844,42 @@ export class Player {
             const sBase = star.userData.sizeBase;
             const s = sBase * (0.3 + opacity * 1.4);
             star.scale.set(s, s, s);
+        }
+
+        // Animate bow-specific sparkle particles (tighter orbit, faster twinkle around bow)
+        for (const spark of this._bowSparkleParticles) {
+            const phase = spark.userData.sparklePhase;
+            const speed = spark.userData.sparkleSpeed;
+            const t = t0 * speed + phase;
+            const bowCenter = spark.userData.bowCenter;
+
+            // Sharper, more frequent twinkle for concentrated glitter effect
+            const wave1 = Math.sin(t);
+            const wave2 = Math.sin(t * 2.1 + 0.5);
+            const wave3 = Math.sin(t * 3.3 + 1.2);
+            const raw = Math.max(wave1, wave2, wave3); // 3 overlapping waves = very frequent flashes
+            const opacity = Math.max(0, raw * raw * raw); // Cubic for sharp sparkle peaks
+            spark.material.opacity = opacity;
+            spark.material.emissiveIntensity = 1.0 + opacity * 1.2; // Extra bright for bow glitter
+
+            // Tight orbit around bow center
+            const orbitAngle = spark.userData.baseAngle + t0 * spark.userData.orbitSpeed;
+            const r = spark.userData.orbitRadius;
+            spark.position.x = bowCenter.x + Math.cos(orbitAngle) * r;
+            spark.position.z = bowCenter.z + Math.sin(orbitAngle) * r;
+
+            // Gentle vertical float
+            spark.position.y = spark.userData.baseY + Math.sin(t * 1.2) * spark.userData.floatAmplitude;
+
+            // Fast spin for glitter catching light
+            spark.rotation.y = t * 4;
+            spark.rotation.x = t * 3.1;
+            spark.rotation.z = t * 2.3;
+
+            // Scale pop with extra punch
+            const sBase = spark.userData.sizeBase;
+            const s = sBase * (0.2 + opacity * 1.6);
+            spark.scale.set(s, s, s);
         }
     }
 

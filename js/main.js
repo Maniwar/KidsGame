@@ -1188,6 +1188,9 @@ class Game {
                     option.textContent = '✕';
                 } else if (item.isRainbow) {
                     option.classList.add('rainbow');
+                } else if (item.isSparkle) {
+                    option.classList.add('sparkle');
+                    option.style.backgroundColor = '#' + item.color.toString(16).padStart(6, '0');
                 } else {
                     option.style.backgroundColor = '#' + item.color.toString(16).padStart(6, '0');
                 }
@@ -4017,6 +4020,9 @@ class Game {
                 swatch.classList.add('no-clothes');
             } else if (item.isRainbow) {
                 swatch.classList.add('rainbow');
+            } else if (item.isSparkle) {
+                swatch.classList.add('sparkle');
+                swatch.style.backgroundColor = '#' + item.color.toString(16).padStart(6, '0');
             } else {
                 swatch.style.backgroundColor = '#' + item.color.toString(16).padStart(6, '0');
             }

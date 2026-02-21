@@ -92,6 +92,85 @@ export const COSMETIC_ITEMS = {
         description: 'Just the fur!'
     },
 
+    // === PASTEL SHIRTS ===
+    pastel_pink_shirt: {
+        id: 'pastel_pink_shirt',
+        name: 'Pastel Pink Shirt',
+        slot: 'shirt',
+        color: 0xFFB5C2,
+        price: 1200, // Common
+        description: 'Soft dreamy pink',
+        collection: 'pastel'
+    },
+    pastel_blue_shirt: {
+        id: 'pastel_blue_shirt',
+        name: 'Pastel Blue Shirt',
+        slot: 'shirt',
+        color: 0xB5D4FF,
+        price: 1200, // Common
+        description: 'Gentle sky blue',
+        collection: 'pastel'
+    },
+    pastel_lavender_shirt: {
+        id: 'pastel_lavender_shirt',
+        name: 'Pastel Lavender Shirt',
+        slot: 'shirt',
+        color: 0xD4B5FF,
+        price: 1800, // Uncommon
+        description: 'Lovely lavender dream',
+        collection: 'pastel'
+    },
+    pastel_mint_shirt: {
+        id: 'pastel_mint_shirt',
+        name: 'Pastel Mint Shirt',
+        slot: 'shirt',
+        color: 0xB5FFD9,
+        price: 1800, // Uncommon
+        description: 'Cool minty fresh',
+        collection: 'pastel'
+    },
+    pastel_peach_shirt: {
+        id: 'pastel_peach_shirt',
+        name: 'Pastel Peach Shirt',
+        slot: 'shirt',
+        color: 0xFFD4B5,
+        price: 2200, // Uncommon
+        description: 'Warm peachy glow',
+        collection: 'pastel'
+    },
+
+    // === SPARKLE SHIRTS ===
+    sparkle_pink_shirt: {
+        id: 'sparkle_pink_shirt',
+        name: 'Sparkle Pink Shirt',
+        slot: 'shirt',
+        color: 0xFF69B4,
+        isSparkle: true,
+        price: 5000, // Rare
+        description: 'Shimmering pink sparkles!',
+        collection: 'sparkle'
+    },
+    sparkle_gold_shirt: {
+        id: 'sparkle_gold_shirt',
+        name: 'Sparkle Gold Shirt',
+        slot: 'shirt',
+        color: 0xFFD700,
+        isSparkle: true,
+        price: 5000, // Rare
+        description: 'Glittering golden shine!',
+        collection: 'sparkle'
+    },
+    sparkle_silver_shirt: {
+        id: 'sparkle_silver_shirt',
+        name: 'Sparkle Silver Shirt',
+        slot: 'shirt',
+        color: 0xC0C0C0,
+        isSparkle: true,
+        price: 7000, // Rare
+        description: 'Dazzling silver shimmer!',
+        collection: 'sparkle'
+    },
+
     // === OVERALLS ===
     blue_overalls: {
         id: 'blue_overalls',
@@ -168,6 +247,93 @@ export const COSMETIC_ITEMS = {
         description: 'Just the fur!'
     },
 
+    // === PASTEL OVERALLS ===
+    pastel_pink_overalls: {
+        id: 'pastel_pink_overalls',
+        name: 'Pastel Pink Overalls',
+        slot: 'overalls',
+        color: 0xFFB5C2,
+        pocketColor: 0xF0A0B0,
+        price: 1500, // Uncommon
+        description: 'Soft dreamy pink overalls',
+        collection: 'pastel'
+    },
+    pastel_blue_overalls: {
+        id: 'pastel_blue_overalls',
+        name: 'Pastel Blue Overalls',
+        slot: 'overalls',
+        color: 0xB5D4FF,
+        pocketColor: 0xA0C4F0,
+        price: 1500, // Uncommon
+        description: 'Gentle sky blue overalls',
+        collection: 'pastel'
+    },
+    pastel_lavender_overalls: {
+        id: 'pastel_lavender_overalls',
+        name: 'Pastel Lavender Overalls',
+        slot: 'overalls',
+        color: 0xD4B5FF,
+        pocketColor: 0xC4A0F0,
+        price: 2000, // Uncommon
+        description: 'Lovely lavender overalls',
+        collection: 'pastel'
+    },
+    pastel_mint_overalls: {
+        id: 'pastel_mint_overalls',
+        name: 'Pastel Mint Overalls',
+        slot: 'overalls',
+        color: 0xB5FFD9,
+        pocketColor: 0xA0F0C8,
+        price: 2000, // Uncommon
+        description: 'Cool minty overalls',
+        collection: 'pastel'
+    },
+    pastel_peach_overalls: {
+        id: 'pastel_peach_overalls',
+        name: 'Pastel Peach Overalls',
+        slot: 'overalls',
+        color: 0xFFD4B5,
+        pocketColor: 0xF0C4A0,
+        price: 2500, // Uncommon
+        description: 'Warm peachy overalls',
+        collection: 'pastel'
+    },
+
+    // === SPARKLE OVERALLS ===
+    sparkle_pink_overalls: {
+        id: 'sparkle_pink_overalls',
+        name: 'Sparkle Pink Overalls',
+        slot: 'overalls',
+        color: 0xFF69B4,
+        pocketColor: 0xDB5599,
+        isSparkle: true,
+        price: 5000, // Rare
+        description: 'Shimmering pink sparkle overalls!',
+        collection: 'sparkle'
+    },
+    sparkle_gold_overalls: {
+        id: 'sparkle_gold_overalls',
+        name: 'Sparkle Gold Overalls',
+        slot: 'overalls',
+        color: 0xFFD700,
+        pocketColor: 0xDAB800,
+        isSparkle: true,
+        price: 5000, // Rare
+        description: 'Glittering golden overalls!',
+        collection: 'sparkle'
+    },
+    sparkle_silver_overalls: {
+        id: 'sparkle_silver_overalls',
+        name: 'Sparkle Silver Overalls',
+        slot: 'overalls',
+        color: 0xC0C0C0,
+        pocketColor: 0xA0A0A0,
+        isSparkle: true,
+        price: 7000, // Rare
+        description: 'Dazzling silver overalls!',
+        collection: 'sparkle'
+    },
+
     // === BOWS ===
     red_bow: {
         id: 'red_bow',
@@ -242,6 +408,85 @@ export const COSMETIC_ITEMS = {
         isRainbow: true,
         price: 12000, // Legendary - THE flex item!
         description: 'Magical color-changing bow!'
+    },
+
+    // === PASTEL BOWS ===
+    pastel_pink_bow: {
+        id: 'pastel_pink_bow',
+        name: 'Pastel Pink Bow',
+        slot: 'bow',
+        color: 0xFFB5C2,
+        price: 800, // Common
+        description: 'Soft dreamy pink bow',
+        collection: 'pastel'
+    },
+    pastel_blue_bow: {
+        id: 'pastel_blue_bow',
+        name: 'Pastel Blue Bow',
+        slot: 'bow',
+        color: 0xB5D4FF,
+        price: 800, // Common
+        description: 'Gentle sky blue bow',
+        collection: 'pastel'
+    },
+    pastel_lavender_bow: {
+        id: 'pastel_lavender_bow',
+        name: 'Pastel Lavender Bow',
+        slot: 'bow',
+        color: 0xD4B5FF,
+        price: 1200, // Common
+        description: 'Lovely lavender bow',
+        collection: 'pastel'
+    },
+    pastel_mint_bow: {
+        id: 'pastel_mint_bow',
+        name: 'Pastel Mint Bow',
+        slot: 'bow',
+        color: 0xB5FFD9,
+        price: 1200, // Common
+        description: 'Cool minty bow',
+        collection: 'pastel'
+    },
+    pastel_peach_bow: {
+        id: 'pastel_peach_bow',
+        name: 'Pastel Peach Bow',
+        slot: 'bow',
+        color: 0xFFD4B5,
+        price: 1600, // Uncommon
+        description: 'Warm peachy bow',
+        collection: 'pastel'
+    },
+
+    // === SPARKLE BOWS ===
+    sparkle_pink_bow: {
+        id: 'sparkle_pink_bow',
+        name: 'Sparkle Pink Bow',
+        slot: 'bow',
+        color: 0xFF69B4,
+        isSparkle: true,
+        price: 6000, // Rare
+        description: 'Shimmering pink sparkle bow!',
+        collection: 'sparkle'
+    },
+    sparkle_gold_bow: {
+        id: 'sparkle_gold_bow',
+        name: 'Sparkle Gold Bow',
+        slot: 'bow',
+        color: 0xFFD700,
+        isSparkle: true,
+        price: 6000, // Rare
+        description: 'Glittering golden bow!',
+        collection: 'sparkle'
+    },
+    sparkle_silver_bow: {
+        id: 'sparkle_silver_bow',
+        name: 'Sparkle Silver Bow',
+        slot: 'bow',
+        color: 0xC0C0C0,
+        isSparkle: true,
+        price: 8000, // Rare
+        description: 'Dazzling silver bow!',
+        collection: 'sparkle'
     }
 };
 
@@ -383,7 +628,10 @@ export class CosmeticShop {
             bowColor: bowItem.color,
             isRainbowBow: bowItem.isRainbow || false,
             isRainbowShirt: shirtItem.isRainbow || false,
-            isRainbowOveralls: overallsItem.isRainbow || false
+            isRainbowOveralls: overallsItem.isRainbow || false,
+            isSparkleShirt: shirtItem.isSparkle || false,
+            isSparkleOveralls: overallsItem.isSparkle || false,
+            isSparkleBow: bowItem.isSparkle || false
         };
     }
 }

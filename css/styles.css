@@ -948,9 +948,14 @@ input:checked + .toggle-slider:before {
 .item-color-swatch.sparkle {
     position: relative;
     overflow: hidden;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(255, 255, 255, 0.4);
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.15),
+        0 0 8px rgba(255, 255, 255, 0.5),
+        0 0 16px rgba(255, 255, 255, 0.2);
+    animation: sparkleGlow 2s ease-in-out infinite;
 }
 
+/* Rotating light sweep */
 .item-color-swatch.sparkle::before {
     content: "";
     position: absolute;
@@ -961,31 +966,42 @@ input:checked + .toggle-slider:before {
     background: conic-gradient(
         from 0deg,
         transparent 0deg,
-        rgba(255, 255, 255, 0.8) 10deg,
-        transparent 20deg,
-        transparent 90deg,
-        rgba(255, 255, 255, 0.6) 100deg,
-        transparent 110deg,
+        rgba(255, 255, 255, 0.9) 8deg,
+        transparent 16deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.7) 68deg,
+        transparent 76deg,
+        transparent 120deg,
+        rgba(255, 255, 255, 0.8) 128deg,
+        transparent 136deg,
         transparent 180deg,
-        rgba(255, 255, 255, 0.7) 190deg,
-        transparent 200deg,
-        transparent 270deg,
-        rgba(255, 255, 255, 0.5) 280deg,
-        transparent 290deg
+        rgba(255, 255, 255, 0.6) 188deg,
+        transparent 196deg,
+        transparent 240deg,
+        rgba(255, 255, 255, 0.75) 248deg,
+        transparent 256deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.65) 308deg,
+        transparent 316deg
     );
-    animation: sparkleRotate 3s linear infinite;
+    animation: sparkleRotate 2s linear infinite;
 }
 
+/* Multi-star glitter overlay */
 .item-color-swatch.sparkle::after {
-    content: "✦";
+    content: "✦✧✦";
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 18px;
-    color: rgba(255, 255, 255, 0.9);
-    text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
-    animation: sparklePulse 1.5s ease-in-out infinite;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow:
+        0 0 4px rgba(255, 255, 255, 1),
+        0 0 8px rgba(255, 255, 255, 0.7),
+        0 0 12px rgba(255, 255, 200, 0.5);
+    animation: sparkleStars 1.2s ease-in-out infinite;
 }
 
 @keyframes sparkleRotate {
@@ -993,9 +1009,76 @@ input:checked + .toggle-slider:before {
     100% { transform: rotate(360deg); }
 }
 
-@keyframes sparklePulse {
-    0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.8); }
-    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+@keyframes sparkleGlow {
+    0%, 100% { box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 6px rgba(255,255,255,0.3), 0 0 12px rgba(255,255,255,0.1); }
+    50% { box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 0 10px rgba(255,255,255,0.6), 0 0 20px rgba(255,255,255,0.3); }
+}
+
+@keyframes sparkleStars {
+    0%   { opacity: 0.5; transform: translate(-50%, -50%) scale(0.7); }
+    25%  { opacity: 1;   transform: translate(-50%, -50%) scale(1.1); }
+    50%  { opacity: 0.6; transform: translate(-50%, -50%) scale(0.85); }
+    75%  { opacity: 1;   transform: translate(-50%, -50%) scale(1.15); }
+    100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.7); }
+}
+
+/* Rainbow Sparkle swatch - combines rainbow gradient with sparkle effects */
+.item-color-swatch.rainbow-sparkle {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+        135deg,
+        #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3
+    );
+    background-size: 400% 400%;
+    animation: rainbowShift 3s ease infinite, sparkleGlow 2s ease-in-out infinite;
+}
+
+.item-color-swatch.rainbow-sparkle::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        rgba(255, 255, 255, 0.9) 8deg,
+        transparent 16deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.7) 68deg,
+        transparent 76deg,
+        transparent 120deg,
+        rgba(255, 255, 255, 0.8) 128deg,
+        transparent 136deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.6) 188deg,
+        transparent 196deg,
+        transparent 240deg,
+        rgba(255, 255, 255, 0.75) 248deg,
+        transparent 256deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.65) 308deg,
+        transparent 316deg
+    );
+    animation: sparkleRotate 2s linear infinite;
+}
+
+.item-color-swatch.rainbow-sparkle::after {
+    content: "✦✧✦";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow:
+        0 0 4px rgba(255, 255, 255, 1),
+        0 0 8px rgba(255, 255, 255, 0.7),
+        0 0 12px rgba(255, 255, 200, 0.5);
+    animation: sparkleStars 1.2s ease-in-out infinite;
 }
 
 .item-name {
